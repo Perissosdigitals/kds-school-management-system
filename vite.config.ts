@@ -7,7 +7,11 @@ export default defineConfig(({ mode }) => {
     return {
       server: {
         port: 5173,
+        strictPort: true, // Fail if port unavailable instead of trying another port
         host: '0.0.0.0',
+        hmr: {
+          overlay: true, // Show errors in browser overlay
+        },
       },
       plugins: [react()],
       define: {

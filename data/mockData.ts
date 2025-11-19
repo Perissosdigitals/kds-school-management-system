@@ -15,9 +15,49 @@ export const allUsers: User[] = [
 ];
 
 export const teacherDetails: Teacher[] = [
-  { id: 'user-6', lastName: 'Traoré', firstName: 'Mamadou', subject: 'Mathématiques', phone: '+225 07 11 22 33 44', email: 'mamadou.traore@email.com', status: 'Actif' },
-  { id: 'user-7', lastName: 'Coulibaly', firstName: 'Fatima', subject: 'Français', phone: '+225 01 55 66 77 88', email: 'fatima.coulibaly@email.com', status: 'Actif' },
-  { id: 'user-8', lastName: 'Koné', firstName: 'Issa', subject: 'Histoire-Géographie', phone: '+225 05 99 88 77 66', email: 'issa.kone@email.com', status: 'Inactif' }
+  { 
+    id: 'user-6', 
+    lastName: 'Traoré', 
+    firstName: 'Mamadou', 
+    subject: 'Mathématiques', 
+    phone: '+225 07 11 22 33 44', 
+    email: 'mamadou.traore@email.com', 
+    status: 'Actif',
+    hireDate: '01/09/2020',
+    specialization: 'Algèbre, Géométrie',
+    address: 'Cocody, Abidjan',
+    emergencyContact: 'Aminata Traoré - +225 07 11 22 33 45',
+    qualifications: 'Licence en Mathématiques, CAFOP',
+    // Les classes et élèves seront ajoutés dynamiquement par le service
+  },
+  { 
+    id: 'user-7', 
+    lastName: 'Coulibaly', 
+    firstName: 'Fatima', 
+    subject: 'Français', 
+    phone: '+225 01 55 66 77 88', 
+    email: 'fatima.coulibaly@email.com', 
+    status: 'Actif',
+    hireDate: '15/01/2019',
+    specialization: 'Littérature, Grammaire',
+    address: 'Plateau, Abidjan',
+    emergencyContact: 'Ibrahim Coulibaly - +225 01 55 66 77 89',
+    qualifications: 'Master en Lettres Modernes, CAPES',
+  },
+  { 
+    id: 'user-8', 
+    lastName: 'Koné', 
+    firstName: 'Issa', 
+    subject: 'Histoire-Géographie', 
+    phone: '+225 05 99 88 77 66', 
+    email: 'issa.kone@email.com', 
+    status: 'Inactif',
+    hireDate: '10/03/2018',
+    specialization: 'Histoire Contemporaine',
+    address: 'Yopougon, Abidjan',
+    emergencyContact: 'Mariame Koné - +225 05 99 88 77 67',
+    qualifications: 'Licence en Histoire-Géographie',
+  }
 ];
 
 

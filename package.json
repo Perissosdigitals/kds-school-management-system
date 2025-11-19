@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --mode development",
+    "dev:stable": "vite --mode development --port 5173",
+    "dev:clean": "pkill -f 'vite' || true && npm run dev:stable",
+    "dev:status": "lsof -ti:5173 && echo '✅ Frontend actif sur :5173' || echo '❌ Frontend arrêté'",
     "build": "vite build --mode production",
     "build:local": "vite build --mode development",
     "preview": "vite preview",

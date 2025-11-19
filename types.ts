@@ -46,7 +46,7 @@ export interface Student {
   lastName: string;
   firstName: string;
   dob: string;
-  gender: 'Masculin' | 'Féminin';
+  gender: 'Masculin' | 'Féminin' | 'M' | 'F' | 'male' | 'female'; // Support multiple formats
   nationality: string;
   birthPlace: string;
   address: string;
@@ -59,6 +59,13 @@ export interface Student {
   medicalInfo: string;
   status: 'Actif' | 'Inactif' | 'En attente';
   documents: StudentDocument[];
+  // Relational data
+  classId?: string;
+  class?: SchoolClass;
+  teacherId?: string;
+  teacher?: Teacher;
+  grades?: Grade[];
+  attendanceRecords?: AttendanceLog[];
 }
 
 export interface Teacher {
@@ -69,6 +76,15 @@ export interface Teacher {
   phone: string;
   email: string;
   status: 'Actif' | 'Inactif';
+  hireDate?: string;
+  specialization?: string;
+  subjects?: string[];
+  // Relational data
+  classes?: SchoolClass[];
+  students?: Student[];
+  address?: string;
+  emergencyContact?: string;
+  qualifications?: string;
 }
 
 export interface Statistics {
@@ -118,6 +134,15 @@ export interface SchoolClass {
   name: string;
   level: string;
   teacherId?: string;
+  teacherName?: string;
+  capacity?: number;
+  currentOccupancy?: number;
+  room?: string;
+  academicYear?: string;
+  schedule?: TimetableSession[];
+  // Relational data
+  students?: Student[];
+  teacher?: Teacher;
 }
 
 export interface TimetableSession {

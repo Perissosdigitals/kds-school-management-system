@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { User, Page, SchoolClass, Student, TimetableSession, Evaluation, Grade, Teacher } from '../types';
-import { getClassesData, ClassDetailData, getSingleClassData } from '../services/api/classes.service';
+import { getClassesData, ClassDetailData, getSingleClassData, ClassesService } from '../services/api/classes.service';
 import { getSubjectColor } from '../utils/colorUtils';
 import { LoadingSpinner } from './ui/LoadingSpinner';
+import { ClassEditForm } from './ClassEditForm';
 
 // --- Detail View Components ---
 
@@ -144,8 +145,11 @@ const ClassListView: React.FC<{
     classes: SchoolClass[];
     teachers: Teacher[];
     students: Student[];
-    onSelectClass: (id: string) => void; 
-}> = ({ classes, teachers, students, onSelectClass }) => {
+    onSelectClass: (id: string) => void;
+    onEditClass: (cls: SchoolClass) => void;
+    onDeleteClass: (cls: SchoolClass) => void;
+    onCreateClass: () => void;
+}> = ({ classes, teachers, students, onSelectClass, onEditClass, onDeleteClass, onCreateClass }) => {
     
     const findTeacherName = (id?: string) => {
         if (!id) return 'N/A';
@@ -157,21 +161,54 @@ const ClassListView: React.FC<{
 
     return (
         <div className="space-y-6">
-             <div>
-                <h2 className="text-3xl font-bold text-slate-800">Gestion des Classes</h2>
-                <p className="text-gray-500">Sélectionnez une classe pour voir son tableau de bord détaillé.</p>
+             <div className="flex justify-between items-start">
+                <div>
+                    <h2 className="text-3xl font-bold text-slate-800">Gestion des Classes</h2>
+                    <p className="text-gray-500">Sélectionnez une classe pour voir son tableau de bord détaillé.</p>
+                </div>
+                <button
+                    onClick={onCreateClass}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300"
+                >
+                    <i className='bx bx-plus-circle'></i>
+                    <span>Nouvelle Classe</span>
+                </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {classes.map(cls => (
                     <div 
                         key={cls.id}
-                        onClick={() => onSelectClass(cls.id)}
-                        className="bg-white p-6 rounded-xl shadow-md cursor-pointer transition-transform transform hover:-translate-y-1 hover:shadow-lg border-l-4 border-blue-600"
+                        className="bg-white p-6 rounded-xl shadow-md transition-transform transform hover:-translate-y-1 hover:shadow-lg border-l-4 border-blue-600 relative group"
                     >
-                        <h3 className="text-xl font-bold text-slate-800 mb-2">{cls.name}</h3>
-                        <div className="text-sm text-gray-500 space-y-1">
-                            <p className="flex items-center gap-2"><i className='bx bxs-user-badge'></i> {findTeacherName(cls.teacherId)}</p>
-                            <p className="flex items-center gap-2"><i className='bx bxs-group'></i> {countStudents(cls.level)} élèves</p>
+                        <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEditClass(cls);
+                                }}
+                                className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition-colors"
+                                title="Modifier"
+                            >
+                                <i className='bx bxs-edit text-lg'></i>
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteClass(cls);
+                                }}
+                                className="p-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-full transition-colors"
+                                title="Supprimer"
+                            >
+                                <i className='bx bxs-trash text-lg'></i>
+                            </button>
+                        </div>
+                        <div onClick={() => onSelectClass(cls.id)} className="cursor-pointer">
+                            <h3 className="text-xl font-bold text-slate-800 mb-2">{cls.name}</h3>
+                            <div className="text-sm text-gray-500 space-y-1">
+                                <p className="flex items-center gap-2"><i className='bx bxs-user-badge'></i> {findTeacherName(cls.teacherId)}</p>
+                                <p className="flex items-center gap-2"><i className='bx bxs-group'></i> {countStudents(cls.level)} élèves</p>
+                                {cls.room && <p className="flex items-center gap-2"><i className='bx bxs-door-open'></i> {cls.room}</p>}
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -185,16 +222,54 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
     const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [data, setData] = useState<{ classes: SchoolClass[], teachers: Teacher[], students: Student[] } | null>(null);
+    const [viewMode, setViewMode] = useState<'list' | 'detail' | 'edit' | 'create'>('list');
+    const [selectedClass, setSelectedClass] = useState<SchoolClass | null>(null);
 
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            const result = await getClassesData();
-            setData(result);
-            setIsLoading(false);
-        };
         loadData();
     }, []);
+
+    const loadData = async () => {
+        setIsLoading(true);
+        const result = await getClassesData();
+        setData(result);
+        setIsLoading(false);
+    };
+
+    const handleCreateClass = () => {
+        setSelectedClass(null);
+        setViewMode('create');
+    };
+
+    const handleEditClass = (cls: SchoolClass) => {
+        setSelectedClass(cls);
+        setViewMode('edit');
+    };
+
+    const handleDeleteClass = async (cls: SchoolClass) => {
+        if (window.confirm(`Êtes-vous sûr de vouloir supprimer la classe ${cls.name} ?`)) {
+            try {
+                await ClassesService.deleteClass(cls.id);
+                alert('Classe supprimée avec succès !');
+                loadData(); // Refresh
+            } catch (error) {
+                console.error('Erreur lors de la suppression:', error);
+                alert('Erreur lors de la suppression de la classe.');
+            }
+        }
+    };
+
+    const handleSaveClass = (updatedClass: SchoolClass) => {
+        setViewMode('list');
+        setSelectedClass(null);
+        loadData(); // Refresh
+    };
+
+    const handleBack = () => {
+        setViewMode('list');
+        setSelectedClassId(null);
+        setSelectedClass(null);
+    };
 
     const availableClasses = useMemo(() => {
         if (!data) return [];
@@ -208,11 +283,58 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
         return <LoadingSpinner />;
     }
 
-    if (selectedClassId) {
-        return <ClassDetailView classId={selectedClassId} onBack={() => setSelectedClassId(null)} setActivePage={setActivePage} />;
+    // Show edit form
+    if (viewMode === 'edit' && selectedClass) {
+        return <ClassEditForm schoolClass={selectedClass} onSave={handleSaveClass} onCancel={handleBack} />;
     }
 
-    return <ClassListView classes={availableClasses} teachers={data.teachers} students={data.students} onSelectClass={setSelectedClassId} />;
+    // Show create form (we need to update ClassEditForm to support create mode)
+    if (viewMode === 'create') {
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                    <button onClick={handleBack} className="bg-white p-2 rounded-full shadow-md hover:bg-slate-100 transition-colors">
+                        <i className='bx bx-arrow-back text-2xl text-slate-700'></i>
+                    </button>
+                    <h2 className="text-3xl font-bold text-slate-800">Créer une Nouvelle Classe</h2>
+                </div>
+                <ClassEditForm 
+                    schoolClass={{
+                        id: '',
+                        name: '',
+                        level: '',
+                        teacherId: '',
+                        capacity: 30,
+                        room: '',
+                        academicYear: '2024-2025'
+                    } as SchoolClass} 
+                    onSave={handleSaveClass} 
+                    onCancel={handleBack} 
+                />
+            </div>
+        );
+    }
+
+    // Show detail view
+    if (viewMode === 'detail' && selectedClassId) {
+        return <ClassDetailView classId={selectedClassId} onBack={handleBack} setActivePage={setActivePage} />;
+    }
+
+    // Show list view
+    return (
+        <ClassListView 
+            classes={availableClasses} 
+            teachers={data.teachers} 
+            students={data.students} 
+            onSelectClass={(id) => {
+                setSelectedClassId(id);
+                setViewMode('detail');
+            }}
+            onEditClass={handleEditClass}
+            onDeleteClass={handleDeleteClass}
+            onCreateClass={handleCreateClass}
+        />
+    );
 };
 
 export default ClassManagement;

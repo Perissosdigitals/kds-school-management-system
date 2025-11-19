@@ -99,13 +99,64 @@ const TeacherDashboard: React.FC<{ currentUser: User, setActivePage: (page: Page
 const AdminDashboard: React.FC<{ setActivePage: (page: Page) => void }> = ({ setActivePage }) => {
     const [data, setData] = useState<AdminDashboardData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [realTimeStats, setRealTimeStats] = useState({
+        students: 0,
+        teachers: 0,
+        classes: 0,
+        pendingDocs: 0,
+        revenue: 0,
+        expenses: 0,
+        balance: 0,
+    });
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
-            const result = await getAdminDashboardData();
-            setData(result);
-            setIsLoading(false);
+            try {
+                // Charger les données principales du dashboard
+                const result = await getAdminDashboardData();
+                setData(result);
+
+                // Charger les statistiques en temps réel en parallèle
+                const [studentsRes, teachersRes, classesRes, docsRes, revenueRes, expensesRes, balanceRes] = await Promise.all([
+                    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1'}/students/stats/count`).catch(() => null),
+                    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1'}/teachers/stats/count`).catch(() => null),
+                    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1'}/classes/stats/count`).catch(() => null),
+                    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1'}/documents/expired`).catch(() => null),
+                    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1'}/finance/stats/revenue`).catch(() => null),
+                    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1'}/finance/stats/expenses`).catch(() => null),
+                    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1'}/finance/stats/balance`).catch(() => null),
+                ]);
+
+                const students = studentsRes ? await studentsRes.json().catch(() => ({ count: 0 })) : { count: 0 };
+                const teachers = teachersRes ? await teachersRes.json().catch(() => ({ count: 0 })) : { count: 0 };
+                const classes = classesRes ? await classesRes.json().catch(() => ({ count: 0 })) : { count: 0 };
+                const docs = docsRes ? await docsRes.json().catch(() => []) : [];
+                const revenue = revenueRes ? await revenueRes.json().catch(() => ({ total: 0 })) : { total: 0 };
+                const expenses = expensesRes ? await expensesRes.json().catch(() => ({ total: 0 })) : { total: 0 };
+                const balance = balanceRes ? await balanceRes.json().catch(() => ({ balance: 0 })) : { balance: 0 };
+
+                setRealTimeStats({
+                    students: students.count || 0,
+                    teachers: teachers.count || 0,
+                    classes: classes.count || 0,
+                    pendingDocs: Array.isArray(docs) ? docs.length : 0,
+                    revenue: revenue.total || 0,
+                    expenses: expenses.total || 0,
+                    balance: balance.balance || 0,
+                });
+
+                console.log('✅ Statistiques en temps réel chargées:', {
+                    étudiants: students.count,
+                    enseignants: teachers.count,
+                    classes: classes.count,
+                    revenus: revenue.total,
+                });
+            } catch (error) {
+                console.error('❌ Erreur chargement dashboard:', error);
+            } finally {
+                setIsLoading(false);
+            }
         };
         fetchData();
     }, []);
@@ -114,20 +165,84 @@ const AdminDashboard: React.FC<{ setActivePage: (page: Page) => void }> = ({ set
     if (!data) return <p>Impossible de charger les données du tableau de bord.</p>;
 
     const { totalStudents, totalStaff, schoolOverallAverage, totalEvaluations, classPerformances } = data;
+    
+    // Utiliser les stats en temps réel si disponibles, sinon les données mockées
+    const displayStudents = realTimeStats.students > 0 ? realTimeStats.students : totalStudents;
+    const displayTeachers = realTimeStats.teachers > 0 ? realTimeStats.teachers : totalStaff;
+    const displayClasses = realTimeStats.classes > 0 ? realTimeStats.classes : totalEvaluations;
+
+    // Formater les montants
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('fr-FR', {
+            style: 'decimal',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(amount) + ' FCFA';
+    };
 
     return (
         <div className="space-y-8">
-            <div>
-                <h2 className="text-3xl font-bold text-slate-800">Bienvenue à l'École KDS ! 👋</h2>
-                <p className="text-gray-500">Tableau de Bord Administratif</p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <h2 className="text-3xl font-bold text-slate-800">Bienvenue à l'École KDS ! 👋</h2>
+                    <p className="text-gray-500">Tableau de Bord Administratif - Données en Temps Réel</p>
+                    {realTimeStats.students > 0 && (
+                        <p className="text-xs text-green-600 mt-1">
+                            <i className='bx bx-check-circle'></i> Connecté à la base de données locale
+                        </p>
+                    )}
+                </div>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    title="Actualiser les statistiques"
+                >
+                    <i className='bx bx-refresh'></i>
+                    <span className="hidden sm:inline">Actualiser</span>
+                </button>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Élèves Inscrits" value={totalStudents} icon="bxs-graduation" color="border-blue-700" />
-                <StatCard title="Membres du Personnel" value={totalStaff} icon="bxs-user-badge" color="border-purple-600" />
-                <StatCard title="Moyenne École" value={`${schoolOverallAverage.toFixed(1)}%`} icon="bxs-bar-chart-alt-2" color="border-green-600" />
-                <StatCard title="Évaluations Créées" value={totalEvaluations} icon="bxs-pen" color="border-amber-500" />
+                <StatCard title="Élèves Inscrits" value={displayStudents} icon="bxs-graduation" color="border-blue-700" />
+                <StatCard title="Personnel" value={displayTeachers} icon="bxs-user-badge" color="border-purple-600" />
+                <StatCard title="Classes Actives" value={displayClasses} icon="bxs-chalkboard" color="border-green-600" />
+                <StatCard title="Docs en Attente" value={realTimeStats.pendingDocs} icon="bxs-file" color="border-amber-500" />
             </div>
+
+            {/* Statistiques Financières */}
+            {(realTimeStats.revenue > 0 || realTimeStats.expenses > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-500">Revenus Totaux</p>
+                                <p className="text-2xl font-bold text-green-600">{formatCurrency(realTimeStats.revenue)}</p>
+                            </div>
+                            <i className='bx bxs-wallet text-4xl text-green-500 opacity-20'></i>
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-red-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-500">Dépenses Totales</p>
+                                <p className="text-2xl font-bold text-red-600">{formatCurrency(realTimeStats.expenses)}</p>
+                            </div>
+                            <i className='bx bxs-receipt text-4xl text-red-500 opacity-20'></i>
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-500">Solde</p>
+                                <p className={`text-2xl font-bold ${realTimeStats.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                    {formatCurrency(realTimeStats.balance)}
+                                </p>
+                            </div>
+                            <i className='bx bxs-bank text-4xl text-blue-500 opacity-20'></i>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white p-6 rounded-xl shadow-md">
                 <h3 className="text-xl font-semibold text-slate-800 mb-4 flex items-center gap-2">

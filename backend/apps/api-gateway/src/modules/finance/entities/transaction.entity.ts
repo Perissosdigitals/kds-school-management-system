@@ -85,7 +85,7 @@ export class Transaction {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: true })
   recordedBy: string;
 
   @CreateDateColumn()

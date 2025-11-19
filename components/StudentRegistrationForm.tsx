@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import type { Student } from '../types';
+import React, { useState, useEffect } from 'react';
+import type { Student, SchoolClass } from '../types';
 import { StudentsService } from '../services/api/students.service';
+import { schoolClasses } from '../data/mockData';
 
 interface StudentRegistrationFormProps {
   onSuccess: (newStudent: Student) => void;
@@ -19,6 +20,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
     phone: '',
     email: '',
     gradeLevel: '',
+    classId: '', // Ajout du classId
     registrationDate: new Date().toISOString().split('T')[0],
     previousSchool: '',
     emergencyContactName: '',
@@ -26,6 +28,27 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
     medicalInfo: '',
     status: 'En attente',
   });
+
+  const [availableClasses, setAvailableClasses] = useState<SchoolClass[]>([]);
+
+  // Filtrer les classes disponibles selon le niveau scolaire sélectionné
+  useEffect(() => {
+    if (formData.gradeLevel) {
+      const filtered = schoolClasses.filter(cls => cls.level === formData.gradeLevel);
+      setAvailableClasses(filtered);
+      
+      // Si une seule classe disponible, la sélectionner automatiquement
+      if (filtered.length === 1) {
+        setFormData(prev => ({ ...prev, classId: filtered[0].id }));
+      } else {
+        // Réinitialiser classId si le niveau change
+        setFormData(prev => ({ ...prev, classId: '' }));
+      }
+    } else {
+      setAvailableClasses([]);
+      setFormData(prev => ({ ...prev, classId: '' }));
+    }
+  }, [formData.gradeLevel]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,15 +95,39 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
     setSuccessMessage(null);
 
     try {
-      console.log('StudentRegistrationForm: Création d\'un nouvel élève...', formData);
+      console.log('📝 StudentRegistrationForm: Soumission du formulaire...', formData);
       const newStudent = await StudentsService.createStudent(formData as Omit<Student, 'id'>);
-      setSuccessMessage(`${newStudent.firstName} ${newStudent.lastName} a été enregistré(e) avec succès!`);
+      console.log('✅ StudentRegistrationForm: Élève créé avec succès:', newStudent);
+      
+      // Message de succès enrichi avec classe et professeur
+      let successMsg = `✅ ${newStudent.firstName} ${newStudent.lastName} a été enregistré(e) avec succès!`;
+      if (newStudent.class) {
+        successMsg += ` - Classe: ${newStudent.class.name}`;
+        if (newStudent.teacher) {
+          successMsg += ` (Prof. ${newStudent.teacher.firstName} ${newStudent.teacher.lastName})`;
+        }
+      }
+      
+      setSuccessMessage(successMsg);
       setTimeout(() => {
         onSuccess(newStudent);
-      }, 2000);
-    } catch (err) {
-      console.error('Erreur lors de la création:', err);
-      setError('Erreur lors de l\'enregistrement de l\'élève. Veuillez réessayer.');
+      }, 2500);
+    } catch (err: any) {
+      console.error('❌ StudentRegistrationForm: ERREUR lors de la création:', err);
+      
+      // Message d'erreur détaillé pour debugging
+      let errorMessage = 'Erreur lors de l\'enregistrement de l\'élève.';
+      
+      if (err.response?.data?.message) {
+        errorMessage += ` Détail: ${err.response.data.message}`;
+      } else if (err.response?.data?.error) {
+        errorMessage += ` Détail: ${err.response.data.error}`;
+      } else if (err.message) {
+        errorMessage += ` Détail: ${err.message}`;
+      }
+      
+      console.error('Message d\'erreur affiché:', errorMessage);
+      setError(errorMessage + ' Vérifiez la console (F12) pour plus de détails.');
     } finally {
       setIsLoading(false);
     }
@@ -96,6 +143,20 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
         >
           ✕
         </button>
+      </div>
+
+      {/* Information importante */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg">
+        <div className="flex items-start gap-3">
+          <i className='bx bx-info-circle text-blue-600 text-xl mt-0.5'></i>
+          <div>
+            <p className="text-sm font-semibold text-blue-900">Important</p>
+            <p className="text-xs text-blue-800 mt-1">
+              Sélectionnez une <span className="font-semibold">classe</span> pour assigner automatiquement un professeur à l'élève. 
+              Cela permettra un suivi personnalisé et une meilleure organisation.
+            </p>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -246,6 +307,51 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
                 <option value="3ème">3ème</option>
               </select>
             </div>
+            
+            {/* Nouveau champ: Classe spécifique */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Classe {formData.gradeLevel && availableClasses.length > 0 ? '*' : ''}
+              </label>
+              <select
+                name="classId"
+                value={formData.classId}
+                onChange={handleInputChange}
+                disabled={!formData.gradeLevel || availableClasses.length === 0}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {!formData.gradeLevel 
+                    ? 'Sélectionnez d\'abord un niveau' 
+                    : availableClasses.length === 0 
+                    ? 'Aucune classe disponible' 
+                    : 'Sélectionner une classe...'}
+                </option>
+                {availableClasses.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name} {cls.teacher?.firstName && `(Prof. ${cls.teacher.firstName} ${cls.teacher.lastName})`}
+                  </option>
+                ))}
+              </select>
+              {formData.gradeLevel && availableClasses.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  <i className='bx bx-info-circle'></i> Aucune classe créée pour ce niveau
+                </p>
+              )}
+              {formData.classId && availableClasses.find(c => c.id === formData.classId)?.teacher && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-700 flex items-center gap-1">
+                    <i className='bx bx-user-circle'></i>
+                    <span className="font-medium">Enseignant assigné:</span>
+                    <span>
+                      {availableClasses.find(c => c.id === formData.classId)?.teacher?.firstName}{' '}
+                      {availableClasses.find(c => c.id === formData.classId)?.teacher?.lastName}
+                    </span>
+                  </p>
+                </div>
+              )}
+            </div>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date d'inscription</label>
               <input

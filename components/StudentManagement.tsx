@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import type { Student, DocumentType, User } from '../types';
+import type { Student, DocumentType, User, SchoolClass, Teacher } from '../types';
 import { exportToCSV, exportCSVTemplate } from '../utils/csvExport';
 import { ImportCSVModal } from './ui/ImportCSVModal';
 import { FilterInput, FilterSelect } from './ui/FilterControls';
@@ -8,6 +8,9 @@ import { StudentDetail } from './StudentDetail';
 import { StudentEditForm } from './StudentEditForm';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { StudentsService } from '../services/api/students.service';
+import { AdvancedStudentFilters, StudentFilters } from './ui/AdvancedStudentFilters';
+import { FilterGuide } from './ui/FilterGuide';
+import { schoolClasses, teacherDetails } from '../data/mockData';
 
 const StudentPedagogicalFile = lazy(() => import('./StudentPedagogicalFile'));
 
@@ -106,13 +109,21 @@ export const StudentManagement: React.FC<{ currentUser: User }> = ({ currentUser
   const [view, setView] = useState<'list' | 'documents' | 'detail' | 'pedagogical' | 'edit'>('list');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const ITEMS_PER_PAGE = 10;
+  
+  // Advanced filters state
+  const [filters, setFilters] = useState<StudentFilters>({
+    searchText: '',
+    selectedClass: '',
+    selectedTeacher: '',
+    selectedStatus: '',
+    selectedGender: '',
+    startDate: '',
+    endDate: ''
+  });
 
 
   useEffect(() => {
@@ -153,25 +164,62 @@ export const StudentManagement: React.FC<{ currentUser: User }> = ({ currentUser
 
   const filteredAndSortedStudents = useMemo(() => {
     let results = allStudents.filter(student => {
-      const dateMatches = (() => {
-        if (!startDate && !endDate) return true;
+      // Search by name filter
+      if (filters.searchText) {
+        const searchLower = filters.searchText.toLowerCase();
+        const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
+        if (!fullName.includes(searchLower)) return false;
+      }
+      
+      // Filter by class
+      if (filters.selectedClass && student.gradeLevel !== filters.selectedClass) {
+        return false;
+      }
+      
+      // Filter by teacher (using student's class teacher)
+      if (filters.selectedTeacher && student.teacherId !== filters.selectedTeacher) {
+        return false;
+      }
+      
+      // Filter by status
+      if (filters.selectedStatus && student.status !== filters.selectedStatus) {
+        return false;
+      }
+      
+      // Filter by gender
+      if (filters.selectedGender) {
+        const normalizedGender = student.gender;
+        const filterGender = filters.selectedGender;
+        
+        // Handle different gender formats
+        const genderMatch = 
+          normalizedGender === filterGender ||
+          (filterGender === 'Masculin' && (normalizedGender === 'M' || normalizedGender === 'male')) ||
+          (filterGender === 'Féminin' && (normalizedGender === 'F' || normalizedGender === 'female')) ||
+          (filterGender === 'M' && (normalizedGender === 'Masculin' || normalizedGender === 'male')) ||
+          (filterGender === 'F' && (normalizedGender === 'Féminin' || normalizedGender === 'female'));
+        
+        if (!genderMatch) return false;
+      }
+      
+      // Filter by date range
+      if (filters.startDate || filters.endDate) {
         const registrationDate = parseDateFR(student.registrationDate);
         if (!registrationDate) return false;
   
-        const start = startDate ? new Date(startDate) : null;
-        const end = endDate ? new Date(endDate) : null;
+        const start = filters.startDate ? new Date(filters.startDate) : null;
+        const end = filters.endDate ? new Date(filters.endDate) : null;
         
         const isAfterStartDate = start ? registrationDate >= start : true;
         const isBeforeEndDate = end ? registrationDate <= end : true;
         
-        return isAfterStartDate && isBeforeEndDate;
-      })();
-
-      const statusMatches = selectedStatus ? student.status === selectedStatus : true;
+        if (!(isAfterStartDate && isBeforeEndDate)) return false;
+      }
       
-      return dateMatches && statusMatches;
+      return true;
     });
 
+    // Apply sorting
     if (sortKey) {
         results.sort((a, b) => {
             let valA, valB;
@@ -190,12 +238,12 @@ export const StudentManagement: React.FC<{ currentUser: User }> = ({ currentUser
     }
 
     return results;
-  }, [allStudents, startDate, endDate, selectedStatus, sortKey, sortDirection]);
+  }, [allStudents, filters, sortKey, sortDirection]);
   
-    // Reset to first page when filters change
+  // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [startDate, endDate, selectedStatus, sortKey, sortDirection]);
+  }, [filters, sortKey, sortDirection]);
   
   const totalPages = Math.ceil(filteredAndSortedStudents.length / ITEMS_PER_PAGE);
   
@@ -319,6 +367,26 @@ export const StudentManagement: React.FC<{ currentUser: User }> = ({ currentUser
             onBack={handleBackToList}
             onViewDocuments={handleViewDocuments}
             onViewPedagogicalFile={handleViewPedagogicalFile}
+            onNavigateToTeacher={(teacherId) => {
+              console.log('Navigate to teacher:', teacherId);
+              // TODO: Implement navigation to teacher detail
+              alert('Navigation vers le professeur - À implémenter dans App.tsx');
+            }}
+            onNavigateToClass={(classId) => {
+              console.log('Navigate to class:', classId);
+              // TODO: Implement navigation to class detail
+              alert('Navigation vers la classe - À implémenter dans App.tsx');
+            }}
+            onNavigateToTimetable={() => {
+              console.log('Navigate to timetable');
+              // TODO: Implement navigation to timetable
+              alert('Navigation vers l\'emploi du temps - À implémenter');
+            }}
+            onNavigateToGrades={() => {
+              console.log('Navigate to grades');
+              // TODO: Implement navigation to grades
+              alert('Navigation vers les notes - À implémenter');
+            }}
         />
     );
   }
@@ -343,6 +411,7 @@ export const StudentManagement: React.FC<{ currentUser: User }> = ({ currentUser
           <p className="text-gray-500">Consultez et gérez les informations des élèves inscrits.</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <FilterGuide />
           <button 
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 w-full sm:w-auto"
@@ -361,32 +430,47 @@ export const StudentManagement: React.FC<{ currentUser: User }> = ({ currentUser
           <button 
             onClick={handleExport}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 w-full sm:w-auto"
+            title={`Exporter ${filteredAndSortedStudents.length} élève(s) (résultats filtrés)`}
           >
             <i className='bx bxs-file-export'></i>
             <span>Exporter CSV</span>
+            {filteredAndSortedStudents.length < allStudents.length && (
+              <span className="bg-green-800 text-xs px-2 py-0.5 rounded-full">
+                {filteredAndSortedStudents.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
       
-      <div className="p-4 bg-slate-50 rounded-lg border">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-          <div>
-            <label htmlFor="start-date" className="text-sm font-medium text-slate-600 block mb-1">Date d'inscription (début)</label>
-            <FilterInput type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+      {/* Advanced Filters Component */}
+      <AdvancedStudentFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        classes={schoolClasses}
+        teachers={teacherDetails}
+      />
+
+      {/* Results Summary */}
+      <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center">
+            <i className='bx bx-user-check text-2xl'></i>
           </div>
           <div>
-            <label htmlFor="end-date" className="text-sm font-medium text-slate-600 block mb-1">Date d'inscription (fin)</label>
-            <FilterInput type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            <p className="text-sm text-gray-600">Résultats de recherche</p>
+            <p className="text-2xl font-bold text-gray-800">
+              {filteredAndSortedStudents.length} élève{filteredAndSortedStudents.length > 1 ? 's' : ''}
+            </p>
           </div>
-          <div>
-            <label htmlFor="status-filter" className="text-sm font-medium text-slate-600 block mb-1">Filtrer par statut</label>
-            <FilterSelect id="status-filter" value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)}>
-                <option value="">Tous les statuts</option>
-                <option value="Actif">Actif</option>
-                <option value="Inactif">Inactif</option>
-                <option value="En attente">En attente</option>
-            </FilterSelect>
-          </div>
+        </div>
+        <div className="text-right text-sm text-gray-600">
+          <p>Total dans la base: <span className="font-semibold text-gray-800">{allStudents.length}</span></p>
+          {filteredAndSortedStudents.length < allStudents.length && (
+            <p className="text-blue-600 font-medium">
+              {allStudents.length - filteredAndSortedStudents.length} élève{allStudents.length - filteredAndSortedStudents.length > 1 ? 's' : ''} masqué{allStudents.length - filteredAndSortedStudents.length > 1 ? 's' : ''} par les filtres
+            </p>
+          )}
         </div>
       </div>
 

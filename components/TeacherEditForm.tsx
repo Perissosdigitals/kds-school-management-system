@@ -116,16 +116,66 @@ export const TeacherEditForm: React.FC<TeacherEditFormProps> = ({ teacher, onSav
         </div>
 
         <div>
+          <h3 className="text-lg font-semibold text-blue-700 mb-4 pb-2 border-b">Contact et Adresse</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+              <input
+                type="text"
+                name="address"
+                value={formData.address || ''}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Adresse complète"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact d'Urgence</label>
+              <input
+                type="text"
+                name="emergencyContact"
+                value={formData.emergencyContact || ''}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Nom et téléphone"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div>
           <h3 className="text-lg font-semibold text-blue-700 mb-4 pb-2 border-b">Informations Professionnelles</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Matière / Spécialité</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Matière Principale</label>
               <input
                 type="text"
                 name="subject"
                 value={formData.subject}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ex: Mathématiques"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date d'Embauche</label>
+              <input
+                type="date"
+                name="hireDate"
+                value={formData.hireDate || ''}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Spécialisation</label>
+              <input
+                type="text"
+                name="specialization"
+                value={formData.specialization || ''}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ex: Algèbre, Géométrie"
               />
             </div>
             <div>
@@ -138,8 +188,18 @@ export const TeacherEditForm: React.FC<TeacherEditFormProps> = ({ teacher, onSav
               >
                 <option value="Actif">Actif</option>
                 <option value="Inactif">Inactif</option>
-                <option value="Congé">Congé</option>
               </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Qualifications et Diplômes</label>
+              <textarea
+                name="qualifications"
+                value={formData.qualifications || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, qualifications: e.target.value }))}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Listez les diplômes et certifications..."
+              />
             </div>
           </div>
         </div>

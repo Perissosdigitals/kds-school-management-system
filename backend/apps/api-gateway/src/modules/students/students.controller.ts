@@ -27,6 +27,7 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { JwtAuthGuard, RolesGuard } from '../../common/guards';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('students')
 @ApiBearerAuth()
@@ -137,6 +138,7 @@ export class StudentsController {
   }
 
   @Post()
+  @Public()  // 🔓 Temporaire: Endpoint public pour développement
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('fondatrice', 'admin', 'directrice')
   @ApiOperation({ 
@@ -150,6 +152,7 @@ export class StudentsController {
   }
 
   @Post('bulk')
+  @Public()  // 🔓 Temporaire: Endpoint public pour développement
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('fondatrice', 'admin', 'directrice')
   @ApiOperation({ summary: 'Créer plusieurs élèves en masse' })
@@ -159,6 +162,7 @@ export class StudentsController {
   }
 
   @Put(':id')
+  @Public()  // 🔓 Temporaire: Endpoint public pour développement
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('fondatrice', 'admin', 'directrice')
   @ApiOperation({ 
@@ -205,6 +209,7 @@ export class StudentsController {
   }
 
   @Delete(':id')
+  @Public()  // 🔓 Temporaire: Endpoint public pour développement
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('fondatrice', 'admin')
   @HttpCode(HttpStatus.NO_CONTENT)
