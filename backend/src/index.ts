@@ -44,6 +44,7 @@ app.post('/api/v1/auth/login', async (c) => {
     const token = await generateJWT(user, c.env.JWT_SECRET);
 
     return c.json({
+      access_token: token,
       user: {
         id: user.id,
         email: user.email,
@@ -51,7 +52,6 @@ app.post('/api/v1/auth/login', async (c) => {
         firstName: user.first_name,
         lastName: user.last_name,
       },
-      token,
     });
   } catch (error) {
     return c.json({ error: 'Login failed' }, 500);

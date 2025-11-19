@@ -133,11 +133,17 @@ const App: React.FC = () => {
         
         // Map backend user to app user format
         const roleMap: { [key: string]: UserRole } = {
+          'founder': 'Fondatrice',
           'fondatrice': 'Fondatrice',
+          'admin': 'Fondatrice', // Admin has full access like Fondatrice
+          'director': 'Directrice',
           'directrice': 'Directrice',
           'comptable': 'Comptable',
+          'accountant': 'Comptable',
           'gestionnaire': 'Gestionnaire',
+          'manager': 'Gestionnaire',
           'agent': 'Agent Administratif',
+          'teacher': 'Enseignant',
           'enseignant': 'Enseignant'
         };
         
