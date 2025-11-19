@@ -510,6 +510,77 @@ app.get('/api/v1/grades', async (c) => {
   }
 });
 
+// POST - Create grade
+app.post('/api/v1/grades', async (c) => {
+  try {
+    const body = await c.req.json();
+    const gradeId = crypto.randomUUID();
+
+    await c.env.DB.prepare(`
+      INSERT INTO grades (id, student_id, subject_id, category_id, grade, max_grade, 
+        evaluation_date, comment, recorded_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      gradeId,
+      body.studentId,
+      body.subjectId,
+      body.categoryId || null,
+      body.grade,
+      body.maxGrade || 20,
+      body.evaluationDate || new Date().toISOString().split('T')[0],
+      body.comment || null,
+      body.recordedBy || null
+    ).run();
+
+    return c.json({ id: gradeId, message: 'Grade created successfully' }, 201);
+  } catch (error) {
+    console.error('Create grade error:', error);
+    return c.json({ error: 'Failed to create grade' }, 500);
+  }
+});
+
+// PUT - Update grade
+app.put('/api/v1/grades/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    await c.env.DB.prepare(`
+      UPDATE grades SET
+        grade = COALESCE(?, grade),
+        max_grade = COALESCE(?, max_grade),
+        evaluation_date = COALESCE(?, evaluation_date),
+        comment = COALESCE(?, comment),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.grade || null,
+      body.maxGrade || null,
+      body.evaluationDate || null,
+      body.comment || null,
+      id
+    ).run();
+
+    return c.json({ message: 'Grade updated successfully' });
+  } catch (error) {
+    console.error('Update grade error:', error);
+    return c.json({ error: 'Failed to update grade' }, 500);
+  }
+});
+
+// DELETE - Delete grade
+app.delete('/api/v1/grades/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    
+    await c.env.DB.prepare(`DELETE FROM grades WHERE id = ?`).bind(id).run();
+
+    return c.json({ message: 'Grade deleted successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to delete grade' }, 500);
+  }
+});
+
 // ========================================================================
 // ATTENDANCE ROUTES
 // ========================================================================
@@ -545,6 +616,71 @@ app.get('/api/v1/attendance', async (c) => {
   }
 });
 
+// POST - Create attendance
+app.post('/api/v1/attendance', async (c) => {
+  try {
+    const body = await c.req.json();
+    const attendanceId = crypto.randomUUID();
+
+    await c.env.DB.prepare(`
+      INSERT INTO attendance (id, student_id, date, status, period, reason, recorded_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      attendanceId,
+      body.studentId,
+      body.date || new Date().toISOString().split('T')[0],
+      body.status,
+      body.period || null,
+      body.reason || null,
+      body.recordedBy || null
+    ).run();
+
+    return c.json({ id: attendanceId, message: 'Attendance recorded successfully' }, 201);
+  } catch (error) {
+    console.error('Create attendance error:', error);
+    return c.json({ error: 'Failed to record attendance' }, 500);
+  }
+});
+
+// PUT - Update attendance
+app.put('/api/v1/attendance/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    await c.env.DB.prepare(`
+      UPDATE attendance SET
+        status = COALESCE(?, status),
+        period = COALESCE(?, period),
+        reason = COALESCE(?, reason)
+      WHERE id = ?
+    `).bind(
+      body.status || null,
+      body.period || null,
+      body.reason || null,
+      id
+    ).run();
+
+    return c.json({ message: 'Attendance updated successfully' });
+  } catch (error) {
+    console.error('Update attendance error:', error);
+    return c.json({ error: 'Failed to update attendance' }, 500);
+  }
+});
+
+// DELETE - Delete attendance
+app.delete('/api/v1/attendance/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    
+    await c.env.DB.prepare(`DELETE FROM attendance WHERE id = ?`).bind(id).run();
+
+    return c.json({ message: 'Attendance deleted successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to delete attendance' }, 500);
+  }
+});
+
 // ========================================================================
 // DASHBOARD/ANALYTICS ROUTES
 // ========================================================================
@@ -569,6 +705,534 @@ app.get('/api/v1/analytics/dashboard', async (c) => {
     });
   } catch (error) {
     return c.json({ error: 'Failed to fetch dashboard data' }, 500);
+  }
+});
+
+// ========================================================================
+// FINANCIAL TRANSACTIONS ROUTES
+// ========================================================================
+
+app.get('/api/v1/finance/transactions', async (c) => {
+  try {
+    const { studentId, status, type } = c.req.query();
+    
+    let query = `
+      SELECT ft.*, u.first_name, u.last_name, s.student_code
+      FROM financial_transactions ft
+      LEFT JOIN students s ON ft.student_id = s.id
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE 1=1
+    `;
+    
+    const params: any[] = [];
+    if (studentId) {
+      query += ' AND ft.student_id = ?';
+      params.push(studentId);
+    }
+    if (status) {
+      query += ' AND ft.status = ?';
+      params.push(status);
+    }
+    if (type) {
+      query += ' AND ft.type = ?';
+      params.push(type);
+    }
+    
+    query += ' ORDER BY ft.created_at DESC';
+    
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    return c.json(results);
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch transactions' }, 500);
+  }
+});
+
+app.post('/api/v1/finance/transactions', async (c) => {
+  try {
+    const body = await c.req.json();
+    const transactionId = crypto.randomUUID();
+
+    await c.env.DB.prepare(`
+      INSERT INTO financial_transactions (id, student_id, type, amount, currency, status, 
+        due_date, description, reference, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      transactionId,
+      body.studentId,
+      body.type,
+      body.amount,
+      body.currency || 'EUR',
+      body.status || 'pending',
+      body.dueDate || null,
+      body.description || null,
+      body.reference || `TXN${Date.now()}`,
+      body.createdBy || null
+    ).run();
+
+    return c.json({ id: transactionId, message: 'Transaction created successfully' }, 201);
+  } catch (error) {
+    console.error('Create transaction error:', error);
+    return c.json({ error: 'Failed to create transaction' }, 500);
+  }
+});
+
+app.put('/api/v1/finance/transactions/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    await c.env.DB.prepare(`
+      UPDATE financial_transactions SET
+        status = COALESCE(?, status),
+        paid_date = COALESCE(?, paid_date),
+        description = COALESCE(?, description),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.status || null,
+      body.paidDate || null,
+      body.description || null,
+      id
+    ).run();
+
+    return c.json({ message: 'Transaction updated successfully' });
+  } catch (error) {
+    console.error('Update transaction error:', error);
+    return c.json({ error: 'Failed to update transaction' }, 500);
+  }
+});
+
+app.delete('/api/v1/finance/transactions/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    await c.env.DB.prepare(`DELETE FROM financial_transactions WHERE id = ?`).bind(id).run();
+    return c.json({ message: 'Transaction deleted successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to delete transaction' }, 500);
+  }
+});
+
+// ========================================================================
+// TIMETABLE ROUTES
+// ========================================================================
+
+app.get('/api/v1/timetable', async (c) => {
+  try {
+    const { classId, teacherId, dayOfWeek } = c.req.query();
+    
+    let query = `
+      SELECT ts.*, c.name as class_name, s.name as subject_name, 
+             u.first_name as teacher_first_name, u.last_name as teacher_last_name
+      FROM timetable_slots ts
+      LEFT JOIN classes c ON ts.class_id = c.id
+      LEFT JOIN subjects s ON ts.subject_id = s.id
+      LEFT JOIN teachers t ON ts.teacher_id = t.id
+      LEFT JOIN users u ON t.user_id = u.id
+      WHERE ts.is_active = 1
+    `;
+    
+    const params: any[] = [];
+    if (classId) {
+      query += ' AND ts.class_id = ?';
+      params.push(classId);
+    }
+    if (teacherId) {
+      query += ' AND ts.teacher_id = ?';
+      params.push(teacherId);
+    }
+    if (dayOfWeek) {
+      query += ' AND ts.day_of_week = ?';
+      params.push(dayOfWeek);
+    }
+    
+    query += ' ORDER BY ts.day_of_week, ts.start_time';
+    
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    return c.json(results);
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch timetable' }, 500);
+  }
+});
+
+app.post('/api/v1/timetable', async (c) => {
+  try {
+    const body = await c.req.json();
+    const slotId = crypto.randomUUID();
+
+    await c.env.DB.prepare(`
+      INSERT INTO timetable_slots (id, class_id, subject_id, teacher_id, room, 
+        day_of_week, start_time, end_time, recurrence_pattern, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).bind(
+      slotId,
+      body.classId,
+      body.subjectId,
+      body.teacherId,
+      body.room || null,
+      body.dayOfWeek,
+      body.startTime,
+      body.endTime,
+      body.recurrencePattern || 'weekly'
+    ).run();
+
+    return c.json({ id: slotId, message: 'Timetable slot created successfully' }, 201);
+  } catch (error) {
+    console.error('Create timetable slot error:', error);
+    return c.json({ error: 'Failed to create timetable slot' }, 500);
+  }
+});
+
+app.put('/api/v1/timetable/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    await c.env.DB.prepare(`
+      UPDATE timetable_slots SET
+        teacher_id = COALESCE(?, teacher_id),
+        room = COALESCE(?, room),
+        start_time = COALESCE(?, start_time),
+        end_time = COALESCE(?, end_time),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.teacherId || null,
+      body.room || null,
+      body.startTime || null,
+      body.endTime || null,
+      id
+    ).run();
+
+    return c.json({ message: 'Timetable slot updated successfully' });
+  } catch (error) {
+    console.error('Update timetable slot error:', error);
+    return c.json({ error: 'Failed to update timetable slot' }, 500);
+  }
+});
+
+app.delete('/api/v1/timetable/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    await c.env.DB.prepare(`
+      UPDATE timetable_slots SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(id).run();
+    return c.json({ message: 'Timetable slot deleted successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to delete timetable slot' }, 500);
+  }
+});
+
+// ========================================================================
+// USERS/MANAGEMENT ROUTES
+// ========================================================================
+
+app.get('/api/v1/users', async (c) => {
+  try {
+    const { role, isActive } = c.req.query();
+    
+    let query = 'SELECT id, email, role, first_name, last_name, phone, is_active, last_login_at, created_at FROM users WHERE 1=1';
+    
+    const params: any[] = [];
+    if (role) {
+      query += ' AND role = ?';
+      params.push(role);
+    }
+    if (isActive !== undefined) {
+      query += ' AND is_active = ?';
+      params.push(isActive === 'true' ? 1 : 0);
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    return c.json(results);
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch users' }, 500);
+  }
+});
+
+app.post('/api/v1/users', async (c) => {
+  try {
+    const body = await c.req.json();
+    const userId = crypto.randomUUID();
+
+    await c.env.DB.prepare(`
+      INSERT INTO users (id, email, password_hash, role, first_name, last_name, phone, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    `).bind(
+      userId,
+      body.email,
+      body.password || 'hashed_password_placeholder',
+      body.role,
+      body.firstName,
+      body.lastName,
+      body.phone || null
+    ).run();
+
+    return c.json({ id: userId, message: 'User created successfully' }, 201);
+  } catch (error) {
+    console.error('Create user error:', error);
+    return c.json({ error: 'Failed to create user' }, 500);
+  }
+});
+
+app.put('/api/v1/users/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    await c.env.DB.prepare(`
+      UPDATE users SET
+        email = COALESCE(?, email),
+        role = COALESCE(?, role),
+        first_name = COALESCE(?, first_name),
+        last_name = COALESCE(?, last_name),
+        phone = COALESCE(?, phone),
+        is_active = COALESCE(?, is_active),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.email || null,
+      body.role || null,
+      body.firstName || null,
+      body.lastName || null,
+      body.phone || null,
+      body.isActive !== undefined ? (body.isActive ? 1 : 0) : null,
+      id
+    ).run();
+
+    return c.json({ message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Update user error:', error);
+    return c.json({ error: 'Failed to update user' }, 500);
+  }
+});
+
+app.delete('/api/v1/users/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    await c.env.DB.prepare(`
+      UPDATE users SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(id).run();
+    return c.json({ message: 'User deactivated successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to deactivate user' }, 500);
+  }
+});
+
+// ========================================================================
+// SCHOOL EVENTS ROUTES (Vie Scolaire)
+// ========================================================================
+
+app.get('/api/v1/school-life/events', async (c) => {
+  try {
+    const { eventType, status, startDate, endDate } = c.req.query();
+    
+    let query = 'SELECT * FROM school_events WHERE 1=1';
+    
+    const params: any[] = [];
+    if (eventType) {
+      query += ' AND event_type = ?';
+      params.push(eventType);
+    }
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+    if (startDate) {
+      query += ' AND start_date >= ?';
+      params.push(startDate);
+    }
+    if (endDate) {
+      query += ' AND start_date <= ?';
+      params.push(endDate);
+    }
+    
+    query += ' ORDER BY start_date DESC';
+    
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    return c.json(results);
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch events' }, 500);
+  }
+});
+
+app.post('/api/v1/school-life/events', async (c) => {
+  try {
+    const body = await c.req.json();
+    const eventId = crypto.randomUUID();
+
+    await c.env.DB.prepare(`
+      INSERT INTO school_events (id, title, description, event_type, start_date, end_date, 
+        location, participants, status, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      eventId,
+      body.title,
+      body.description || null,
+      body.eventType,
+      body.startDate,
+      body.endDate || null,
+      body.location || null,
+      body.participants ? JSON.stringify(body.participants) : null,
+      body.status || 'scheduled',
+      body.createdBy || null
+    ).run();
+
+    return c.json({ id: eventId, message: 'Event created successfully' }, 201);
+  } catch (error) {
+    console.error('Create event error:', error);
+    return c.json({ error: 'Failed to create event' }, 500);
+  }
+});
+
+app.put('/api/v1/school-life/events/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    await c.env.DB.prepare(`
+      UPDATE school_events SET
+        title = COALESCE(?, title),
+        description = COALESCE(?, description),
+        event_type = COALESCE(?, event_type),
+        start_date = COALESCE(?, start_date),
+        end_date = COALESCE(?, end_date),
+        location = COALESCE(?, location),
+        status = COALESCE(?, status),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.title || null,
+      body.description || null,
+      body.eventType || null,
+      body.startDate || null,
+      body.endDate || null,
+      body.location || null,
+      body.status || null,
+      id
+    ).run();
+
+    return c.json({ message: 'Event updated successfully' });
+  } catch (error) {
+    console.error('Update event error:', error);
+    return c.json({ error: 'Failed to update event' }, 500);
+  }
+});
+
+app.delete('/api/v1/school-life/events/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    await c.env.DB.prepare(`DELETE FROM school_events WHERE id = ?`).bind(id).run();
+    return c.json({ message: 'Event deleted successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to delete event' }, 500);
+  }
+});
+
+// ========================================================================
+// INVENTORY ROUTES
+// ========================================================================
+
+app.get('/api/v1/inventory', async (c) => {
+  try {
+    const { category, status } = c.req.query();
+    
+    let query = 'SELECT * FROM inventory WHERE 1=1';
+    
+    const params: any[] = [];
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+    
+    query += ' ORDER BY name';
+    
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    return c.json(results);
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch inventory' }, 500);
+  }
+});
+
+app.post('/api/v1/inventory', async (c) => {
+  try {
+    const body = await c.req.json();
+    const itemId = crypto.randomUUID();
+
+    await c.env.DB.prepare(`
+      INSERT INTO inventory (id, name, category, quantity, unit, location, status, 
+        purchase_date, purchase_price, condition, notes, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      itemId,
+      body.name,
+      body.category,
+      body.quantity || 0,
+      body.unit || null,
+      body.location || null,
+      body.status || 'available',
+      body.purchaseDate || null,
+      body.purchasePrice || null,
+      body.condition || null,
+      body.notes || null,
+      body.createdBy || null
+    ).run();
+
+    return c.json({ id: itemId, message: 'Inventory item created successfully' }, 201);
+  } catch (error) {
+    console.error('Create inventory item error:', error);
+    return c.json({ error: 'Failed to create inventory item' }, 500);
+  }
+});
+
+app.put('/api/v1/inventory/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    await c.env.DB.prepare(`
+      UPDATE inventory SET
+        name = COALESCE(?, name),
+        category = COALESCE(?, category),
+        quantity = COALESCE(?, quantity),
+        unit = COALESCE(?, unit),
+        location = COALESCE(?, location),
+        status = COALESCE(?, status),
+        condition = COALESCE(?, condition),
+        notes = COALESCE(?, notes),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.name || null,
+      body.category || null,
+      body.quantity !== undefined ? body.quantity : null,
+      body.unit || null,
+      body.location || null,
+      body.status || null,
+      body.condition || null,
+      body.notes || null,
+      id
+    ).run();
+
+    return c.json({ message: 'Inventory item updated successfully' });
+  } catch (error) {
+    console.error('Update inventory item error:', error);
+    return c.json({ error: 'Failed to update inventory item' }, 500);
+  }
+});
+
+app.delete('/api/v1/inventory/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    await c.env.DB.prepare(`DELETE FROM inventory WHERE id = ?`).bind(id).run();
+    return c.json({ message: 'Inventory item deleted successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to delete inventory item' }, 500);
   }
 });
 
