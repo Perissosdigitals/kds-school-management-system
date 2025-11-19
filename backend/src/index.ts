@@ -112,6 +112,125 @@ app.get('/api/v1/students/stats/count', async (c) => {
   }
 });
 
+// POST - Create new student
+app.post('/api/v1/students', async (c) => {
+  try {
+    const body = await c.req.json();
+    const studentId = crypto.randomUUID();
+    const userId = crypto.randomUUID();
+
+    // Create user first
+    await c.env.DB.prepare(`
+      INSERT INTO users (id, email, password_hash, role, first_name, last_name, phone, is_active)
+      VALUES (?, ?, ?, 'student', ?, ?, ?, 1)
+    `).bind(
+      userId,
+      body.email,
+      'hashed_password', // In production, hash the password
+      body.firstName,
+      body.lastName,
+      body.phone || null
+    ).run();
+
+    // Create student record
+    await c.env.DB.prepare(`
+      INSERT INTO students (id, user_id, student_code, birth_date, gender, nationality, 
+        birth_place, address, enrollment_date, class_id, parent_id, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+    `).bind(
+      studentId,
+      userId,
+      body.studentCode || `KDS${Date.now()}`,
+      body.birthDate,
+      body.gender,
+      body.nationality || null,
+      body.birthPlace || null,
+      body.address || null,
+      body.enrollmentDate || new Date().toISOString().split('T')[0],
+      body.classId || null,
+      body.parentId || null
+    ).run();
+
+    return c.json({ id: studentId, message: 'Student created successfully' }, 201);
+  } catch (error) {
+    console.error('Create student error:', error);
+    return c.json({ error: 'Failed to create student' }, 500);
+  }
+});
+
+// PUT - Update student
+app.put('/api/v1/students/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    // Update user info
+    if (body.firstName || body.lastName || body.email || body.phone) {
+      const student = await c.env.DB.prepare('SELECT user_id FROM students WHERE id = ?').bind(id).first();
+      if (student) {
+        await c.env.DB.prepare(`
+          UPDATE users SET 
+            first_name = COALESCE(?, first_name),
+            last_name = COALESCE(?, last_name),
+            email = COALESCE(?, email),
+            phone = COALESCE(?, phone),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(
+          body.firstName || null,
+          body.lastName || null,
+          body.email || null,
+          body.phone || null,
+          student.user_id
+        ).run();
+      }
+    }
+
+    // Update student record
+    await c.env.DB.prepare(`
+      UPDATE students SET
+        birth_date = COALESCE(?, birth_date),
+        gender = COALESCE(?, gender),
+        nationality = COALESCE(?, nationality),
+        birth_place = COALESCE(?, birth_place),
+        address = COALESCE(?, address),
+        class_id = COALESCE(?, class_id),
+        status = COALESCE(?, status),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.birthDate || null,
+      body.gender || null,
+      body.nationality || null,
+      body.birthPlace || null,
+      body.address || null,
+      body.classId || null,
+      body.status || null,
+      id
+    ).run();
+
+    return c.json({ message: 'Student updated successfully' });
+  } catch (error) {
+    console.error('Update student error:', error);
+    return c.json({ error: 'Failed to update student' }, 500);
+  }
+});
+
+// DELETE - Delete student (soft delete)
+app.delete('/api/v1/students/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    
+    await c.env.DB.prepare(`
+      UPDATE students SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(id).run();
+
+    return c.json({ message: 'Student deleted successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to delete student' }, 500);
+  }
+});
+
 // ========================================================================
 // TEACHERS ROUTES
 // ========================================================================
@@ -141,6 +260,107 @@ app.get('/api/v1/teachers/stats/count', async (c) => {
     return c.json({ count: result?.count || 0 });
   } catch (error) {
     return c.json({ error: 'Failed to get count' }, 500);
+  }
+});
+
+// POST - Create teacher
+app.post('/api/v1/teachers', async (c) => {
+  try {
+    const body = await c.req.json();
+    const userId = crypto.randomUUID();
+    const teacherId = crypto.randomUUID();
+
+    // Create user record first
+    await c.env.DB.prepare(`
+      INSERT INTO users (id, first_name, last_name, email, phone, password_hash, role, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, 'student', 1)
+    `).bind(
+      userId,
+      body.firstName,
+      body.lastName,
+      body.email,
+      body.phone || null,
+      body.password || 'default_password_hash'
+    ).run();
+
+    // Create teacher record
+    await c.env.DB.prepare(`
+      INSERT INTO teachers (id, user_id, hire_date, specialization, status)
+      VALUES (?, ?, ?, ?, 'active')
+    `).bind(
+      teacherId,
+      userId,
+      body.hireDate || new Date().toISOString().split('T')[0],
+      body.specializations ? JSON.stringify(body.specializations) : '[]'
+    ).run();
+
+    return c.json({ id: teacherId, message: 'Teacher created successfully' }, 201);
+  } catch (error) {
+    console.error('Create teacher error:', error);
+    return c.json({ error: 'Failed to create teacher' }, 500);
+  }
+});
+
+// PUT - Update teacher
+app.put('/api/v1/teachers/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    // Update user info
+    if (body.firstName || body.lastName || body.email || body.phone) {
+      const teacher = await c.env.DB.prepare('SELECT user_id FROM teachers WHERE id = ?').bind(id).first();
+      if (teacher) {
+        await c.env.DB.prepare(`
+          UPDATE users SET 
+            first_name = COALESCE(?, first_name),
+            last_name = COALESCE(?, last_name),
+            email = COALESCE(?, email),
+            phone = COALESCE(?, phone),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(
+          body.firstName || null,
+          body.lastName || null,
+          body.email || null,
+          body.phone || null,
+          teacher.user_id
+        ).run();
+      }
+    }
+
+    // Update teacher info
+    await c.env.DB.prepare(`
+      UPDATE teachers SET
+        hire_date = COALESCE(?, hire_date),
+        specialization = COALESCE(?, specialization),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.hireDate || null,
+      body.specializations ? JSON.stringify(body.specializations) : null,
+      id
+    ).run();
+
+    return c.json({ message: 'Teacher updated successfully' });
+  } catch (error) {
+    console.error('Update teacher error:', error);
+    return c.json({ error: 'Failed to update teacher' }, 500);
+  }
+});
+
+// DELETE - Delete teacher (soft delete)
+app.delete('/api/v1/teachers/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    
+    await c.env.DB.prepare(`
+      UPDATE teachers SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(id).run();
+
+    return c.json({ message: 'Teacher deleted successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to delete teacher' }, 500);
   }
 });
 
@@ -175,6 +395,81 @@ app.get('/api/v1/classes/stats/count', async (c) => {
     return c.json({ count: result?.count || 0 });
   } catch (error) {
     return c.json({ error: 'Failed to get count' }, 500);
+  }
+});
+
+// POST - Create class
+app.post('/api/v1/classes', async (c) => {
+  try {
+    const body = await c.req.json();
+    const classId = crypto.randomUUID();
+
+    await c.env.DB.prepare(`
+      INSERT INTO classes (id, name, level, academic_year, main_teacher_id, room_number, 
+        capacity, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    `).bind(
+      classId,
+      body.name,
+      body.level,
+      body.academicYear || '2024-2025',
+      body.mainTeacherId || null,
+      body.roomNumber || null,
+      body.capacity || 30
+    ).run();
+
+    return c.json({ id: classId, message: 'Class created successfully' }, 201);
+  } catch (error) {
+    console.error('Create class error:', error);
+    return c.json({ error: 'Failed to create class' }, 500);
+  }
+});
+
+// PUT - Update class
+app.put('/api/v1/classes/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    await c.env.DB.prepare(`
+      UPDATE classes SET
+        name = COALESCE(?, name),
+        level = COALESCE(?, level),
+        academic_year = COALESCE(?, academic_year),
+        main_teacher_id = COALESCE(?, main_teacher_id),
+        room_number = COALESCE(?, room_number),
+        capacity = COALESCE(?, capacity),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      body.name || null,
+      body.level || null,
+      body.academicYear || null,
+      body.mainTeacherId || null,
+      body.roomNumber || null,
+      body.capacity || null,
+      id
+    ).run();
+
+    return c.json({ message: 'Class updated successfully' });
+  } catch (error) {
+    console.error('Update class error:', error);
+    return c.json({ error: 'Failed to update class' }, 500);
+  }
+});
+
+// DELETE - Delete class (soft delete)
+app.delete('/api/v1/classes/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    
+    await c.env.DB.prepare(`
+      UPDATE classes SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(id).run();
+
+    return c.json({ message: 'Class deleted successfully' });
+  } catch (error) {
+    return c.json({ error: 'Failed to delete class' }, 500);
   }
 });
 
