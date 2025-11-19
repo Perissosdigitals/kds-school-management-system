@@ -1,5 +1,5 @@
 name = "kds-backend-api"
-main = "dist/index.js"
+main = "src/index.ts"
 compatibility_date = "2025-11-18"
 compatibility_flags = ["nodejs_compat"]
 
@@ -11,22 +11,3 @@ enabled = true
 binding = "DB"
 database_name = "kds-school-db"
 database_id = "d293f4d0-fb4d-4f99-a45c-783fcd374a6e"
-
-# R2 Storage for documents
-[[r2_buckets]]
-binding = "DOCUMENTS"
-bucket_name = "kds-documents"
-
-# Environment variables
-[vars]
-NODE_ENV = "production"
-API_PREFIX = "api/v1"
-JWT_SECRET = "your-jwt-secret-change-in-production"
-JWT_EXPIRES_IN = "7d"
-
-# Secrets (set via: wrangler secret put <KEY>)
-# DATABASE_URL
-# CORS_ORIGINS
-
-[build]
-command = "npm run build"
