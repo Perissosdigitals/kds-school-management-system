@@ -15,6 +15,10 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HealthController } from './health.controller';
 import { SubjectsModule } from './modules/subjects/subjects.module';
 import { SeedModule } from './database/seeds/seed.module';
+import { UsersModule } from './modules/users/users.module';
+import { SchoolLifeModule } from './modules/school-life/school-life.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { EnrollmentModule } from './modules/enrollment/enrollment.module';
 
 @Module({
   imports: [
@@ -54,6 +58,10 @@ import { SeedModule } from './database/seeds/seed.module';
     ImportModule,
     AnalyticsModule,
     SubjectsModule,
+    UsersModule,
+    SchoolLifeModule,
+    InventoryModule,
+    EnrollmentModule,
     SeedModule,
   ],
   controllers: [HealthController],
