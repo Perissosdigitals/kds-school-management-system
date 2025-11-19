@@ -2,6 +2,34 @@ import { httpClient } from '../httpClient';
 import { allStudents } from '../../data/mockData';
 import type { Student } from '../../types';
 
+// Mapper pour convertir les données de l'API au format frontend
+const mapApiStudentToFrontend = (apiStudent: any): Student => {
+  return {
+    id: apiStudent.id || apiStudent.student_code,
+    registrationDate: apiStudent.enrollment_date 
+      ? new Date(apiStudent.enrollment_date).toLocaleDateString('fr-FR')
+      : new Date().toLocaleDateString('fr-FR'),
+    lastName: apiStudent.last_name || apiStudent.lastName || '',
+    firstName: apiStudent.first_name || apiStudent.firstName || '',
+    dob: apiStudent.birth_date 
+      ? new Date(apiStudent.birth_date).toLocaleDateString('fr-FR')
+      : '',
+    gender: apiStudent.gender === 'male' ? 'Masculin' : 'Féminin',
+    nationality: apiStudent.nationality || 'Ivoirienne',
+    birthPlace: apiStudent.birth_place || '',
+    address: apiStudent.address || '',
+    phone: apiStudent.phone || '',
+    email: apiStudent.email || '',
+    gradeLevel: apiStudent.class_name || apiStudent.academic_level || '',
+    previousSchool: apiStudent.previous_school || '',
+    emergencyContactName: apiStudent.emergency_contact || '',
+    emergencyContactPhone: '',
+    medicalInfo: apiStudent.medical_info || '',
+    status: apiStudent.status === 'active' ? 'Actif' : 'Inactif',
+    documents: []
+  };
+};
+
 export const StudentsService = {
   /**
    * Récupère la liste de tous les élèves
@@ -9,8 +37,10 @@ export const StudentsService = {
   async getStudents(params?: { page?: number; limit?: number }): Promise<Student[]> {
     try {
       console.log('StudentsService: Requête API pour les élèves...');
-      const response = await httpClient.get<Student[]>('/students', { params });
-      return response.data;
+      const response = await httpClient.get<any[]>('/students', { params });
+      const students = response.data.map(mapApiStudentToFrontend);
+      console.log('StudentsService: Élèves chargés:', students.length);
+      return students;
     } catch (error) {
       console.warn('StudentsService: Erreur API, utilisation des données mock', error);
       return allStudents;
@@ -23,8 +53,8 @@ export const StudentsService = {
   async getStudentById(id: string): Promise<Student | null> {
     try {
       console.log(`StudentsService: Récupération de l'élève ${id}...`);
-      const response = await httpClient.get<Student>(`/students/${id}`);
-      return response.data;
+      const response = await httpClient.get<any>(`/students/${id}`);
+      return mapApiStudentToFrontend(response.data);
     } catch (error) {
       console.warn(`StudentsService: Erreur lors de la récupération de l'élève ${id}`, error);
       return allStudents.find(s => s.id === id) || null;

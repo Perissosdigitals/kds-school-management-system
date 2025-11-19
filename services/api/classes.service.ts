@@ -17,6 +17,24 @@ export interface ClassDetailData {
     grades: Grade[];
 }
 
+// Mapper pour convertir les données de l'API au format frontend
+const mapApiClassToFrontend = (apiClass: any): SchoolClass => {
+  return {
+    id: apiClass.id,
+    name: apiClass.name,
+    level: apiClass.level,
+    capacity: apiClass.capacity || 30,
+    currentOccupancy: apiClass.student_count || 0,
+    teacherId: apiClass.main_teacher_id,
+    teacherName: apiClass.teacher_first_name && apiClass.teacher_last_name
+      ? `${apiClass.teacher_first_name} ${apiClass.teacher_last_name}`
+      : '',
+    room: apiClass.room_number || '',
+    academicYear: apiClass.academic_year || '2024-2025',
+    schedule: []
+  };
+};
+
 export const ClassesService = {
   /**
    * Récupère toutes les classes
@@ -24,8 +42,10 @@ export const ClassesService = {
   async getClasses(params?: { page?: number; limit?: number }): Promise<SchoolClass[]> {
     try {
       console.log('ClassesService: Requête API pour les classes...');
-      const response = await httpClient.get<SchoolClass[]>('/classes', { params });
-      return response.data;
+      const response = await httpClient.get<any[]>('/classes', { params });
+      const classes = response.data.map(mapApiClassToFrontend);
+      console.log('ClassesService: Classes chargées:', classes.length);
+      return classes;
     } catch (error) {
       console.warn('ClassesService: Erreur API, utilisation des données mock', error);
       return schoolClasses;

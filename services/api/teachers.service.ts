@@ -2,6 +2,32 @@ import { httpClient } from '../httpClient';
 import { teacherDetails } from '../../data/mockData';
 import type { Teacher } from '../../types';
 
+// Mapper pour convertir les données de l'API au format frontend
+const mapApiTeacherToFrontend = (apiTeacher: any): Teacher => {
+  let specializations: string[] = [];
+  if (apiTeacher.specialization) {
+    try {
+      specializations = JSON.parse(apiTeacher.specialization);
+    } catch {
+      specializations = [apiTeacher.specialization];
+    }
+  }
+
+  return {
+    id: apiTeacher.id,
+    firstName: apiTeacher.first_name || '',
+    lastName: apiTeacher.last_name || '',
+    email: apiTeacher.email || '',
+    phone: apiTeacher.phone || '',
+    hireDate: apiTeacher.hire_date 
+      ? new Date(apiTeacher.hire_date).toLocaleDateString('fr-FR')
+      : new Date().toLocaleDateString('fr-FR'),
+    specialization: specializations.join(', '),
+    status: apiTeacher.status === 'active' ? 'Actif' : 'Inactif',
+    subjects: specializations
+  };
+};
+
 export const TeachersService = {
   /**
    * Récupère la liste de tous les enseignants
@@ -9,8 +35,10 @@ export const TeachersService = {
   async getTeachers(params?: { page?: number; limit?: number }): Promise<Teacher[]> {
     try {
       console.log('TeachersService: Requête API pour les enseignants...');
-      const response = await httpClient.get<Teacher[]>('/teachers', { params });
-      return response.data;
+      const response = await httpClient.get<any[]>('/teachers', { params });
+      const teachers = response.data.map(mapApiTeacherToFrontend);
+      console.log('TeachersService: Enseignants chargés:', teachers.length);
+      return teachers;
     } catch (error) {
       console.warn('TeachersService: Erreur API, utilisation des données mock', error);
       return teacherDetails;
@@ -23,8 +51,8 @@ export const TeachersService = {
   async getTeacherById(id: string): Promise<Teacher | null> {
     try {
       console.log(`TeachersService: Récupération de l'enseignant ${id}...`);
-      const response = await httpClient.get<Teacher>(`/teachers/${id}`);
-      return response.data;
+      const response = await httpClient.get<any>(`/teachers/${id}`);
+      return mapApiTeacherToFrontend(response.data);
     } catch (error) {
       console.warn(`TeachersService: Erreur lors de la récupération de l'enseignant ${id}`, error);
       return teacherDetails.find(t => t.id === id) || null;
