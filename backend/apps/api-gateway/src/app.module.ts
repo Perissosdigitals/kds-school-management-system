@@ -1,0 +1,61 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './modules/auth/auth.module';
+import { StudentsModule } from './modules/students/students.module';
+import { TeachersModule } from './modules/teachers/teachers.module';
+import { ClassesModule } from './modules/classes/classes.module';
+import { GradesModule } from './modules/grades/grades.module';
+import { TimetableModule } from './modules/timetable/timetable.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { ImportModule } from './modules/import/import.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { HealthController } from './health.controller';
+import { SubjectsModule } from './modules/subjects/subjects.module';
+import { SeedModule } from './database/seeds/seed.module';
+
+@Module({
+  imports: [
+    // Configuration
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+
+    // Database (skip if not available)
+    ...(process.env.DATABASE_HOST
+      ? [
+          TypeOrmModule.forRoot({
+            type: 'postgres',
+            host: process.env.DATABASE_HOST || 'localhost',
+            port: parseInt(process.env.DATABASE_PORT || '5432'),
+            username: process.env.DATABASE_USER || 'kds_admin',
+            password: process.env.DATABASE_PASSWORD || 'kds_secure_password',
+            database: process.env.DATABASE_NAME || 'kds_school_db',
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            synchronize: process.env.NODE_ENV === 'development',
+            logging: process.env.NODE_ENV === 'development',
+          }),
+        ]
+      : []),
+
+    // Feature modules
+    AuthModule,
+    StudentsModule,
+    TeachersModule,
+    ClassesModule,
+    GradesModule,
+    TimetableModule,
+    AttendanceModule,
+    DocumentsModule,
+    FinanceModule,
+    ImportModule,
+    AnalyticsModule,
+    SubjectsModule,
+    SeedModule,
+  ],
+  controllers: [HealthController],
+})
+export class AppModule {}

@@ -1,0 +1,412 @@
+:root {
+  --primary: #1a56db;
+  --primary-dark: #1e429f;
+  --secondary: #7e3af2;
+  --success: #0e9f6e;
+  --warning: #f59e0b;
+  --danger: #dc2626;
+  --dark: #1f2d3d;
+  --light: #f8f9fa;
+  --gray: #6b7280;
+  --border: #e5e7eb;
+}
+
+.modern-login-wrapper {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modern-login-container {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  min-height: 700px;
+}
+
+/* Left Panel - Brand */
+.brand-panel {
+  flex: 1;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  color: white;
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.brand-panel::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  z-index: 2;
+  position: relative;
+}
+
+.brand-logo i {
+  font-size: 3rem;
+}
+
+.logo-text h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.logo-text span {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.welcome-message {
+  z-index: 2;
+  position: relative;
+}
+
+.welcome-message h2 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.welcome-message p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+.brand-features {
+  margin-top: 2rem;
+  z-index: 2;
+  position: relative;
+}
+
+.brand-feature {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.brand-feature i {
+  font-size: 1.5rem;
+}
+
+/* Right Panel - Login */
+.login-panel {
+  flex: 1;
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.modern-login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.modern-login-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--dark);
+  margin-bottom: 0.5rem;
+}
+
+.modern-login-header p {
+  color: var(--gray);
+  font-size: 1.1rem;
+  margin-bottom: 0;
+}
+
+.dev-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--warning);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-top: 1rem;
+}
+
+/* Role Selection */
+.modern-role-selection {
+  margin-bottom: 2rem;
+}
+
+.modern-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--dark);
+}
+
+.modern-roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.modern-role-card {
+  background: var(--light);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.modern-role-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.modern-role-card.selected {
+  border-color: var(--primary);
+  background: rgba(26, 86, 219, 0.05);
+}
+
+.modern-role-card.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.modern-role-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  font-size: 1.5rem;
+  color: white;
+}
+
+.modern-role-icon.fondatrice { 
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24); 
+}
+.modern-role-icon.admin,
+.modern-role-icon.administrateur { 
+  background: linear-gradient(135deg, #74b9ff, #0984e3); 
+}
+.modern-role-icon.directrice { 
+  background: linear-gradient(135deg, #a29bfe, #6c5ce7); 
+}
+.modern-role-icon.comptable { 
+  background: linear-gradient(135deg, #55efc4, #00b894); 
+}
+.modern-role-icon.enseignant { 
+  background: linear-gradient(135deg, #ffeaa7, #fdcb6e); 
+}
+.modern-role-icon.agent,
+.modern-role-icon.personnel { 
+  background: linear-gradient(135deg, #dfe6e9, #b2bec3); 
+}
+
+.modern-role-name {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--dark);
+}
+
+.modern-role-desc {
+  font-size: 0.875rem;
+  color: var(--gray);
+  line-height: 1.4;
+}
+
+/* Loading Spinner */
+.modern-loading-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Manual Login */
+.modern-manual-login {
+  border-top: 1px solid var(--border);
+  padding-top: 2rem;
+}
+
+.modern-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.modern-form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--dark);
+}
+
+.modern-form-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.modern-form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.modern-login-button {
+  width: 100%;
+  padding: 1rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.modern-login-button:hover {
+  background: var(--primary-dark);
+}
+
+.modern-login-button:disabled {
+  background: var(--gray);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.modern-error-message {
+  background: #fee;
+  border: 1px solid #fcc;
+  color: var(--danger);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.modern-test-credentials {
+  background: var(--light);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1.5rem;
+}
+
+.modern-test-credentials h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--dark);
+}
+
+.modern-credentials {
+  font-size: 0.875rem;
+  color: var(--gray);
+  line-height: 1.6;
+}
+
+.modern-credentials div {
+  margin-bottom: 0.25rem;
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+  .modern-login-container {
+    flex-direction: column;
+    max-width: 100%;
+  }
+  
+  .brand-panel {
+    padding: 2rem;
+    min-height: 300px;
+  }
+  
+  .login-panel {
+    padding: 2rem;
+  }
+  
+  .modern-roles-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .welcome-message h2 {
+    font-size: 2rem;
+  }
+  
+  .brand-logo i {
+    font-size: 2rem;
+  }
+  
+  .logo-text h1 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .modern-login-wrapper {
+    padding: 0.5rem;
+  }
+  
+  .modern-login-container {
+    border-radius: 12px;
+    min-height: auto;
+  }
+  
+  .brand-panel,
+  .login-panel {
+    padding: 1.5rem;
+  }
+  
+  .modern-login-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .welcome-message h2 {
+    font-size: 1.5rem;
+  }
+}

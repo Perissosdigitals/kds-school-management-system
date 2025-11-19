@@ -1,0 +1,7 @@
+{
+  "name": "KDS School Management System",
+  "description": "A comprehensive school management system for an NGO, built with React and Tailwind CSS. It provides features for student registration, management, financial tracking, and inventory control, mirroring the functionality of an existing Google Apps Script application.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

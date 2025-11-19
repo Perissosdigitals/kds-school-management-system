@@ -1,0 +1,358 @@
+{
+  "timestamp": "2025-11-18T23:54:32+00:00",
+  "results": [
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "name": "Health Check",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/students/stats/count",
+      "method": "GET",
+      "name": "Students Count",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/students/stats/by-grade",
+      "method": "GET",
+      "name": "Students by Grade",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/students/stats/by-status",
+      "method": "GET",
+      "name": "Students by Status",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/students?page=1&limit=10",
+      "method": "GET",
+      "name": "List Students (paginated)",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/teachers/stats/count",
+      "method": "GET",
+      "name": "Teachers Count",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/teachers/stats/by-subject",
+      "method": "GET",
+      "name": "Teachers by Subject",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/teachers/stats/by-status",
+      "method": "GET",
+      "name": "Teachers by Status",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/teachers?page=1&limit=5",
+      "method": "GET",
+      "name": "List Teachers",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/classes/stats/count",
+      "method": "GET",
+      "name": "Classes Count",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/classes/stats/by-level",
+      "method": "GET",
+      "name": "Classes by Level",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/classes/stats/by-academic-year",
+      "method": "GET",
+      "name": "Classes by Academic Year",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/classes",
+      "method": "GET",
+      "name": "List All Classes",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/subjects/stats/count",
+      "method": "GET",
+      "name": "Subjects Count",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/subjects/stats/by-grade-level",
+      "method": "GET",
+      "name": "Subjects by Grade Level",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/subjects/stats/total-weekly-hours",
+      "method": "GET",
+      "name": "Total Weekly Hours",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/subjects",
+      "method": "GET",
+      "name": "List All Subjects",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/timetable/stats/count",
+      "method": "GET",
+      "name": "Timetable Slots Count",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/timetable?page=1&limit=20",
+      "method": "GET",
+      "name": "List Timetable Slots",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/grades/stats/count",
+      "method": "GET",
+      "name": "Grades Count",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/grades/stats/distribution",
+      "method": "GET",
+      "name": "Grade Distribution",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/grades/stats/top-students",
+      "method": "GET",
+      "name": "Top Students",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/grades/stats/by-evaluation-type",
+      "method": "GET",
+      "name": "Grades by Evaluation Type",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/grades?page=1&limit=20",
+      "method": "GET",
+      "name": "List Grades",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/attendance/stats/count",
+      "method": "GET",
+      "name": "Attendance Records Count",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/attendance/stats/absence-rate",
+      "method": "GET",
+      "name": "Absence Rate",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/attendance/stats/by-status",
+      "method": "GET",
+      "name": "Attendance by Status",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/attendance/stats/most-absent",
+      "method": "GET",
+      "name": "Most Absent Students",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/attendance/stats/unjustified",
+      "method": "GET",
+      "name": "Unjustified Absences",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/finance/stats/count",
+      "method": "GET",
+      "name": "Transactions Count",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/finance/stats/revenue",
+      "method": "GET",
+      "name": "Total Revenue",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/finance/stats/expenses",
+      "method": "GET",
+      "name": "Total Expenses",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/finance/stats/balance",
+      "method": "GET",
+      "name": "Financial Balance",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/finance/stats/by-category",
+      "method": "GET",
+      "name": "Transactions by Category",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/finance/pending",
+      "method": "GET",
+      "name": "Pending Payments",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/finance?page=1&limit=10",
+      "method": "GET",
+      "name": "List Transactions",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/documents/stats/count",
+      "method": "GET",
+      "name": "Documents Count",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/documents/stats/by-type",
+      "method": "GET",
+      "name": "Documents by Type",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/documents/stats/by-entity-type",
+      "method": "GET",
+      "name": "Documents by Entity Type",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/documents/stats/storage",
+      "method": "GET",
+      "name": "Storage Statistics",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/documents/expired",
+      "method": "GET",
+      "name": "Expired Documents",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/documents/expiring",
+      "method": "GET",
+      "name": "Expiring Documents",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/documents?page=1&limit=10",
+      "method": "GET",
+      "name": "List Documents",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {
+      "endpoint": "/analytics/dashboard",
+      "method": "GET",
+      "name": "Dashboard Overview",
+      "status": "error",
+      "http_code": 000,
+      "response_preview": " "
+    },
+    {}
+  ]
+}

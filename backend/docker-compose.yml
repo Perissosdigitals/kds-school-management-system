@@ -1,0 +1,161 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: kds-postgres
+    environment:
+      POSTGRES_USER: kds_admin
+      POSTGRES_PASSWORD: kds_secure_password
+      POSTGRES_DB: kds_school_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./shared/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kds_admin -d kds_school_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kds-network
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: kds-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - kds-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./infrastructure/docker/Dockerfile.gateway
+    container_name: kds-api-gateway
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=kds_admin
+      - DATABASE_PASSWORD=kds_secure_password
+      - DATABASE_NAME=kds_school_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - JWT_EXPIRES_IN=24h
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api-gateway:/app/apps/api-gateway
+      - ./packages:/app/packages
+      - ./shared:/app/shared
+      - /app/node_modules
+    networks:
+      - kds-network
+    restart: unless-stopped
+
+  # Queue Worker (Background Jobs)
+  queue-worker:
+    build:
+      context: .
+      dockerfile: ./infrastructure/docker/Dockerfile.worker
+    container_name: kds-queue-worker
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=kds_admin
+      - DATABASE_PASSWORD=kds_secure_password
+      - DATABASE_NAME=kds_school_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/queue-worker:/app/apps/queue-worker
+      - ./packages:/app/packages
+      - ./shared:/app/shared
+      - /app/node_modules
+    networks:
+      - kds-network
+    restart: unless-stopped
+
+  # Realtime Server (WebSockets)
+  realtime:
+    build:
+      context: .
+      dockerfile: ./infrastructure/docker/Dockerfile.realtime
+    container_name: kds-realtime
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/realtime:/app/apps/realtime
+      - ./packages:/app/packages
+      - ./shared:/app/shared
+      - /app/node_modules
+    networks:
+      - kds-network
+    restart: unless-stopped
+
+  # pgAdmin (Optional - Database Management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: kds-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@kds.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - "5050:5050"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - kds-network
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  kds-network:
+    driver: bridge
