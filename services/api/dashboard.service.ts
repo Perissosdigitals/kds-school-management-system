@@ -38,11 +38,45 @@ export const DashboardService = {
   async getAdminDashboard(): Promise<AdminDashboardData> {
     try {
       console.log('DashboardService: Récupération du tableau de bord administrateur...');
-      const response = await httpClient.get<AdminDashboardData>('/dashboard/admin');
-      return response.data;
+      // Utiliser l'endpoint analytics/dashboard disponible
+      const response = await httpClient.get<any>('/analytics/dashboard');
+      
+      // Mapper les données de l'API
+      const apiData = response.data;
+      const mappedData: AdminDashboardData = {
+        totalStudents: apiData.studentsCount || 0,
+        totalStaff: apiData.teachersCount || 0,
+        schoolOverallAverage: apiData.averageGrade || 0,
+        totalEvaluations: apiData.classesCount || 0,
+        classPerformances: []
+      };
+      
+      console.log('DashboardService: Données analytics chargées depuis API');
+      return mappedData;
     } catch (error) {
       console.warn('DashboardService: Erreur API, utilisation des données mock', error);
       return getAdminDashboardDataLocal();
+    }
+  },
+
+  /**
+   * Récupère les statistiques générales
+   */
+  async getAnalytics(): Promise<any> {
+    try {
+      console.log('DashboardService: Récupération des analytics...');
+      const response = await httpClient.get('/analytics/dashboard');
+      console.log('DashboardService: Analytics chargées:', response.data);
+      return response.data;
+    } catch (error) {
+      console.warn('DashboardService: Erreur API analytics', error);
+      return {
+        studentsCount: 0,
+        teachersCount: 0,
+        classesCount: 0,
+        averageGrade: 0,
+        absencesCount: 0
+      };
     }
   }
 };

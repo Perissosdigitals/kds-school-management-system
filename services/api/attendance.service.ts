@@ -15,6 +15,25 @@ export interface AttendanceRecord {
   notes?: string;
 }
 
+// Mapper pour convertir les données de l'API au format frontend
+const mapApiAttendanceToFrontend = (apiAttendance: any): AttendanceRecord => {
+  const statusMap: { [key: string]: 'Présent' | 'Absent' | 'Retard' } = {
+    'present': 'Présent',
+    'absent': 'Absent',
+    'late': 'Retard'
+  };
+
+  return {
+    id: apiAttendance.id,
+    studentId: apiAttendance.student_id,
+    date: apiAttendance.date 
+      ? new Date(apiAttendance.date).toLocaleDateString('fr-FR')
+      : new Date().toLocaleDateString('fr-FR'),
+    status: statusMap[apiAttendance.status] || 'Présent',
+    notes: apiAttendance.reason || ''
+  };
+};
+
 export const AttendanceService = {
   /**
    * Récupère les enregistrements de présence
@@ -22,8 +41,10 @@ export const AttendanceService = {
   async getAttendanceRecords(params?: { page?: number; limit?: number; studentId?: string; date?: string }): Promise<AttendanceRecord[]> {
     try {
       console.log('AttendanceService: Requête API pour les présences...');
-      const response = await httpClient.get<AttendanceRecord[]>('/attendance', { params });
-      return response.data;
+      const response = await httpClient.get<any[]>('/attendance', { params });
+      const mappedAttendance = response.data.map(mapApiAttendanceToFrontend);
+      console.log('AttendanceService: Présences chargées:', mappedAttendance.length);
+      return mappedAttendance;
     } catch (error) {
       console.warn('AttendanceService: Erreur API', error);
       return [];

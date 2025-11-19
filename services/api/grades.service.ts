@@ -9,6 +9,24 @@ export interface GradesData {
     students: Student[];
 }
 
+// Mapper pour convertir les données de l'API au format frontend
+const mapApiGradeToFrontend = (apiGrade: any): Grade => {
+  return {
+    id: apiGrade.id,
+    studentId: apiGrade.student_id,
+    studentName: `${apiGrade.student_first_name || ''} ${apiGrade.student_last_name || ''}`.trim(),
+    subject: apiGrade.subject_name || '',
+    evaluationTitle: apiGrade.evaluation_title || 'Évaluation',
+    grade: apiGrade.grade || 0,
+    maxGrade: apiGrade.max_grade || 20,
+    date: apiGrade.evaluation_date 
+      ? new Date(apiGrade.evaluation_date).toLocaleDateString('fr-FR')
+      : new Date().toLocaleDateString('fr-FR'),
+    teacher: apiGrade.teacher_name || '',
+    comment: apiGrade.comment || ''
+  };
+};
+
 export const GradesService = {
   /**
    * Récupère toutes les évaluations
@@ -30,8 +48,10 @@ export const GradesService = {
   async getGrades(params?: { page?: number; limit?: number; studentId?: string }): Promise<Grade[]> {
     try {
       console.log('GradesService: Requête API pour les notes...');
-      const response = await httpClient.get<Grade[]>('/grades', { params });
-      return response.data;
+      const response = await httpClient.get<any[]>('/grades', { params });
+      const mappedGrades = response.data.map(mapApiGradeToFrontend);
+      console.log('GradesService: Notes chargées:', mappedGrades.length);
+      return mappedGrades;
     } catch (error) {
       console.warn('GradesService: Erreur API, utilisation des données mock', error);
       return grades;
