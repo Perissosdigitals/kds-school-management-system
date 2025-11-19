@@ -49,13 +49,39 @@ const NavLink = React.memo<{
   </a>
 ));
 
-export const Sidebar: React.FC<SidebarProps> = React.memo(({ activePage, setActivePage, userRole }) => {
+interface SidebarPropsExtended extends SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarPropsExtended> = React.memo(({ activePage, setActivePage, userRole, isOpen = true, onClose }) => {
 
   const filteredMainNavs = mainNavLinks.filter(link => hasPermission(userRole, link.id));
   const filteredAdminNavs = adminNavLinks.filter(link => hasPermission(userRole, link.id));
 
+  const handleNavClick = (page: Page) => {
+    setActivePage(page);
+    if (onClose) onClose(); // Close mobile menu after selection
+  };
+
   return (
-    <nav className="w-64 bg-white shadow-lg p-6 hidden md:flex flex-col flex-shrink-0">
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && onClose && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <nav className={`
+        fixed md:static inset-y-0 left-0 z-50
+        w-64 bg-white shadow-lg p-6 
+        flex flex-col flex-shrink-0
+        transform transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
       <div className="flex items-center gap-3 mb-12 text-blue-700">
         <i className='bx bxs-school text-5xl'></i>
         <div>
@@ -73,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ activePage, setActi
                 key={link.id}
                 {...link}
                 isActive={activePage === link.id}
-                onClick={() => setActivePage(link.id)}
+                onClick={() => handleNavClick(link.id)}
               />
             ))}
           </div>
@@ -89,12 +115,13 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ activePage, setActi
                 key={link.id}
                 {...link}
                 isActive={activePage === link.id}
-                onClick={() => setActivePage(link.id)}
+                onClick={() => handleNavClick(link.id)}
               />
             ))}
           </div>
         </div>
       )}
-    </nav>
+      </nav>
+    </>
   );
 });

@@ -38,16 +38,17 @@ const TeacherDashboard: React.FC<{ currentUser: User, setActivePage: (page: Page
   const { todaySchedule, pendingEvaluationsCount, recentClassAverages } = data;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h2 className="text-3xl font-bold text-slate-800">Bonjour, {currentUser.name.split(' ')[0]} ! 👋</h2>
-        <p className="text-gray-500">Voici votre tableau de bord d'enseignant.</p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-slate-800">Bonjour, {currentUser.name.split(' ')[0]} ! 👋</h2>
+        <p className="text-sm sm:text-base text-gray-500">Voici votre tableau de bord d'enseignant.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
-           <h3 className="text-xl font-semibold text-slate-800 mb-4 flex items-center gap-2">
-            <i className='bx bxs-calendar'></i> Mon Programme du Jour ({getDayName()})
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-xl shadow-md">
+           <h3 className="text-lg sm:text-xl font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <i className='bx bxs-calendar'></i> 
+            <span className="truncate">Mon Programme du Jour ({getDayName()})</span>
           </h3>
           {todaySchedule.length > 0 ? (
             <div className="space-y-3">

@@ -6,16 +6,34 @@ interface HeaderProps {
   users: User[];
   onUserChange: (userId: string) => void;
   onLogout: () => void;
+  onMenuToggle?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, users, onUserChange, onLogout }) => {
+export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, users, onUserChange, onLogout, onMenuToggle }) => {
   return (
-    <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
-      <div>
-        {/* Can be used for breadcrumbs or page title later */}
-      </div>
+    <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-30">
       <div className="flex items-center gap-4">
-         <div className="text-sm">
+        {/* Mobile Menu Button */}
+        {onMenuToggle && (
+          <button
+            onClick={onMenuToggle}
+            className="md:hidden text-slate-700 hover:text-blue-600 transition-colors p-2"
+            aria-label="Toggle menu"
+          >
+            <i className='bx bx-menu text-3xl'></i>
+          </button>
+        )}
+        
+        {/* Mobile Logo */}
+        <div className="flex items-center gap-2 text-blue-700 md:hidden">
+          <i className='bx bxs-school text-3xl'></i>
+          <h1 className="text-lg font-bold">École KDS</h1>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-2 sm:gap-4">
+         {/* User Switcher - Hidden on small mobile */}
+         <div className="text-sm hidden sm:block">
             <label htmlFor="user-switcher" className="sr-only">Changer d'utilisateur</label>
              <select 
                 id="user-switcher"
@@ -31,17 +49,25 @@ export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, users, o
                 ))}
             </select>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold">
+        
+        {/* User Info */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold text-sm">
             {currentUser.avatar}
           </div>
-          <div>
-            <div className="font-semibold text-slate-800">{currentUser.name}</div>
+          <div className="hidden lg:block">
+            <div className="font-semibold text-slate-800 text-sm">{currentUser.name}</div>
             <div className="text-xs text-gray-500">{currentUser.role}</div>
           </div>
         </div>
-        <button onClick={onLogout} title="Se déconnecter" className="text-slate-500 hover:text-red-600 transition-colors">
-            <i className='bx bx-log-out text-2xl'></i>
+        
+        {/* Logout Button */}
+        <button 
+          onClick={onLogout} 
+          title="Se déconnecter" 
+          className="text-slate-500 hover:text-red-600 transition-colors p-1"
+        >
+            <i className='bx bx-log-out text-xl sm:text-2xl'></i>
         </button>
       </div>
     </header>

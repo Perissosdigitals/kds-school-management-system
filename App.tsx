@@ -41,6 +41,8 @@ const AppContent: React.FC<{
   handleSetPage: (page: Page) => void;
   handleUserChange: (userId: string) => void;
 }> = ({ currentUser, activePage, handleSetPage, handleUserChange }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
   const renderContent = () => {
     if (!hasPermission(currentUser.role, activePage)) {
       return (
@@ -89,20 +91,23 @@ const AppContent: React.FC<{
       <Sidebar 
         activePage={activePage} 
         setActivePage={handleSetPage} 
-        userRole={currentUser.role} 
+        userRole={currentUser.role}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
       />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header 
             currentUser={currentUser}
             users={mockUsers}
             onUserChange={handleUserChange}
+            onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             onLogout={() => {
               localStorage.removeItem('kds_token');
               localStorage.removeItem('kds_user');
               window.location.href = '/login';
             }}
         />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto">
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
               {renderContent()}
