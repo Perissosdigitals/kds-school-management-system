@@ -19,4 +19,4 @@ dataSourceManager.registerAdapter('students', studentRestApiAdapter);
 dataSourceManager.setActiveAdapter('students', studentRestApiAdapter.id);
 
 console.log('✅ Data source manager initialized - Using REST API Backend');
-console.log('🌐 Backend URL: http://localhost:3001/api/v1');
+console.log('🌐 Backend URL:', import.meta.env.VITE_API_URL || 'https://kds-backend-api.perissosdigitals.workers.dev/api/v1');

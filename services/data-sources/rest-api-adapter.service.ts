@@ -8,7 +8,7 @@ import type { Student } from '../../types';
 export class RestApiAdapter implements IDataSourceAdapter<Student> {
   id = 'rest-api';
   name = 'Backend REST API';
-  description = 'Connexion au serveur NestJS sur http://localhost:3001/api/v1';
+  description = 'Connexion au backend API Cloudflare Workers';
 
   async find(): Promise<Student[]> {
     console.log('[RestApiAdapter] Fetching students from backend API...');
