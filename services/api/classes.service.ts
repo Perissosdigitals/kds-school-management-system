@@ -265,11 +265,81 @@ export const ClassesService = {
         };
       }
 
+      // Charger l'emploi du temps depuis l'API
+      let timetableData: TimetableSession[] = [];
+      try {
+        console.log(`ClassesService: Tentative de chargement emploi du temps pour classe ${classId}...`);
+        const timetableResponse = await httpClient.get<any[]>(`/timetable?classId=${classId}`);
+        timetableData = timetableResponse.data.map((slot: any) => ({
+          id: slot.id,
+          day: slot.day_of_week || slot.dayOfWeek,
+          startTime: slot.start_time || slot.startTime,
+          endTime: slot.end_time || slot.endTime,
+          subject: slot.subject_name || slot.subject,
+          classId: slot.class_id || slot.classId,
+          teacherId: slot.teacher_id || slot.teacherId,
+          room: slot.room
+        }));
+        console.log(`✅ ClassesService: Emploi du temps API chargé (${timetableData.length} sessions)`);
+      } catch (timetableError) {
+        console.warn('⚠️ ClassesService: API timetable inaccessible, génération d\'emploi du temps de démonstration');
+        
+        // Générer un emploi du temps de démonstration basé sur la classe
+        const className = classInfo.name;
+        const level = classInfo.level;
+        
+        // Emplois du temps réalistes selon le niveau
+        if (level === 'CM2' || level === 'CM1' || level === 'CE2' || level === 'CE1' || level === 'CP') {
+          // Primaire - Emploi du temps type
+          timetableData = [
+            { id: `tt-${classId}-1`, day: 'Lundi', startTime: '08:00', endTime: '10:00', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-2`, day: 'Lundi', startTime: '10:15', endTime: '12:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-3`, day: 'Lundi', startTime: '14:00', endTime: '15:30', subject: 'Histoire-Géographie', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-4`, day: 'Mardi', startTime: '08:00', endTime: '10:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-5`, day: 'Mardi', startTime: '10:15', endTime: '12:00', subject: 'Sciences', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-6`, day: 'Mardi', startTime: '14:00', endTime: '15:30', subject: 'Sport', classId, teacherId: classInfo.teacherId || '', room: 'Gymnase' },
+            { id: `tt-${classId}-7`, day: 'Mercredi', startTime: '08:00', endTime: '10:00', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-8`, day: 'Mercredi', startTime: '10:15', endTime: '12:00', subject: 'Torah', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-9`, day: 'Jeudi', startTime: '08:00', endTime: '10:00', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-10`, day: 'Jeudi', startTime: '10:15', endTime: '12:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-11`, day: 'Jeudi', startTime: '14:00', endTime: '15:30', subject: 'Anglais', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-12`, day: 'Vendredi', startTime: '08:00', endTime: '10:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-13`, day: 'Vendredi', startTime: '10:15', endTime: '12:00', subject: 'Hébreu', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+          ];
+        } else if (level === '6ème' || level === '5ème' || level === '4ème' || level === '3ème') {
+          // Collège - Emploi du temps type
+          timetableData = [
+            { id: `tt-${classId}-1`, day: 'Lundi', startTime: '08:00', endTime: '09:30', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-2`, day: 'Lundi', startTime: '09:45', endTime: '11:15', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-3`, day: 'Lundi', startTime: '11:30', endTime: '13:00', subject: 'Histoire-Géographie', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-4`, day: 'Lundi', startTime: '14:30', endTime: '16:00', subject: 'Anglais', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-5`, day: 'Mardi', startTime: '08:00', endTime: '09:30', subject: 'Sciences et Vie de la Terre', classId, teacherId: classInfo.teacherId || '', room: 'Laboratoire' },
+            { id: `tt-${classId}-6`, day: 'Mardi', startTime: '09:45', endTime: '11:15', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-7`, day: 'Mardi', startTime: '11:30', endTime: '13:00', subject: 'EPS', classId, teacherId: classInfo.teacherId || '', room: 'Gymnase' },
+            { id: `tt-${classId}-8`, day: 'Mardi', startTime: '14:30', endTime: '16:00', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-9`, day: 'Mercredi', startTime: '08:00', endTime: '09:30', subject: 'Anglais', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-10`, day: 'Mercredi', startTime: '09:45', endTime: '11:15', subject: 'Arts Plastiques', classId, teacherId: classInfo.teacherId || '', room: 'Atelier' },
+            { id: `tt-${classId}-11`, day: 'Jeudi', startTime: '08:00', endTime: '09:30', subject: 'Physique-Chimie', classId, teacherId: classInfo.teacherId || '', room: 'Laboratoire' },
+            { id: `tt-${classId}-12`, day: 'Jeudi', startTime: '09:45', endTime: '11:15', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-13`, day: 'Jeudi', startTime: '11:30', endTime: '13:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-14`, day: 'Jeudi', startTime: '14:30', endTime: '16:00', subject: 'Informatique', classId, teacherId: classInfo.teacherId || '', room: 'Salle Info' },
+            { id: `tt-${classId}-15`, day: 'Vendredi', startTime: '08:00', endTime: '09:30', subject: 'Histoire-Géographie', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-16`, day: 'Vendredi', startTime: '09:45', endTime: '11:15', subject: 'Anglais', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+            { id: `tt-${classId}-17`, day: 'Vendredi', startTime: '11:30', endTime: '13:00', subject: 'Éducation Civique', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
+          ];
+        } else {
+          // Autres niveaux - emploi du temps générique
+          timetableData = mockSchedule.filter(s => s.classId === classId);
+        }
+        
+        console.log(`📚 ClassesService: Emploi du temps DEMO généré (${timetableData.length} sessions pour ${className} - ${level})`);
+      }
+
       return {
         classInfo,
         students,
         teacher,
-        timetable: mockSchedule.filter(s => s.classId === classId), // À implémenter avec API
+        timetable: timetableData,
         evaluations: evaluations.filter(e => e.classId === classId).slice(0, 3), // À implémenter avec API
         grades: grades.filter(g => evaluations.some(e => e.id === g.evaluationId && e.classId === classId)), // À implémenter avec API
       };

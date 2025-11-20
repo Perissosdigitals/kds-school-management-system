@@ -238,3 +238,175 @@ export interface ApiResponse<T> {
     pageSize: number;
   };
 }
+
+// =============================================================================
+// SCHOOL LIFE TYPES (VIE SCOLAIRE)
+// =============================================================================
+
+export type ActivityCategory = 'Sport' | 'Musique' | 'Théâtre' | 'Informatique' | 'Arts' | 'Lecture' | 'Sciences' | 'Langues' | 'Autre';
+export type ActivityStatus = 'Planifiée' | 'En cours' | 'Terminée' | 'Annulée';
+
+export interface Activity {
+  id: string;
+  name: string;
+  category: ActivityCategory;
+  description: string;
+  responsibleTeacherId?: string;
+  responsibleTeacherName?: string;
+  schedule: string; // e.g., "Mardi 15h-17h"
+  location: string;
+  maxParticipants?: number;
+  currentParticipants: number;
+  startDate: string;
+  endDate?: string;
+  status: ActivityStatus;
+  participants: string[]; // Student IDs
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EventType = 'Cérémonie' | 'Journée thématique' | 'Compétition' | 'Sortie pédagogique' | 'Spectacle' | 'Autre';
+export type EventStatus = 'Planifié' | 'En cours' | 'Terminé' | 'Annulé';
+
+export interface Event {
+  id: string;
+  title: string;
+  type: EventType;
+  description: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  organizers: string[]; // Teacher/Staff IDs
+  targetAudience: string; // "Toute l'école", "CM2-A", "6ème", etc.
+  maxParticipants?: number;
+  participants: string[]; // Student IDs
+  status: EventStatus;
+  budget?: number;
+  expenses?: number;
+  photos?: string[];
+  documents?: string[];
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MeetingType = 'Parents-Professeurs' | 'Conseil de classe' | 'Assemblée générale' | 'Réunion pédagogique' | 'Autre';
+export type MeetingStatus = 'Planifiée' | 'En cours' | 'Terminée' | 'Annulée' | 'Reportée';
+
+export interface Meeting {
+  id: string;
+  title: string;
+  type: MeetingType;
+  description: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  organizer: string; // User ID
+  organizerName?: string;
+  invitees: string[]; // User/Parent IDs
+  attendees: string[]; // Who actually attended
+  agenda?: string;
+  minutes?: string; // Compte-rendu
+  status: MeetingStatus;
+  isRecurrent?: boolean;
+  recurrencePattern?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type IncidentSeverity = 'Mineur' | 'Modéré' | 'Grave' | 'Très grave';
+export type IncidentStatus = 'Signalé' | 'En traitement' | 'Résolu' | 'Clos';
+export type SanctionType = 'Avertissement' | 'Retenue' | 'Exclusion temporaire' | 'Travail d\'intérêt général' | 'Convocation parents' | 'Autre';
+
+export interface Incident {
+  id: string;
+  studentId: string;
+  studentName?: string;
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+  severity: IncidentSeverity;
+  reportedBy: string; // Teacher/Staff ID
+  reportedByName?: string;
+  witnesses?: string[];
+  status: IncidentStatus;
+  sanctions?: Sanction[];
+  followUp?: string;
+  parentNotified: boolean;
+  parentNotificationDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Sanction {
+  id: string;
+  incidentId: string;
+  type: SanctionType;
+  description: string;
+  appliedBy: string;
+  appliedByName?: string;
+  appliedDate: string;
+  duration?: string; // "2 jours", "1 semaine"
+  completed: boolean;
+  completionDate?: string;
+  notes?: string;
+}
+
+export interface Achievement {
+  id: string;
+  studentId: string;
+  studentName?: string;
+  title: string;
+  description: string;
+  category: 'Académique' | 'Sportif' | 'Artistique' | 'Comportement' | 'Autre';
+  date: string;
+  awardedBy: string;
+  awardedByName?: string;
+  certificate?: string; // URL or base64
+  createdAt: string;
+}
+
+export type AssociationType = 'Club étudiant' | 'Association parents' | 'Partenariat ONG' | 'Autre';
+export type AssociationStatus = 'Active' | 'Inactive' | 'En création';
+
+export interface Association {
+  id: string;
+  name: string;
+  type: AssociationType;
+  description: string;
+  presidentId?: string;
+  presidentName?: string;
+  members: string[]; // Student/Parent IDs
+  advisorId?: string; // Teacher ID
+  advisorName?: string;
+  foundingDate: string;
+  status: AssociationStatus;
+  activities: string[]; // Activity IDs
+  budget?: number;
+  contactEmail?: string;
+  contactPhone?: string;
+  logo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  category: 'Général' | 'Urgent' | 'Événement' | 'Académique' | 'Administratif';
+  priority: 'Basse' | 'Normale' | 'Haute' | 'Urgente';
+  targetAudience: string[]; // "all", "parents", "teachers", "students", or specific class IDs
+  publishDate: string;
+  expiryDate?: string;
+  attachments?: string[];
+  publishedBy: string;
+  publishedByName?: string;
+  views: number;
+  acknowledged: string[]; // User IDs who acknowledged
+  createdAt: string;
+  updatedAt: string;
+}

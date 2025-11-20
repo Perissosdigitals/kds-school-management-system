@@ -13,9 +13,9 @@ const mainNavLinks: { id: Page; icon: string; label: string }[] = [
   { id: 'student-registration', icon: 'bxs-user-plus', label: 'Inscription Élève' },
   { id: 'student-management', icon: 'bxs-graduation', label: 'Gestion Élèves' },
   { id: 'teacher-management', icon: 'bxs-user-detail', label: 'Gestion Professeurs' },
+  { id: 'class-management', icon: 'bxs-chalkboard', label: 'Gestion des Classes' },
   { id: 'school-life', icon: 'bxs-calendar-check', label: 'Vie Scolaire' },
   { id: 'grades-management', icon: 'bxs-pen', label: 'Gestion des Notes' },
-  { id: 'class-management', icon: 'bxs-chalkboard', label: 'Gestion des Classes' },
 ];
 
 const adminNavLinks: { id: Page; icon: string; label: string }[] = [

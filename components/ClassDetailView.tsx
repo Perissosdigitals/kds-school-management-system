@@ -3,13 +3,15 @@ import type { SchoolClass, Student, Teacher, TimetableSession } from '../types';
 import { ClassesService } from '../services/api/classes.service';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { StudentRegistrationForm } from './StudentRegistrationForm';
+import { StudentDetail } from './StudentDetail';
+import { ClassEditForm } from './ClassEditForm';
 
 interface ClassDetailViewProps {
     classId: string;
     onBack: () => void;
 }
 
-type TabType = 'overview' | 'students' | 'timetable' | 'statistics';
+type TabType = 'overview' | 'students' | 'attendance' | 'timetable' | 'statistics';
 
 export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBack }) => {
     const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -20,6 +22,9 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showStudentForm, setShowStudentForm] = useState(false);
+    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+    const [showEditForm, setShowEditForm] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
     useEffect(() => {
         loadClassDetails();
@@ -43,6 +48,11 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
             setStudents(fullClassData.students || []);
             setTeacher(fullClassData.teacher || null);
             setTimetable(fullClassData.timetable || []);
+            
+            console.log('📅 EMPLOI DU TEMPS chargé:', fullClassData.timetable?.length || 0, 'sessions');
+            if (fullClassData.timetable && fullClassData.timetable.length > 0) {
+                console.log('📚 Exemple session:', fullClassData.timetable[0]);
+            }
 
         } catch (err) {
             console.error('Error loading class details:', err);
@@ -91,7 +101,10 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
                         <i className='bx bx-arrow-back text-xl'></i>
                         <span>Retour</span>
                     </button>
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                    <button 
+                        onClick={() => setShowEditForm(true)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors"
+                    >
                         <i className='bx bx-edit'></i>
                         Modifier
                     </button>
@@ -186,6 +199,17 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
                             Élèves ({students.length})
                         </button>
                         <button
+                            onClick={() => setActiveTab('attendance')}
+                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === 'attendance'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            <i className='bx bx-calendar-check mr-2'></i>
+                            Présences
+                        </button>
+                        <button
                             onClick={() => setActiveTab('timetable')}
                             className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                                 activeTab === 'timetable'
@@ -218,6 +242,16 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
                             classData={classData}
                             onAddStudent={() => setShowStudentForm(true)}
                             onStudentAdded={loadClassDetails}
+                            onStudentClick={(student) => setSelectedStudent(student)}
+                        />
+                    )}
+                    {activeTab === 'attendance' && (
+                        <AttendanceTab 
+                            students={students}
+                            classData={classData}
+                            selectedDate={selectedDate}
+                            onDateChange={setSelectedDate}
+                            onStudentClick={(student) => setSelectedStudent(student)}
                         />
                     )}
                     {activeTab === 'timetable' && <TimetableTab timetable={timetable} />}
@@ -252,6 +286,57 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
                                 prefilledGradeLevel={classData?.level}
                             />
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal pour afficher la fiche élève */}
+            {selectedStudent && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                                    {selectedStudent.firstName?.[0]}{selectedStudent.lastName?.[0]}
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-gray-900">
+                                        {selectedStudent.firstName} {selectedStudent.lastName}
+                                    </h2>
+                                    <p className="text-sm text-gray-500">
+                                        {selectedStudent.studentCode} • {classData?.name}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedStudent(null)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <i className='bx bx-x text-2xl'></i>
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <StudentDetail 
+                                student={selectedStudent} 
+                                onClose={() => setSelectedStudent(null)}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal pour éditer la classe */}
+            {showEditForm && classData && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <ClassEditForm
+                            schoolClass={classData}
+                            onSave={() => {
+                                setShowEditForm(false);
+                                loadClassDetails();
+                            }}
+                            onCancel={() => setShowEditForm(false)}
+                        />
                     </div>
                 </div>
             )}
@@ -397,7 +482,8 @@ const StudentsTab: React.FC<{
     classData: SchoolClass;
     onAddStudent: () => void;
     onStudentAdded: () => void;
-}> = ({ students, classData, onAddStudent }) => {
+    onStudentClick: (student: Student) => void;
+}> = ({ students, classData, onAddStudent, onStudentClick }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState<'name' | 'code' | 'enrollment'>('name');
     const [viewMode, setViewMode] = useState<'list' | 'seating'>('list');
@@ -599,15 +685,22 @@ const StudentsTab: React.FC<{
                     {/* Liste des élèves */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredAndSortedStudents.map((student) => (
-                            <div key={student.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                            <div 
+                                key={student.id} 
+                                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
+                                onClick={() => onStudentClick(student)}
+                            >
                                 <div className="flex items-start gap-3">
                                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
                                         {student.firstName?.[0]}{student.lastName?.[0]}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-gray-900 truncate">
-                                            {student.firstName} {student.lastName}
-                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-semibold text-gray-900 truncate hover:text-blue-600 transition-colors">
+                                                {student.firstName} {student.lastName}
+                                            </p>
+                                            <i className='bx bx-link-external text-blue-500 text-sm'></i>
+                                        </div>
                                         <p className="text-xs text-gray-500">{student.studentCode}</p>
                                         <div className="mt-2 flex items-center gap-2">
                                             <span className={`text-xs px-2 py-1 rounded-full ${
@@ -645,10 +738,11 @@ const StudentsTab: React.FC<{
                             <i className='bx bx-info-circle text-blue-600 text-xl'></i>
                             <p className="font-semibold text-blue-900">Instructions</p>
                         </div>
-                        <p className="text-sm text-blue-800">
-                            Glissez et déposez les élèves pour organiser la disposition de la classe. 
-                            Cliquez sur "Réinitialiser" pour revenir à la disposition initiale.
-                        </p>
+                        <div className="space-y-1 text-sm text-blue-800">
+                            <p>• <strong>Glissez-déposez</strong> les élèves pour organiser la disposition de la classe</p>
+                            <p>• <strong>Double-cliquez</strong> sur un élève pour voir sa fiche complète</p>
+                            <p>• Cliquez sur <strong>"Réinitialiser"</strong> pour revenir à la disposition initiale</p>
+                        </div>
                     </div>
 
                     {/* Tableau d'enseignant */}
@@ -679,6 +773,8 @@ const StudentsTab: React.FC<{
                                         onDragStart={() => student && handleDragStart(student)}
                                         onDragOver={handleDragOver}
                                         onDrop={() => handleDrop(rowIndex, colIndex)}
+                                        onDoubleClick={() => student && onStudentClick(student)}
+                                        title={student ? `Double-cliquez pour voir la fiche de ${student.firstName} ${student.lastName}` : ''}
                                     >
                                         {student ? (
                                             <>
@@ -745,7 +841,7 @@ const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }
         const grouped: Record<string, TimetableSession[]> = {};
         daysOfWeek.forEach(day => {
             grouped[day] = timetable
-                .filter(session => session.dayOfWeek === day)
+                .filter(session => session.day === day)
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
         });
         return grouped;
@@ -799,6 +895,371 @@ const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }
                     )}
                 </div>
             ))}
+        </div>
+    );
+};
+
+const AttendanceTab: React.FC<{
+    students: Student[];
+    classData: SchoolClass;
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    onStudentClick: (student: Student) => void;
+}> = ({ students, classData, selectedDate, onDateChange, onStudentClick }) => {
+    const [attendanceData, setAttendanceData] = useState<Record<string, 'present' | 'absent' | 'late' | 'excused'>>({});
+    const [notes, setNotes] = useState<Record<string, string>>({});
+    const [showHistory, setShowHistory] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    // Format de la date pour l'affichage
+    const formatDate = (date: Date) => {
+        return new Intl.DateTimeFormat('fr-FR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        }).format(date);
+    };
+
+    // Changement de date
+    const changeDate = (days: number) => {
+        const newDate = new Date(selectedDate);
+        newDate.setDate(newDate.getDate() + days);
+        onDateChange(newDate);
+    };
+
+    // Toggle présence
+    const toggleAttendance = (studentId: string, status: 'present' | 'absent' | 'late' | 'excused') => {
+        setAttendanceData(prev => ({
+            ...prev,
+            [studentId]: prev[studentId] === status ? 'present' : status
+        }));
+    };
+
+    // Sauvegarder la fiche d'appel
+    const saveAttendance = async () => {
+        setIsSaving(true);
+        setSaveMessage(null);
+
+        try {
+            // Préparer les données pour l'API
+            const attendanceRecords = students.map(student => ({
+                studentId: student.id,
+                classId: classData.id,
+                date: selectedDate.toISOString().split('T')[0], // Format YYYY-MM-DD
+                status: attendanceData[student.id] || 'present',
+                note: notes[student.id] || '',
+                recordedBy: 'current-user', // À remplacer par l'utilisateur connecté
+                recordedAt: new Date().toISOString()
+            }));
+
+            console.log('📝 Sauvegarde de la fiche d\'appel:', {
+                date: selectedDate.toISOString().split('T')[0],
+                classe: classData.name,
+                totalEleves: students.length,
+                presents: Object.values(attendanceData).filter(s => s === 'present').length,
+                absents: Object.values(attendanceData).filter(s => s === 'absent').length,
+                retards: Object.values(attendanceData).filter(s => s === 'late').length,
+                justifies: Object.values(attendanceData).filter(s => s === 'excused').length,
+                records: attendanceRecords
+            });
+
+            // Tentative de sauvegarde via l'API
+            try {
+                const response = await fetch('http://localhost:3001/api/v1/attendance/bulk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        date: selectedDate.toISOString().split('T')[0],
+                        classId: classData.id,
+                        records: attendanceRecords
+                    })
+                });
+
+                if (response.ok) {
+                    setSaveMessage({ 
+                        type: 'success', 
+                        text: `✅ Fiche d'appel enregistrée avec succès pour le ${formatDate(selectedDate)}` 
+                    });
+                    console.log('✅ Fiche d\'appel sauvegardée avec succès');
+                } else {
+                    throw new Error('Erreur API: ' + response.statusText);
+                }
+            } catch (apiError) {
+                console.warn('⚠️ API non disponible, sauvegarde locale:', apiError);
+                
+                // Fallback: Sauvegarde locale dans localStorage
+                const localStorageKey = `attendance_${classData.id}_${selectedDate.toISOString().split('T')[0]}`;
+                localStorage.setItem(localStorageKey, JSON.stringify(attendanceRecords));
+                
+                setSaveMessage({ 
+                    type: 'success', 
+                    text: `✅ Fiche d'appel sauvegardée localement (${attendanceRecords.length} élèves marqués)` 
+                });
+                console.log('💾 Sauvegarde locale effectuée');
+            }
+
+            // Masquer le message après 5 secondes
+            setTimeout(() => setSaveMessage(null), 5000);
+
+        } catch (error) {
+            console.error('❌ Erreur lors de la sauvegarde:', error);
+            setSaveMessage({ 
+                type: 'error', 
+                text: '❌ Erreur lors de l\'enregistrement. Veuillez réessayer.' 
+            });
+            
+            // Masquer le message d'erreur après 7 secondes
+            setTimeout(() => setSaveMessage(null), 7000);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Statistiques du jour
+    const stats = useMemo(() => {
+        const present = Object.values(attendanceData).filter(s => s === 'present').length;
+        const absent = Object.values(attendanceData).filter(s => s === 'absent').length;
+        const late = Object.values(attendanceData).filter(s => s === 'late').length;
+        const excused = Object.values(attendanceData).filter(s => s === 'excused').length;
+        const total = students.length;
+        const marked = present + absent + late + excused;
+        
+        return { present, absent, late, excused, total, marked };
+    }, [attendanceData, students.length]);
+
+    return (
+        <div className="space-y-6">
+            {/* Message de sauvegarde */}
+            {saveMessage && (
+                <div className={`rounded-lg p-4 flex items-center gap-3 ${
+                    saveMessage.type === 'success' 
+                        ? 'bg-green-50 border border-green-200 text-green-800' 
+                        : 'bg-red-50 border border-red-200 text-red-800'
+                }`}>
+                    <i className={`bx text-2xl ${
+                        saveMessage.type === 'success' ? 'bx-check-circle' : 'bx-error-circle'
+                    }`}></i>
+                    <p className="flex-1 font-medium">{saveMessage.text}</p>
+                    <button 
+                        onClick={() => setSaveMessage(null)}
+                        className="text-gray-500 hover:text-gray-700"
+                    >
+                        <i className='bx bx-x text-xl'></i>
+                    </button>
+                </div>
+            )}
+
+            {/* En-tête avec calendrier */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-1">Fiche d'appel</h3>
+                        <p className="text-sm text-gray-600">{classData.name} • {classData.level}</p>
+                    </div>
+                    <button
+                        onClick={() => setShowHistory(!showHistory)}
+                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    >
+                        <i className='bx bx-history'></i>
+                        {showHistory ? 'Appel du jour' : 'Historique'}
+                    </button>
+                </div>
+
+                {/* Sélecteur de date */}
+                <div className="flex items-center gap-4 bg-white rounded-lg p-4 shadow-sm">
+                    <button
+                        onClick={() => changeDate(-1)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        <i className='bx bx-chevron-left text-2xl'></i>
+                    </button>
+                    <div className="flex-1 text-center">
+                        <p className="text-lg font-semibold text-gray-900 capitalize">
+                            {formatDate(selectedDate)}
+                        </p>
+                        {selectedDate.toDateString() === new Date().toDateString() && (
+                            <span className="text-xs text-green-600 font-medium">Aujourd'hui</span>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => changeDate(1)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        <i className='bx bx-chevron-right text-2xl'></i>
+                    </button>
+                    <button
+                        onClick={() => onDateChange(new Date())}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        Aujourd'hui
+                    </button>
+                </div>
+
+                {/* Statistiques rapides */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
+                    <div className="bg-white rounded-lg p-3 text-center">
+                        <p className="text-2xl font-bold text-green-600">{stats.present}</p>
+                        <p className="text-xs text-gray-600">Présents</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 text-center">
+                        <p className="text-2xl font-bold text-red-600">{stats.absent}</p>
+                        <p className="text-xs text-gray-600">Absents</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 text-center">
+                        <p className="text-2xl font-bold text-orange-600">{stats.late}</p>
+                        <p className="text-xs text-gray-600">Retards</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 text-center">
+                        <p className="text-2xl font-bold text-blue-600">{stats.excused}</p>
+                        <p className="text-xs text-gray-600">Justifiés</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 text-center">
+                        <p className="text-2xl font-bold text-gray-900">{stats.marked}/{stats.total}</p>
+                        <p className="text-xs text-gray-600">Marqués</p>
+                    </div>
+                </div>
+            </div>
+
+            {!showHistory ? (
+                <>
+                    {/* Liste des élèves pour l'appel */}
+                    <div className="bg-white rounded-xl border border-gray-200">
+                        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                            <h4 className="font-semibold text-gray-900">Liste des élèves ({students.length})</h4>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        const allPresent: Record<string, 'present'> = {};
+                                        students.forEach(s => { allPresent[s.id] = 'present'; });
+                                        setAttendanceData(allPresent);
+                                    }}
+                                    className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                >
+                                    Tous présents
+                                </button>
+                                <button
+                                    onClick={saveAttendance}
+                                    disabled={isSaving}
+                                    className={`px-4 py-1 text-xs rounded flex items-center gap-1 transition-all ${
+                                        isSaving 
+                                            ? 'bg-gray-400 text-white cursor-not-allowed' 
+                                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
+                                >
+                                    <i className={`bx ${isSaving ? 'bx-loader-alt animate-spin' : 'bx-save'}`}></i>
+                                    {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="divide-y divide-gray-200">
+                            {students.map((student) => {
+                                const status = attendanceData[student.id] || 'present';
+                                return (
+                                    <div key={student.id} className="p-4 hover:bg-gray-50 transition-colors">
+                                        <div className="flex items-center gap-4">
+                                            {/* Avatar */}
+                                            <div 
+                                                className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold cursor-pointer"
+                                                onClick={() => onStudentClick(student)}
+                                                title="Voir la fiche élève"
+                                            >
+                                                {student.firstName?.[0]}{student.lastName?.[0]}
+                                            </div>
+
+                                            {/* Info élève */}
+                                            <div className="flex-1">
+                                                <p 
+                                                    className="font-medium text-gray-900 cursor-pointer hover:text-blue-600"
+                                                    onClick={() => onStudentClick(student)}
+                                                >
+                                                    {student.firstName} {student.lastName}
+                                                </p>
+                                                <p className="text-xs text-gray-500">{student.studentCode}</p>
+                                            </div>
+
+                                            {/* Boutons de statut */}
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => toggleAttendance(student.id, 'present')}
+                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                                                        status === 'present'
+                                                            ? 'bg-green-600 text-white'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-green-100'
+                                                    }`}
+                                                >
+                                                    <i className='bx bx-check-circle mr-1'></i>
+                                                    Présent
+                                                </button>
+                                                <button
+                                                    onClick={() => toggleAttendance(student.id, 'absent')}
+                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                                                        status === 'absent'
+                                                            ? 'bg-red-600 text-white'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-red-100'
+                                                    }`}
+                                                >
+                                                    <i className='bx bx-x-circle mr-1'></i>
+                                                    Absent
+                                                </button>
+                                                <button
+                                                    onClick={() => toggleAttendance(student.id, 'late')}
+                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                                                        status === 'late'
+                                                            ? 'bg-orange-600 text-white'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-orange-100'
+                                                    }`}
+                                                >
+                                                    <i className='bx bx-time mr-1'></i>
+                                                    Retard
+                                                </button>
+                                                <button
+                                                    onClick={() => toggleAttendance(student.id, 'excused')}
+                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                                                        status === 'excused'
+                                                            ? 'bg-blue-600 text-white'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-blue-100'
+                                                    }`}
+                                                >
+                                                    <i className='bx bx-file mr-1'></i>
+                                                    Justifié
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Note pour cet élève */}
+                                        {(status === 'absent' || status === 'late' || status === 'excused') && (
+                                            <div className="mt-2 ml-14">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ajouter une remarque..."
+                                                    value={notes[student.id] || ''}
+                                                    onChange={(e) => setNotes(prev => ({ ...prev, [student.id]: e.target.value }))}
+                                                    className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </>
+            ) : (
+                /* Historique des présences */
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    <h4 className="font-semibold text-gray-900 mb-4">Historique des présences</h4>
+                    <div className="text-center py-12 text-gray-500">
+                        <i className='bx bx-calendar-event text-6xl mb-4'></i>
+                        <p>L'historique des présences sera disponible prochainement</p>
+                        <p className="text-sm mt-2">Intégration avec l'API en cours...</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -934,8 +1395,3 @@ const StatisticsTab: React.FC<{ students: Student[]; classData: SchoolClass }> =
         </div>
     );
 };
-
-// Fonction useMemo pour les imports
-function useMemo<T>(factory: () => T, deps: React.DependencyList | undefined): T {
-    return React.useMemo(factory, deps);
-}

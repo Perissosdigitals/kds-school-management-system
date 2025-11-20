@@ -642,6 +642,88 @@ app.post('/api/v1/attendance', async (c) => {
   }
 });
 
+// POST - Bulk create/update attendance (for class attendance sheet)
+app.post('/api/v1/attendance/bulk', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { date, classId, records } = body;
+
+    if (!date || !classId || !Array.isArray(records)) {
+      return c.json({ error: 'Invalid request: date, classId, and records array required' }, 400);
+    }
+
+    console.log(`Bulk attendance save: ${records.length} records for class ${classId} on ${date}`);
+
+    // Process each attendance record
+    const results = await Promise.all(
+      records.map(async (record: any) => {
+        try {
+          const attendanceId = crypto.randomUUID();
+          
+          // Check if attendance already exists for this student/date
+          const existing = await c.env.DB.prepare(`
+            SELECT id FROM attendance 
+            WHERE student_id = ? AND date = ?
+            LIMIT 1
+          `).bind(record.studentId, date).first();
+
+          if (existing) {
+            // Update existing record
+            await c.env.DB.prepare(`
+              UPDATE attendance 
+              SET status = ?, reason = ?, recorded_by = ?, updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).bind(
+              record.status,
+              record.note || null,
+              record.recordedBy || null,
+              existing.id
+            ).run();
+            return { studentId: record.studentId, action: 'updated' };
+          } else {
+            // Insert new record
+            await c.env.DB.prepare(`
+              INSERT INTO attendance (id, student_id, date, status, reason, recorded_by, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `).bind(
+              attendanceId,
+              record.studentId,
+              date,
+              record.status,
+              record.note || null,
+              record.recordedBy || null
+            ).run();
+            return { studentId: record.studentId, action: 'created' };
+          }
+        } catch (recordError) {
+          console.error(`Error processing record for student ${record.studentId}:`, recordError);
+          return { studentId: record.studentId, action: 'error', error: recordError };
+        }
+      })
+    );
+
+    const summary = {
+      total: records.length,
+      created: results.filter(r => r.action === 'created').length,
+      updated: results.filter(r => r.action === 'updated').length,
+      errors: results.filter(r => r.action === 'error').length
+    };
+
+    console.log('Bulk attendance save complete:', summary);
+
+    return c.json({ 
+      success: true,
+      message: 'Attendance bulk save completed',
+      summary,
+      date,
+      classId
+    }, 201);
+  } catch (error) {
+    console.error('Bulk attendance save error:', error);
+    return c.json({ error: 'Failed to save bulk attendance' }, 500);
+  }
+});
+
 // PUT - Update attendance
 app.put('/api/v1/attendance/:id', async (c) => {
   try {
