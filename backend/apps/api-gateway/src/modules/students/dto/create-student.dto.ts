@@ -146,6 +146,11 @@ export class CreateStudentDto {
   @IsEnum(['Actif', 'Inactif', 'En attente'])
   status?: StudentStatus;
 
+  @ApiPropertyOptional({ example: 'uuid-of-class' })
+  @IsOptional()
+  @IsString()
+  classId?: string;
+
   @ApiPropertyOptional({ type: [StudentDocumentDto] })
   @IsOptional()
   @IsArray()

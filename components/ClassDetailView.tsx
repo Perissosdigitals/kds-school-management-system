@@ -1,0 +1,941 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import type { SchoolClass, Student, Teacher, TimetableSession } from '../types';
+import { ClassesService } from '../services/api/classes.service';
+import { LoadingSpinner } from './ui/LoadingSpinner';
+import { StudentRegistrationForm } from './StudentRegistrationForm';
+
+interface ClassDetailViewProps {
+    classId: string;
+    onBack: () => void;
+}
+
+type TabType = 'overview' | 'students' | 'timetable' | 'statistics';
+
+export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBack }) => {
+    const [activeTab, setActiveTab] = useState<TabType>('overview');
+    const [classData, setClassData] = useState<SchoolClass | null>(null);
+    const [students, setStudents] = useState<Student[]>([]);
+    const [teacher, setTeacher] = useState<Teacher | null>(null);
+    const [timetable, setTimetable] = useState<TimetableSession[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [showStudentForm, setShowStudentForm] = useState(false);
+
+    useEffect(() => {
+        loadClassDetails();
+    }, [classId]);
+
+    const loadClassDetails = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Charger les détails complets de la classe
+            const fullClassData = await ClassesService.getClassById(classId);
+            
+            if (!fullClassData) {
+                setError('Classe introuvable');
+                return;
+            }
+
+            // Extraire les données
+            setClassData(fullClassData.classInfo);
+            setStudents(fullClassData.students || []);
+            setTeacher(fullClassData.teacher || null);
+            setTimetable(fullClassData.timetable || []);
+
+        } catch (err) {
+            console.error('Error loading class details:', err);
+            setError('Erreur lors du chargement des détails de la classe');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-96">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
+
+    if (error || !classData) {
+        return (
+            <div className="text-center py-12">
+                <i className='bx bx-error-circle text-6xl text-red-500 mb-4'></i>
+                <p className="text-gray-600 mb-4">{error || 'Classe introuvable'}</p>
+                <button
+                    onClick={onBack}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                    Retour aux classes
+                </button>
+            </div>
+        );
+    }
+
+    const occupancyPercentage = classData.capacity 
+        ? Math.round((classData.currentOccupancy / classData.capacity) * 100)
+        : 0;
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                        <i className='bx bx-arrow-back text-xl'></i>
+                        <span>Retour</span>
+                    </button>
+                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                        <i className='bx bx-edit'></i>
+                        Modifier
+                    </button>
+                </div>
+
+                <div className="flex items-start gap-6">
+                    <div className="flex-shrink-0 w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                        <i className='bx bxs-school text-4xl text-white'></i>
+                    </div>
+                    
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                            <h1 className="text-3xl font-bold text-gray-900">{classData.name}</h1>
+                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                                {classData.level}
+                            </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <i className='bx bxs-user text-green-600 text-xl'></i>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500">Enseignant principal</p>
+                                    <p className="font-semibold text-gray-900">
+                                        {classData.teacherName || 'Non assigné'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                    <i className='bx bxs-group text-purple-600 text-xl'></i>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500">Effectif</p>
+                                    <p className="font-semibold text-gray-900">
+                                        {classData.currentOccupancy}/{classData.capacity} élèves
+                                        <span className="text-xs text-gray-500 ml-2">({occupancyPercentage}%)</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                                    <i className='bx bxs-door-open text-orange-600 text-xl'></i>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500">Salle</p>
+                                    <p className="font-semibold text-gray-900">
+                                        {classData.room || 'Non définie'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
+                            <span className="flex items-center gap-1">
+                                <i className='bx bx-calendar'></i>
+                                Année académique: <strong>{classData.academicYear}</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="border-b border-gray-200">
+                    <nav className="flex -mb-px">
+                        <button
+                            onClick={() => setActiveTab('overview')}
+                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === 'overview'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            <i className='bx bx-info-circle mr-2'></i>
+                            Vue d'ensemble
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('students')}
+                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === 'students'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            <i className='bx bx-group mr-2'></i>
+                            Élèves ({students.length})
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('timetable')}
+                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === 'timetable'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            <i className='bx bx-time-five mr-2'></i>
+                            Emploi du temps
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('statistics')}
+                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === 'statistics'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            <i className='bx bx-bar-chart mr-2'></i>
+                            Statistiques
+                        </button>
+                    </nav>
+                </div>
+
+                <div className="p-6">
+                    {activeTab === 'overview' && <OverviewTab classData={classData} teacher={teacher} students={students} />}
+                    {activeTab === 'students' && (
+                        <StudentsTab 
+                            students={students} 
+                            classData={classData}
+                            onAddStudent={() => setShowStudentForm(true)}
+                            onStudentAdded={loadClassDetails}
+                        />
+                    )}
+                    {activeTab === 'timetable' && <TimetableTab timetable={timetable} />}
+                    {activeTab === 'statistics' && <StatisticsTab students={students} classData={classData} />}
+                </div>
+            </div>
+
+            {/* Modal pour ajouter un élève */}
+            {showStudentForm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-gray-900">
+                                <i className='bx bx-user-plus mr-2'></i>
+                                Ajouter un élève à {classData?.name}
+                            </h2>
+                            <button
+                                onClick={() => setShowStudentForm(false)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <i className='bx bx-x text-2xl'></i>
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <StudentRegistrationForm
+                                onSuccess={(newStudent) => {
+                                    setShowStudentForm(false);
+                                    loadClassDetails(); // Recharger les données
+                                }}
+                                onCancel={() => setShowStudentForm(false)}
+                                prefilledClassId={classId}
+                                prefilledGradeLevel={classData?.level}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Tab Components ---
+
+const OverviewTab: React.FC<{ 
+    classData: SchoolClass; 
+    teacher: Teacher | null;
+    students: Student[];
+}> = ({ classData, teacher, students }) => {
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Informations générales */}
+                <div className="bg-gray-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <i className='bx bx-info-circle text-blue-600'></i>
+                        Informations générales
+                    </h3>
+                    <dl className="space-y-3">
+                        <div>
+                            <dt className="text-sm text-gray-500">Nom de la classe</dt>
+                            <dd className="text-sm font-medium text-gray-900">{classData.name}</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-500">Niveau</dt>
+                            <dd className="text-sm font-medium text-gray-900">{classData.level}</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-500">Année académique</dt>
+                            <dd className="text-sm font-medium text-gray-900">{classData.academicYear}</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-500">Salle de classe</dt>
+                            <dd className="text-sm font-medium text-gray-900">{classData.room || 'Non définie'}</dd>
+                        </div>
+                        <div>
+                            <dt className="text-sm text-gray-500">Capacité maximale</dt>
+                            <dd className="text-sm font-medium text-gray-900">{classData.capacity} élèves</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                {/* Enseignant principal */}
+                <div className="bg-gray-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <i className='bx bx-user text-green-600'></i>
+                        Enseignant principal
+                    </h3>
+                    {teacher ? (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                    {teacher.firstName?.[0]}{teacher.lastName?.[0]}
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-gray-900">
+                                        {teacher.firstName} {teacher.lastName}
+                                    </p>
+                                    <p className="text-sm text-gray-500">{teacher.subject}</p>
+                                </div>
+                            </div>
+                            <dl className="space-y-2 mt-4">
+                                <div>
+                                    <dt className="text-sm text-gray-500">Email</dt>
+                                    <dd className="text-sm font-medium text-gray-900">{teacher.email}</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-sm text-gray-500">Téléphone</dt>
+                                    <dd className="text-sm font-medium text-gray-900">{teacher.phone}</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-sm text-gray-500">Statut</dt>
+                                    <dd>
+                                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                            teacher.status === 'Actif' 
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-gray-100 text-gray-700'
+                                        }`}>
+                                            {teacher.status}
+                                        </span>
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-500">
+                            <i className='bx bx-user-x text-4xl mb-2'></i>
+                            <p>Aucun enseignant assigné</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Effectif rapide */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Effectif de la classe</h3>
+                <div className="flex items-center gap-8">
+                    <div className="flex-1">
+                        <div className="relative pt-1">
+                            <div className="flex mb-2 items-center justify-between">
+                                <div>
+                                    <span className="text-xs font-semibold inline-block text-blue-600">
+                                        Taux de remplissage
+                                    </span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-xs font-semibold inline-block text-blue-600">
+                                        {Math.round((classData.currentOccupancy / classData.capacity) * 100)}%
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
+                                <div
+                                    style={{ width: `${(classData.currentOccupancy / classData.capacity) * 100}%` }}
+                                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600"
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="text-center">
+                            <p className="text-3xl font-bold text-blue-600">{classData.currentOccupancy}</p>
+                            <p className="text-sm text-gray-600">Élèves inscrits</p>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-3xl font-bold text-gray-400">{classData.capacity - classData.currentOccupancy}</p>
+                            <p className="text-sm text-gray-600">Places disponibles</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const StudentsTab: React.FC<{ 
+    students: Student[]; 
+    classData: SchoolClass;
+    onAddStudent: () => void;
+    onStudentAdded: () => void;
+}> = ({ students, classData, onAddStudent }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState<'name' | 'code' | 'enrollment'>('name');
+    const [viewMode, setViewMode] = useState<'list' | 'seating'>('list');
+    const [seatingArrangement, setSeatingArrangement] = useState<(Student | null)[][]>([]);
+    const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
+
+    // Initialiser le plan de classe (5 rangées x 6 colonnes = 30 places)
+    React.useEffect(() => {
+        if (seatingArrangement.length === 0 && students.length > 0) {
+            const rows = 5;
+            const cols = 6;
+            const arrangement: (Student | null)[][] = [];
+            
+            for (let i = 0; i < rows; i++) {
+                const row: (Student | null)[] = [];
+                for (let j = 0; j < cols; j++) {
+                    const studentIndex = i * cols + j;
+                    row.push(studentIndex < students.length ? students[studentIndex] : null);
+                }
+                arrangement.push(row);
+            }
+            
+            setSeatingArrangement(arrangement);
+        }
+    }, [students]);
+
+    // Handlers pour drag & drop
+    const handleDragStart = (student: Student) => {
+        setDraggedStudent(student);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (rowIndex: number, colIndex: number) => {
+        if (!draggedStudent) return;
+
+        const newArrangement = seatingArrangement.map(row => [...row]);
+        
+        // Trouver la position actuelle de l'élève
+        let currentRow = -1;
+        let currentCol = -1;
+        
+        for (let i = 0; i < newArrangement.length; i++) {
+            for (let j = 0; j < newArrangement[i].length; j++) {
+                if (newArrangement[i][j]?.id === draggedStudent.id) {
+                    currentRow = i;
+                    currentCol = j;
+                    break;
+                }
+            }
+            if (currentRow !== -1) break;
+        }
+
+        // Échanger les positions
+        if (currentRow !== -1 && currentCol !== -1) {
+            const temp = newArrangement[rowIndex][colIndex];
+            newArrangement[rowIndex][colIndex] = draggedStudent;
+            newArrangement[currentRow][currentCol] = temp;
+        } else {
+            // L'élève n'était pas encore placé
+            newArrangement[rowIndex][colIndex] = draggedStudent;
+        }
+
+        setSeatingArrangement(newArrangement);
+        setDraggedStudent(null);
+    };
+
+    const resetSeating = () => {
+        setSeatingArrangement([]);
+    };
+
+    const filteredAndSortedStudents = useMemo(() => {
+        let filtered = students.filter(student => 
+            student.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            student.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            student.studentCode?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return filtered.sort((a, b) => {
+            switch (sortBy) {
+                case 'name':
+                    return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
+                case 'code':
+                    return (a.studentCode || '').localeCompare(b.studentCode || '');
+                case 'enrollment':
+                    return new Date(b.enrollmentDate || 0).getTime() - new Date(a.enrollmentDate || 0).getTime();
+                default:
+                    return 0;
+            }
+        });
+    }, [students, searchTerm, sortBy]);
+
+    if (students.length === 0) {
+        return (
+            <div className="text-center py-12">
+                <i className='bx bx-user-x text-6xl text-gray-300 mb-4'></i>
+                <p className="text-gray-500 mb-4">Aucun élève inscrit dans cette classe</p>
+                <button 
+                    onClick={onAddStudent}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    <i className='bx bx-plus mr-2'></i>
+                    Ajouter des élèves
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            {/* En-tête avec bouton d'ajout */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <i className='bx bx-group text-2xl text-blue-600'></i>
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            Liste des élèves ({students.length})
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                            {classData.capacity - classData.currentOccupancy} place(s) disponible(s)
+                        </p>
+                    </div>
+                </div>
+                <button
+                    onClick={onAddStudent}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm"
+                >
+                    <i className='bx bx-user-plus'></i>
+                    Ajouter un élève
+                </button>
+            </div>
+
+            {/* Barre d'outils */}
+            <div className="flex gap-4 items-center justify-between">
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setViewMode('list')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                            viewMode === 'list'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                        <i className='bx bx-list-ul mr-2'></i>
+                        Liste
+                    </button>
+                    <button
+                        onClick={() => setViewMode('seating')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                            viewMode === 'seating'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                        <i className='bx bx-grid-alt mr-2'></i>
+                        Plan de classe
+                    </button>
+                </div>
+                
+                {viewMode === 'seating' && (
+                    <button
+                        onClick={resetSeating}
+                        className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 font-medium"
+                    >
+                        <i className='bx bx-reset mr-2'></i>
+                        Réinitialiser
+                    </button>
+                )}
+            </div>
+
+            {/* Vue Liste */}
+            {viewMode === 'list' && (
+                <>
+                    {/* Filtres et recherche */}
+                    <div className="flex gap-4 items-center">
+                        <div className="flex-1 relative">
+                            <i className='bx bx-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400'></i>
+                            <input
+                                type="text"
+                                placeholder="Rechercher un élève..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as any)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="name">Trier par nom</option>
+                            <option value="code">Trier par code</option>
+                            <option value="enrollment">Trier par inscription</option>
+                        </select>
+                    </div>
+
+                    {/* Liste des élèves */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredAndSortedStudents.map((student) => (
+                            <div key={student.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                                        {student.firstName?.[0]}{student.lastName?.[0]}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-gray-900 truncate">
+                                            {student.firstName} {student.lastName}
+                                        </p>
+                                        <p className="text-xs text-gray-500">{student.studentCode}</p>
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <span className={`text-xs px-2 py-1 rounded-full ${
+                                                student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male'
+                                                    ? 'bg-blue-100 text-blue-700'
+                                                    : 'bg-pink-100 text-pink-700'
+                                            }`}>
+                                                {student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male' ? 'Garçon' : 'Fille'}
+                                            </span>
+                                            {student.age && (
+                                                <span className="text-xs text-gray-500">{student.age} ans</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {filteredAndSortedStudents.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                            <i className='bx bx-search-alt text-4xl mb-2'></i>
+                            <p>Aucun élève trouvé</p>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Vue Plan de Classe */}
+            {viewMode === 'seating' && (
+                <div className="space-y-6">
+                    {/* Légende */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <i className='bx bx-info-circle text-blue-600 text-xl'></i>
+                            <p className="font-semibold text-blue-900">Instructions</p>
+                        </div>
+                        <p className="text-sm text-blue-800">
+                            Glissez et déposez les élèves pour organiser la disposition de la classe. 
+                            Cliquez sur "Réinitialiser" pour revenir à la disposition initiale.
+                        </p>
+                    </div>
+
+                    {/* Tableau d'enseignant */}
+                    <div className="flex justify-center mb-4">
+                        <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-lg shadow-md">
+                            <i className='bx bxs-chalkboard mr-2'></i>
+                            <span className="font-semibold">Tableau</span>
+                        </div>
+                    </div>
+
+                    {/* Grille de places */}
+                    <div className="space-y-3">
+                        {seatingArrangement.map((row, rowIndex) => (
+                            <div key={rowIndex} className="flex gap-3 justify-center">
+                                {row.map((student, colIndex) => (
+                                    <div
+                                        key={`${rowIndex}-${colIndex}`}
+                                        className={`
+                                            w-32 h-32 rounded-lg border-2 border-dashed
+                                            flex flex-col items-center justify-center
+                                            transition-all duration-200
+                                            ${student 
+                                                ? 'bg-white border-blue-300 shadow-sm hover:shadow-md cursor-move' 
+                                                : 'bg-gray-50 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                                            }
+                                        `}
+                                        draggable={!!student}
+                                        onDragStart={() => student && handleDragStart(student)}
+                                        onDragOver={handleDragOver}
+                                        onDrop={() => handleDrop(rowIndex, colIndex)}
+                                    >
+                                        {student ? (
+                                            <>
+                                                <div className={`
+                                                    w-12 h-12 rounded-full flex items-center justify-center
+                                                    text-white font-bold text-sm mb-2
+                                                    ${student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male'
+                                                        ? 'bg-gradient-to-br from-blue-500 to-blue-600'
+                                                        : 'bg-gradient-to-br from-pink-500 to-pink-600'
+                                                    }
+                                                `}>
+                                                    {student.firstName?.[0]}{student.lastName?.[0]}
+                                                </div>
+                                                <p className="text-xs font-semibold text-gray-900 text-center px-1 truncate w-full">
+                                                    {student.firstName}
+                                                </p>
+                                                <p className="text-xs text-gray-500 truncate w-full text-center px-1">
+                                                    {student.lastName}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <div className="text-gray-400">
+                                                <i className='bx bx-user-plus text-3xl'></i>
+                                                <p className="text-xs mt-1">Place vide</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Statistiques rapides */}
+                    <div className="grid grid-cols-3 gap-4 mt-6">
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                            <p className="text-2xl font-bold text-blue-600">
+                                {seatingArrangement.flat().filter(s => s !== null).length}
+                            </p>
+                            <p className="text-sm text-gray-600">Places occupées</p>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                            <p className="text-2xl font-bold text-gray-400">
+                                {seatingArrangement.flat().filter(s => s === null).length}
+                            </p>
+                            <p className="text-sm text-gray-600">Places libres</p>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                            <p className="text-2xl font-bold text-green-600">
+                                {classData.capacity}
+                            </p>
+                            <p className="text-sm text-gray-600">Capacité totale</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }) => {
+    const daysOfWeek = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+    
+    const groupedByDay = useMemo(() => {
+        const grouped: Record<string, TimetableSession[]> = {};
+        daysOfWeek.forEach(day => {
+            grouped[day] = timetable
+                .filter(session => session.dayOfWeek === day)
+                .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        });
+        return grouped;
+    }, [timetable]);
+
+    if (timetable.length === 0) {
+        return (
+            <div className="text-center py-12">
+                <i className='bx bx-calendar-x text-6xl text-gray-300 mb-4'></i>
+                <p className="text-gray-500 mb-4">Aucun emploi du temps configuré</p>
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <i className='bx bx-plus mr-2'></i>
+                    Créer l'emploi du temps
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {daysOfWeek.map(day => (
+                <div key={day} className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <i className='bx bx-calendar text-blue-600'></i>
+                        {day}
+                    </h4>
+                    {groupedByDay[day]?.length > 0 ? (
+                        <div className="space-y-2">
+                            {groupedByDay[day].map((session) => (
+                                <div key={session.id} className="bg-white rounded-lg p-3 border border-gray-200 flex items-center gap-4">
+                                    <div className="flex-shrink-0 text-center">
+                                        <p className="text-sm font-semibold text-gray-900">{session.startTime}</p>
+                                        <p className="text-xs text-gray-500">{session.endTime}</p>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-medium text-gray-900">{session.subject}</p>
+                                        {session.teacherId && (
+                                            <p className="text-sm text-gray-500">Prof. {session.teacherId}</p>
+                                        )}
+                                    </div>
+                                    {session.room && (
+                                        <div className="flex-shrink-0 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                            Salle {session.room}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-500 italic">Aucun cours ce jour</p>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const StatisticsTab: React.FC<{ students: Student[]; classData: SchoolClass }> = ({ students, classData }) => {
+    const stats = useMemo(() => {
+        const genderStats = students.reduce((acc, student) => {
+            const gender = student.gender || 'Non spécifié';
+            acc[gender] = (acc[gender] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const avgAge = students.reduce((sum, s) => sum + (s.age || 0), 0) / (students.length || 1);
+
+        const ageGroups = students.reduce((acc, student) => {
+            if (!student.age) return acc;
+            const group = student.age < 8 ? '< 8 ans' :
+                         student.age < 12 ? '8-11 ans' :
+                         student.age < 15 ? '12-14 ans' : '15+ ans';
+            acc[group] = (acc[group] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        return {
+            total: students.length,
+            genderStats,
+            avgAge: avgAge.toFixed(1),
+            ageGroups,
+            occupancyRate: Math.round((students.length / classData.capacity) * 100)
+        };
+    }, [students, classData]);
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-blue-100 text-sm">Total élèves</p>
+                            <p className="text-4xl font-bold mt-1">{stats.total}</p>
+                        </div>
+                        <i className='bx bxs-group text-5xl text-blue-300 opacity-50'></i>
+                    </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-green-100 text-sm">Âge moyen</p>
+                            <p className="text-4xl font-bold mt-1">{stats.avgAge}</p>
+                            <p className="text-xs text-green-100 mt-1">ans</p>
+                        </div>
+                        <i className='bx bxs-cake text-5xl text-green-300 opacity-50'></i>
+                    </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-purple-100 text-sm">Taux de remplissage</p>
+                            <p className="text-4xl font-bold mt-1">{stats.occupancyRate}%</p>
+                        </div>
+                        <i className='bx bxs-pie-chart-alt-2 text-5xl text-purple-300 opacity-50'></i>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Répartition par genre */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <i className='bx bx-male-female text-purple-600'></i>
+                        Répartition par genre
+                    </h4>
+                    <div className="space-y-3">
+                        {Object.entries(stats.genderStats).map(([gender, count]) => {
+                            const numCount = Number(count);
+                            const percentage = Math.round((numCount / stats.total) * 100);
+                            const isMale = gender === 'M' || gender === 'Masculin' || gender === 'male';
+                            const isFemale = gender === 'F' || gender === 'Féminin' || gender === 'female';
+                            const displayLabel = isMale ? 'Garçons' : isFemale ? 'Filles' : gender;
+                            
+                            return (
+                                <div key={gender}>
+                                    <div className="flex justify-between text-sm mb-1">
+                                        <span className="text-gray-600">
+                                            {displayLabel}
+                                        </span>
+                                        <span className="font-semibold text-gray-900">{numCount} ({percentage}%)</span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            className={`h-2 rounded-full ${
+                                                isMale ? 'bg-blue-500' : 'bg-pink-500'
+                                            }`}
+                                            style={{ width: `${percentage}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Répartition par âge */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <i className='bx bx-bar-chart text-orange-600'></i>
+                        Répartition par âge
+                    </h4>
+                    <div className="space-y-3">
+                        {Object.entries(stats.ageGroups).map(([group, count]) => {
+                            const numCount = Number(count);
+                            const percentage = Math.round((numCount / stats.total) * 100);
+                            return (
+                                <div key={group}>
+                                    <div className="flex justify-between text-sm mb-1">
+                                        <span className="text-gray-600">{group}</span>
+                                        <span className="font-semibold text-gray-900">{numCount} ({percentage}%)</span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            className="bg-orange-500 h-2 rounded-full"
+                                            style={{ width: `${percentage}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Fonction useMemo pour les imports
+function useMemo<T>(factory: () => T, deps: React.DependencyList | undefined): T {
+    return React.useMemo(factory, deps);
+}

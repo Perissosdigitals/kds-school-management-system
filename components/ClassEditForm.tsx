@@ -14,6 +14,8 @@ export const ClassEditForm: React.FC<ClassEditFormProps> = ({ schoolClass, onSav
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const isCreateMode = !schoolClass.id || schoolClass.id === '';
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -23,22 +25,52 @@ export const ClassEditForm: React.FC<ClassEditFormProps> = ({ schoolClass, onSav
     setError(null);
   };
 
+  const validateForm = (): boolean => {
+    if (!formData.name.trim()) {
+      setError('Le nom de la classe est obligatoire');
+      return false;
+    }
+    if (!formData.level.trim()) {
+      setError('Le niveau scolaire est obligatoire');
+      return false;
+    }
+    if (formData.capacity < 1) {
+      setError('La capacité doit être d\'au moins 1 élève');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
-      console.log('ClassEditForm: Mise à jour de la classe...', formData);
-      const updatedClass = await ClassesService.updateClass(schoolClass.id, formData);
-      setSuccessMessage('Classe mise à jour avec succès!');
-      setTimeout(() => {
-        onSave(updatedClass);
-      }, 1500);
+      if (isCreateMode) {
+        console.log('ClassEditForm: Création d\'une nouvelle classe...', formData);
+        const newClass = await ClassesService.createClass(formData);
+        setSuccessMessage('Classe créée avec succès!');
+        setTimeout(() => {
+          onSave(newClass);
+        }, 1500);
+      } else {
+        console.log('ClassEditForm: Mise à jour de la classe...', formData);
+        const updatedClass = await ClassesService.updateClass(schoolClass.id, formData);
+        setSuccessMessage('Classe mise à jour avec succès!');
+        setTimeout(() => {
+          onSave(updatedClass);
+        }, 1500);
+      }
     } catch (err) {
-      console.error('Erreur lors de la mise à jour:', err);
-      setError('Erreur lors de la mise à jour de la classe. Veuillez réessayer.');
+      console.error('Erreur lors de la sauvegarde:', err);
+      setError(`Erreur lors de ${isCreateMode ? 'la création' : 'la mise à jour'} de la classe. Veuillez réessayer.`);
     } finally {
       setIsLoading(false);
     }
@@ -47,7 +79,9 @@ export const ClassEditForm: React.FC<ClassEditFormProps> = ({ schoolClass, onSav
   return (
     <div className="bg-white p-8 rounded-xl shadow-lg">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Modifier la classe</h2>
+        <h2 className="text-2xl font-bold text-slate-800">
+          {isCreateMode ? 'Créer une nouvelle classe' : 'Modifier la classe'}
+        </h2>
         <button
           onClick={onCancel}
           className="text-gray-500 hover:text-gray-700 text-2xl"

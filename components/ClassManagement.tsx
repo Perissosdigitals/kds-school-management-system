@@ -1,9 +1,112 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { User, Page, SchoolClass, Student, TimetableSession, Evaluation, Grade, Teacher } from '../types';
-import { getClassesData, ClassDetailData, getSingleClassData, ClassesService } from '../services/api/classes.service';
+import { getClassesData, ClassDetailData, getSingleClassData, ClassesService, ClassQueryParams } from '../services/api/classes.service';
 import { getSubjectColor } from '../utils/colorUtils';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { ClassEditForm } from './ClassEditForm';
+import { ClassDetailView as NewClassDetailView } from './ClassDetailView';
+
+// --- Types ---
+
+interface ClassFilters {
+    search: string;
+    level: string;
+    academicYear: string;
+    mainTeacherId: string;
+    isActive?: boolean;
+}
+
+// --- Statistics Component ---
+
+const ClassStatistics: React.FC<{ 
+    classes: SchoolClass[];
+    students: Student[];
+}> = ({ classes, students }) => {
+    
+    const stats = useMemo(() => {
+        const totalClasses = classes.length;
+        const totalCapacity = classes.reduce((sum, cls) => sum + (cls.capacity || 0), 0);
+        const totalOccupancy = classes.reduce((sum, cls) => sum + (cls.currentOccupancy || 0), 0);
+        const occupancyRate = totalCapacity > 0 ? (totalOccupancy / totalCapacity) * 100 : 0;
+
+        // Classes par niveau
+        const byLevel = classes.reduce((acc, cls) => {
+            acc[cls.level] = (acc[cls.level] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        // Classe la plus remplie
+        const fullestClass = classes.reduce((max, cls) => 
+            (cls.currentOccupancy || 0) > (max.currentOccupancy || 0) ? cls : max
+        , classes[0]);
+
+        return {
+            totalClasses,
+            totalCapacity,
+            totalOccupancy,
+            occupancyRate,
+            byLevel,
+            fullestClass
+        };
+    }, [classes, students]);
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-blue-100 text-sm font-medium">Total Classes</p>
+                        <p className="text-3xl font-bold mt-1">{stats.totalClasses}</p>
+                    </div>
+                    <div className="bg-blue-400 bg-opacity-30 p-3 rounded-full">
+                        <i className='bx bxs-school text-3xl'></i>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-green-100 text-sm font-medium">Capacité Totale</p>
+                        <p className="text-3xl font-bold mt-1">{stats.totalCapacity}</p>
+                        <p className="text-xs text-green-100 mt-1">élèves maximum</p>
+                    </div>
+                    <div className="bg-green-400 bg-opacity-30 p-3 rounded-full">
+                        <i className='bx bxs-user-plus text-3xl'></i>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-purple-100 text-sm font-medium">Occupation</p>
+                        <p className="text-3xl font-bold mt-1">{stats.totalOccupancy}</p>
+                        <p className="text-xs text-purple-100 mt-1">{stats.occupancyRate.toFixed(0)}% de remplissage</p>
+                    </div>
+                    <div className="bg-purple-400 bg-opacity-30 p-3 rounded-full">
+                        <i className='bx bxs-group text-3xl'></i>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-orange-100 text-sm font-medium">Plus remplie</p>
+                        <p className="text-lg font-bold mt-1 truncate">{stats.fullestClass?.name || 'N/A'}</p>
+                        <p className="text-xs text-orange-100 mt-1">
+                            {stats.fullestClass?.currentOccupancy || 0}/{stats.fullestClass?.capacity || 0} élèves
+                        </p>
+                    </div>
+                    <div className="bg-orange-400 bg-opacity-30 p-3 rounded-full">
+                        <i className='bx bxs-trophy text-3xl'></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // --- Detail View Components ---
 
@@ -65,91 +168,20 @@ const RecentEvaluations: React.FC<{ evaluations: Evaluation[], grades: Grade[] }
 
 // --- Main Views ---
 
-const ClassDetailView: React.FC<{ 
-    classId: string;
-    onBack: () => void;
-    setActivePage: (page: Page) => void;
-}> = ({ classId, onBack, setActivePage }) => {
-    
-    const [classData, setClassData] = useState<ClassDetailData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const loadClassData = async () => {
-            setIsLoading(true);
-            const data = await getSingleClassData(classId);
-            setClassData(data);
-            setIsLoading(false);
-        };
-        loadClassData();
-    }, [classId]);
-
-    if (isLoading || !classData) {
-        return <LoadingSpinner />;
-    }
-
-    const { classInfo, students, teacher, timetable, evaluations, grades } = classData;
-
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <button onClick={onBack} className="bg-white p-2 rounded-full shadow-md hover:bg-slate-100 transition-colors">
-                    <i className='bx bx-arrow-back text-2xl text-slate-700'></i>
-                </button>
-                <div>
-                    <h2 className="text-3xl font-bold text-slate-800">Tableau de Bord: {classInfo.name}</h2>
-                    <p className="text-gray-500">Enseignant Principal: {teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Non assigné'}</p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    <DetailCard icon="bxs-group" title={`Élèves Inscrits (${students.length})`}>
-                         <div className="max-h-60 overflow-y-auto pr-2">
-                             <ul className="divide-y divide-slate-100">
-                                {students.map(s => (
-                                    <li key={s.id} className="py-2 flex justify-between items-center">
-                                        <span className="text-slate-800">{s.firstName} {s.lastName}</span>
-                                        <span className="text-xs text-gray-500">{s.id}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </DetailCard>
-                     <DetailCard icon="bxs-time-five" title="Emploi du Temps de la Semaine">
-                        <CompactTimetable sessions={timetable} />
-                    </DetailCard>
-                </div>
-                <div className="space-y-6">
-                     <DetailCard icon="bxs-pen" title="Dernières Évaluations">
-                        <RecentEvaluations evaluations={evaluations} grades={grades} />
-                    </DetailCard>
-                     <DetailCard icon="bxs-rocket" title="Actions Rapides">
-                        <div className="space-y-2">
-                             <button onClick={() => setActivePage('school-life')} className="w-full text-left flex items-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors font-semibold">
-                                <i className='bx bxs-calendar-check'></i> Feuille d'Appel
-                            </button>
-                             <button onClick={() => setActivePage('grades-management')} className="w-full text-left flex items-center gap-2 p-3 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition-colors font-semibold">
-                                <i className='bx bxs-pen'></i> Saisie des Notes
-                            </button>
-                        </div>
-                    </DetailCard>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
 const ClassListView: React.FC<{ 
     classes: SchoolClass[];
     teachers: Teacher[];
     students: Student[];
+    totalClasses: number;
+    filters: ClassFilters;
+    onFilterChange: (filters: ClassFilters) => void;
     onSelectClass: (id: string) => void;
     onEditClass: (cls: SchoolClass) => void;
     onDeleteClass: (cls: SchoolClass) => void;
     onCreateClass: () => void;
-}> = ({ classes, teachers, students, onSelectClass, onEditClass, onDeleteClass, onCreateClass }) => {
+}> = ({ classes, teachers, students, totalClasses, filters, onFilterChange, onSelectClass, onEditClass, onDeleteClass, onCreateClass }) => {
+    
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     
     const findTeacherName = (id?: string) => {
         if (!id) return 'N/A';
@@ -157,14 +189,64 @@ const ClassListView: React.FC<{
         return teacher ? `M/Mme ${teacher.lastName}` : 'Non assigné';
     };
 
-    const countStudents = (level: string) => students.filter(s => s.gradeLevel === level).length;
+    // Compter les élèves d'une classe spécifique
+    const countClassStudents = (cls: SchoolClass) => {
+        // Utiliser currentOccupancy si disponible, sinon compter les students
+        if (cls.currentOccupancy !== undefined) {
+            return cls.currentOccupancy;
+        }
+        // Si la classe a un tableau students, le compter
+        if (Array.isArray((cls as any).students)) {
+            return (cls as any).students.length;
+        }
+        // Fallback: compter les élèves du niveau dans la liste globale
+        return students.filter(s => s.gradeLevel === cls.level).length;
+    };
+
+    // Compter les filtres actifs
+    const activeFiltersCount = useMemo(() => {
+        let count = 0;
+        if (filters.search) count++;
+        if (filters.level) count++;
+        if (filters.academicYear) count++;
+        if (filters.mainTeacherId) count++;
+        if (filters.isActive !== undefined) count++;
+        return count;
+    }, [filters]);
+
+    const resetFilters = () => {
+        onFilterChange({
+            search: '',
+            level: '',
+            academicYear: '',
+            mainTeacherId: '',
+            isActive: undefined
+        });
+    };
+
+    const removeFilter = (key: keyof ClassFilters) => {
+        onFilterChange({ ...filters, [key]: key === 'isActive' ? undefined : '' });
+    };
+
+    // Niveaux scolaires disponibles
+    const availableLevels = useMemo(() => {
+        return Array.from(new Set(classes.map(c => c.level))).sort();
+    }, [classes]);
+
+    // Années scolaires disponibles
+    const availableAcademicYears = useMemo(() => {
+        return Array.from(new Set(classes.map(c => c.academicYear))).sort().reverse();
+    }, [classes]);
 
     return (
         <div className="space-y-6">
              <div className="flex justify-between items-start">
                 <div>
                     <h2 className="text-3xl font-bold text-slate-800">Gestion des Classes</h2>
-                    <p className="text-gray-500">Sélectionnez une classe pour voir son tableau de bord détaillé.</p>
+                    <p className="text-gray-500">
+                        {classes.length} classe{classes.length > 1 ? 's' : ''} affichée{classes.length > 1 ? 's' : ''} 
+                        {totalClasses > classes.length && ` sur ${totalClasses} au total`}
+                    </p>
                 </div>
                 <button
                     onClick={onCreateClass}
@@ -173,6 +255,173 @@ const ClassListView: React.FC<{
                     <i className='bx bx-plus-circle'></i>
                     <span>Nouvelle Classe</span>
                 </button>
+            </div>
+
+            {/* Statistiques */}
+            <ClassStatistics classes={classes} students={students} />
+
+            {/* Barre de recherche et filtres */}
+            <div className="bg-white p-4 rounded-xl shadow-md space-y-4">
+                <div className="flex gap-3 items-center">
+                    <div className="flex-1 relative">
+                        <i className='bx bx-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl'></i>
+                        <input
+                            type="text"
+                            placeholder="Rechercher par nom de classe..."
+                            value={filters.search}
+                            onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                        className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg transition-all ${
+                            showAdvancedFilters 
+                                ? 'border-blue-600 bg-blue-50 text-blue-700' 
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                        <i className={`bx ${showAdvancedFilters ? 'bx-filter-alt' : 'bx-slider-alt'} text-xl`}></i>
+                        <span className="font-semibold">Filtres</span>
+                        {activeFiltersCount > 0 && (
+                            <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                {activeFiltersCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                {/* Filtres avancés */}
+                {showAdvancedFilters && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t">
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                <i className='bx bxs-graduation'></i> Niveau Scolaire
+                            </label>
+                            <select
+                                value={filters.level}
+                                onChange={(e) => onFilterChange({ ...filters, level: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="">Tous les niveaux</option>
+                                {availableLevels.map(level => (
+                                    <option key={level} value={level}>{level}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                <i className='bx bxs-calendar'></i> Année Scolaire
+                            </label>
+                            <select
+                                value={filters.academicYear}
+                                onChange={(e) => onFilterChange({ ...filters, academicYear: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="">Toutes les années</option>
+                                {availableAcademicYears.map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                <i className='bx bxs-user-badge'></i> Enseignant Principal
+                            </label>
+                            <select
+                                value={filters.mainTeacherId}
+                                onChange={(e) => onFilterChange({ ...filters, mainTeacherId: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="">Tous les enseignants</option>
+                                {teachers.map(teacher => (
+                                    <option key={teacher.id} value={teacher.id}>
+                                        {teacher.firstName} {teacher.lastName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                <i className='bx bxs-check-circle'></i> Statut
+                            </label>
+                            <select
+                                value={filters.isActive === undefined ? '' : filters.isActive ? 'true' : 'false'}
+                                onChange={(e) => onFilterChange({ 
+                                    ...filters, 
+                                    isActive: e.target.value === '' ? undefined : e.target.value === 'true' 
+                                })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="">Tous les statuts</option>
+                                <option value="true">Actif</option>
+                                <option value="false">Inactif</option>
+                            </select>
+                        </div>
+                    </div>
+                )}
+
+                {/* Badges des filtres actifs */}
+                {activeFiltersCount > 0 && (
+                    <div className="flex flex-wrap gap-2 items-center pt-2 border-t">
+                        <span className="text-sm text-gray-600 font-semibold">Filtres actifs:</span>
+                        {filters.search && (
+                            <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                                <i className='bx bx-search'></i>
+                                "{filters.search}"
+                                <button onClick={() => removeFilter('search')} className="ml-1 hover:text-blue-600">
+                                    <i className='bx bx-x text-lg'></i>
+                                </button>
+                            </span>
+                        )}
+                        {filters.level && (
+                            <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm">
+                                <i className='bx bxs-graduation'></i>
+                                {filters.level}
+                                <button onClick={() => removeFilter('level')} className="ml-1 hover:text-purple-600">
+                                    <i className='bx bx-x text-lg'></i>
+                                </button>
+                            </span>
+                        )}
+                        {filters.academicYear && (
+                            <span className="inline-flex items-center gap-1 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
+                                <i className='bx bxs-calendar'></i>
+                                {filters.academicYear}
+                                <button onClick={() => removeFilter('academicYear')} className="ml-1 hover:text-green-600">
+                                    <i className='bx bx-x text-lg'></i>
+                                </button>
+                            </span>
+                        )}
+                        {filters.mainTeacherId && (
+                            <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm">
+                                <i className='bx bxs-user-badge'></i>
+                                {teachers.find(t => t.id === filters.mainTeacherId)?.lastName || 'Enseignant'}
+                                <button onClick={() => removeFilter('mainTeacherId')} className="ml-1 hover:text-orange-600">
+                                    <i className='bx bx-x text-lg'></i>
+                                </button>
+                            </span>
+                        )}
+                        {filters.isActive !== undefined && (
+                            <span className="inline-flex items-center gap-1 bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm">
+                                <i className='bx bxs-check-circle'></i>
+                                {filters.isActive ? 'Actif' : 'Inactif'}
+                                <button onClick={() => removeFilter('isActive')} className="ml-1 hover:text-teal-600">
+                                    <i className='bx bx-x text-lg'></i>
+                                </button>
+                            </span>
+                        )}
+                        <button
+                            onClick={resetFilters}
+                            className="ml-auto text-sm text-red-600 hover:text-red-700 font-semibold flex items-center gap-1"
+                        >
+                            <i className='bx bx-x-circle'></i>
+                            Réinitialiser tout
+                        </button>
+                    </div>
+                )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {classes.map(cls => (
@@ -206,7 +455,7 @@ const ClassListView: React.FC<{
                             <h3 className="text-xl font-bold text-slate-800 mb-2">{cls.name}</h3>
                             <div className="text-sm text-gray-500 space-y-1">
                                 <p className="flex items-center gap-2"><i className='bx bxs-user-badge'></i> {findTeacherName(cls.teacherId)}</p>
-                                <p className="flex items-center gap-2"><i className='bx bxs-group'></i> {countStudents(cls.level)} élèves</p>
+                                <p className="flex items-center gap-2"><i className='bx bxs-group'></i> {countClassStudents(cls)} élèves</p>
                                 {cls.room && <p className="flex items-center gap-2"><i className='bx bxs-door-open'></i> {cls.room}</p>}
                             </div>
                         </div>
@@ -222,18 +471,53 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
     const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [data, setData] = useState<{ classes: SchoolClass[], teachers: Teacher[], students: Student[] } | null>(null);
+    const [totalClasses, setTotalClasses] = useState(0);
     const [viewMode, setViewMode] = useState<'list' | 'detail' | 'edit' | 'create'>('list');
     const [selectedClass, setSelectedClass] = useState<SchoolClass | null>(null);
+    const [filters, setFilters] = useState<ClassFilters>({
+        search: '',
+        level: '',
+        academicYear: '',
+        mainTeacherId: '',
+        isActive: undefined
+    });
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [filters]); // Recharger quand les filtres changent
 
     const loadData = async () => {
         setIsLoading(true);
-        const result = await getClassesData();
-        setData(result);
+        try {
+            // Construire les paramètres de requête
+            const params: ClassQueryParams = {};
+            if (filters.search) params.search = filters.search;
+            if (filters.level) params.level = filters.level;
+            if (filters.academicYear) params.academicYear = filters.academicYear;
+            if (filters.mainTeacherId) params.mainTeacherId = filters.mainTeacherId;
+            if (filters.isActive !== undefined) params.isActive = filters.isActive;
+
+            const result = await ClassesService.getClasses(params);
+            const teachersData = await getClassesData(); // Get teachers and students
+            
+            setData({
+                classes: result.data,
+                teachers: teachersData.teachers,
+                students: teachersData.students
+            });
+            setTotalClasses(result.total);
+        } catch (error) {
+            console.error('Erreur lors du chargement des classes:', error);
+            // Fallback to old method
+            const result = await getClassesData();
+            setData(result);
+            setTotalClasses(result.classes.length);
+        }
         setIsLoading(false);
+    };
+
+    const handleFilterChange = (newFilters: ClassFilters) => {
+        setFilters(newFilters);
     };
 
     const handleCreateClass = () => {
@@ -317,7 +601,7 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
 
     // Show detail view
     if (viewMode === 'detail' && selectedClassId) {
-        return <ClassDetailView classId={selectedClassId} onBack={handleBack} setActivePage={setActivePage} />;
+        return <NewClassDetailView classId={selectedClassId} onBack={handleBack} />;
     }
 
     // Show list view
@@ -325,7 +609,10 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
         <ClassListView 
             classes={availableClasses} 
             teachers={data.teachers} 
-            students={data.students} 
+            students={data.students}
+            totalClasses={totalClasses}
+            filters={filters}
+            onFilterChange={handleFilterChange}
             onSelectClass={(id) => {
                 setSelectedClassId(id);
                 setViewMode('detail');

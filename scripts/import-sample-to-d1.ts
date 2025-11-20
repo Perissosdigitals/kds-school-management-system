@@ -1,6 +1,6 @@
 /**
- * Import SAMPLE data to D1 (10 students + 3 teachers)
- * Quick test import with minimal data
+ * Import SAMPLE data to D1 (40 students + 8 teachers)
+ * Production-like test import with realistic data volume
  */
 
 import { execSync } from 'child_process';
@@ -24,7 +24,7 @@ interface Student {
   id: string;
   firstName: string;
   lastName: string;
-  dateOfBirth: string;
+  dob: string | null; // Changé de dateOfBirth à dob
   gender: string;
   nationality?: string;
   birthPlace?: string;
@@ -59,10 +59,10 @@ async function fetchData() {
     axios.get(`${API_URL}/teachers`),
   ]);
 
-  // Take students with valid birth dates (up to 30 to ensure we get at least 10 valid ones)
+  // Take students with valid birth dates (up to 50 to ensure we get at least 40 valid ones)
   const allStudents = studentsRes.data as Student[];
-  const studentsWithBirthDate = allStudents.filter(s => s.dateOfBirth).slice(0, 10);
-  const teachers = (teachersRes.data as Teacher[]).slice(0, 3);
+  const studentsWithBirthDate = allStudents.filter(s => s.dob).slice(0, 40);
+  const teachers = (teachersRes.data as Teacher[]).slice(0, 8);
 
   console.log(`✅ Élèves: ${studentsWithBirthDate.length} (échantillon avec date de naissance valide)`);
   console.log(`✅ Enseignants: ${teachers.length} (échantillon)\n`);
@@ -112,7 +112,7 @@ async function importStudents(students: Student[]) {
     console.log(`   [${i + 1}/${students.length}] ${student.firstName} ${student.lastName}`);
 
     // Skip students without birth_date
-    if (!student.dateOfBirth) {
+    if (!student.dob) {
       console.log(`      ⚠️  Ignoré (date de naissance manquante)`);
       continue;
     }
@@ -122,9 +122,18 @@ async function importStudents(students: Student[]) {
 
     executeD1Command(userSQL);
 
-    // Insert student (normalize status)
+    // Insert student (normalize status and gender, provide defaults for NULL values)
     const normalizedStatus = student.status?.toLowerCase() === 'actif' || student.status?.toLowerCase() === 'active' ? 'active' : 'inactive';
-    const studentSQL = `INSERT INTO students (id, user_id, student_code, birth_date, gender, nationality, birth_place, address, enrollment_date, class_id, academic_level, emergency_contact, medical_info, status) VALUES (${escapeSQL(studentId)}, ${escapeSQL(userId)}, ${escapeSQL(student.registrationNumber)}, ${escapeSQL(student.dateOfBirth)}, ${escapeSQL(student.gender)}, ${escapeSQL(student.nationality || 'Camerounaise')}, ${escapeSQL(student.birthPlace)}, ${escapeSQL(student.address)}, '2024-09-01', ${escapeSQL(student.classId)}, ${escapeSQL(student.gradeLevel)}, ${escapeSQL(student.guardianPhone)}, ${escapeSQL(student.medicalInfo)}, '${normalizedStatus}');`;
+    const normalizedGender = student.gender?.toLowerCase() === 'masculin' ? 'male' : student.gender?.toLowerCase() === 'féminin' ? 'female' : 'other';
+    
+    // Provide defaults for required fields that might be NULL
+    const nationality = student.nationality || 'Camerounaise';
+    const birthPlace = student.birthPlace || 'Non spécifié';
+    const address = student.address || 'Non spécifié';
+    const emergencyContact = student.guardianPhone || 'Non spécifié';
+    
+    // ⚠️ IMPORTANT: class_id set to NULL because classes don't exist in D1 yet (FOREIGN KEY constraint)
+    const studentSQL = `INSERT INTO students (id, user_id, student_code, birth_date, gender, nationality, birth_place, address, enrollment_date, class_id, academic_level, emergency_contact, medical_info, status) VALUES (${escapeSQL(studentId)}, ${escapeSQL(userId)}, ${escapeSQL(student.registrationNumber)}, ${escapeSQL(student.dob)}, '${normalizedGender}', ${escapeSQL(nationality)}, ${escapeSQL(birthPlace)}, ${escapeSQL(address)}, '2024-09-01', NULL, ${escapeSQL(student.gradeLevel)}, ${escapeSQL(emergencyContact)}, ${escapeSQL(student.medicalInfo)}, '${normalizedStatus}');`;
 
     executeD1Command(studentSQL);
   }
@@ -133,8 +142,9 @@ async function importStudents(students: Student[]) {
 }
 
 async function main() {
-  console.log('🚀 Import Échantillon vers D1 (10 élèves + 3 enseignants)\n');
+  console.log('🚀 Import Production-Like vers D1 (40 élèves + 8 enseignants)\n');
   console.log('='.repeat(60));
+  console.log('📝 Simulation d\'un environnement de production réaliste');
   console.log('');
 
   try {

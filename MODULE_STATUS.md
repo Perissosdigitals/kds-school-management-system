@@ -1,12 +1,23 @@
 # 📊 État des Modules - KDS School Management System
 
-**Dernière mise à jour:** 19 novembre 2025  
-**Backend:** https://kds-backend-api.perissosdigitals.workers.dev  
-**Frontend:** https://10172ddc.kds-school-management.pages.dev
+**Dernière mise à jour:** 20 novembre 2025  
+**Backend Local:** http://localhost:3001 (PostgreSQL)  
+**Backend Cloudflare:** https://kds-backend-api.perissosdigitals.workers.dev (D1)  
+**Frontend Local:** http://localhost:5173  
+**Frontend Cloudflare:** https://10172ddc.kds-school-management.pages.dev
 
 ---
 
 ## 🎉 **STATUT GLOBAL: 12/12 Modules CRUD Complets (100%)**
+
+### 🆕 **Amélioration Majeure Module Classes** - 20 novembre 2025
+Le module **Gestion de Classes** a reçu des améliorations majeures alignées avec le module Élèves:
+- ✅ Filtrage avancé (5 critères)
+- ✅ Statistiques visuelles (4 métriques)
+- ✅ Intégration backend complète (PostgreSQL local)
+- ✅ CRUD avec validation
+
+📄 **Voir détails**: [CLASSE_MODULE_IMPROVEMENTS.md](./CLASSE_MODULE_IMPROVEMENTS.md)
 
 ---
 
@@ -37,17 +48,24 @@
   - ✅ PUT - Modifier enseignant
   - ✅ DELETE - Supprimer enseignant/soft delete
 
-### 3. **Gestion des Classes** (Class Management)
-- ✅ **Status**: Opérationnel - CRUD complet
+### 3. **Gestion des Classes** (Class Management) 🆕 **AMÉLIORÉ**
+- ✅ **Status**: Opérationnel - CRUD complet avec filtrage avancé
 - ✅ **API**: `/api/v1/classes`
-- ✅ **Mapper**: Implémenté
-- ✅ **Données**: 4 classes en base D1
+- ✅ **Mapper**: Implémenté et enrichi
+- ✅ **Données Local**: 15 classes en base PostgreSQL
+- ✅ **Données Cloud**: 4 classes en base D1
 - **Fonctionnalités testées**:
   - ✅ Liste des classes avec occupation
   - ✅ Affichage enseignant principal
-  - ✅ POST - Créer classe (testé avec succès)
-  - ✅ PUT - Modifier classe
+  - ✅ **NOUVEAU**: Filtrage avancé (5 critères: recherche, niveau, année, enseignant, statut)
+  - ✅ **NOUVEAU**: Statistiques visuelles (4 cartes: total, capacité, occupation, classe la plus remplie)
+  - ✅ **NOUVEAU**: Badges de filtres actifs avec suppression individuelle
+  - ✅ **NOUVEAU**: Compteur de résultats (filtrés vs total)
+  - ✅ POST - Créer classe avec validation complète
+  - ✅ PUT - Modifier classe avec validation
   - ✅ DELETE - Supprimer classe/soft delete
+  - ✅ **NOUVEAU**: Endpoints stats (/stats/count, /stats/by-level, /stats/by-academic-year)
+  - ✅ **NOUVEAU**: Endpoint student-count (/classes/:id/student-count)
   - ⚠️ Gestion emploi du temps (à implémenter)
 
 ---

@@ -6,9 +6,16 @@ import { schoolClasses } from '../data/mockData';
 interface StudentRegistrationFormProps {
   onSuccess: (newStudent: Student) => void;
   onCancel: () => void;
+  prefilledClassId?: string;
+  prefilledGradeLevel?: string;
 }
 
-export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ onSuccess, onCancel }) => {
+export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = ({ 
+  onSuccess, 
+  onCancel,
+  prefilledClassId,
+  prefilledGradeLevel
+}) => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -19,8 +26,8 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
     address: '',
     phone: '',
     email: '',
-    gradeLevel: '',
-    classId: '', // Ajout du classId
+    gradeLevel: prefilledGradeLevel || '',
+    classId: prefilledClassId || '', // Pré-rempli avec la classe courante
     registrationDate: new Date().toISOString().split('T')[0],
     previousSchool: '',
     emergencyContactName: '',
@@ -31,6 +38,14 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
 
   const [availableClasses, setAvailableClasses] = useState<SchoolClass[]>([]);
 
+  // Initialiser les classes disponibles au chargement si gradeLevel est préfillé
+  useEffect(() => {
+    if (prefilledGradeLevel) {
+      const filtered = schoolClasses.filter(cls => cls.level === prefilledGradeLevel);
+      setAvailableClasses(filtered);
+    }
+  }, [prefilledGradeLevel]);
+
   // Filtrer les classes disponibles selon le niveau scolaire sélectionné
   useEffect(() => {
     if (formData.gradeLevel) {
@@ -40,15 +55,17 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
       // Si une seule classe disponible, la sélectionner automatiquement
       if (filtered.length === 1) {
         setFormData(prev => ({ ...prev, classId: filtered[0].id }));
-      } else {
-        // Réinitialiser classId si le niveau change
+      } else if (!prefilledClassId) {
+        // Réinitialiser classId si le niveau change (sauf si préfillé)
         setFormData(prev => ({ ...prev, classId: '' }));
       }
     } else {
       setAvailableClasses([]);
-      setFormData(prev => ({ ...prev, classId: '' }));
+      if (!prefilledClassId) {
+        setFormData(prev => ({ ...prev, classId: '' }));
+      }
     }
-  }, [formData.gradeLevel]);
+  }, [formData.gradeLevel, prefilledClassId]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
