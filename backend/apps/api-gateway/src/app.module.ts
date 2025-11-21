@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './modules/auth/auth.module';
 import { StudentsModule } from './modules/students/students.module';
 import { TeachersModule } from './modules/teachers/teachers.module';
@@ -13,6 +15,7 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { ImportModule } from './modules/import/import.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HealthController } from './health.controller';
+import { EnhancedHealthController } from './health-enhanced.controller';
 import { SubjectsModule } from './modules/subjects/subjects.module';
 import { SeedModule } from './database/seeds/seed.module';
 import { UsersModule } from './modules/users/users.module';
@@ -27,6 +30,12 @@ import { EnrollmentModule } from './modules/enrollment/enrollment.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // Rate Limiting (60 requêtes par minute par défaut)
+    ThrottlerModule.forRoot([{
+      ttl: 60000, // 60 secondes
+      limit: 60,  // 60 requêtes max
+    }]),
 
     // Database (skip if not available)
     ...(process.env.DATABASE_HOST
@@ -64,6 +73,12 @@ import { EnrollmentModule } from './modules/enrollment/enrollment.module';
     EnrollmentModule,
     SeedModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, EnhancedHealthController],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard, // Active le rate limiting globalement
+    },
+  ],
 })
 export class AppModule {}

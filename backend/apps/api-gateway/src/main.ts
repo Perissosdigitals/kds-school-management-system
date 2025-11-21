@@ -3,6 +3,10 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
+import { initializeSentry } from './sentry.config';
+
+// Initialize Sentry before anything else
+initializeSentry();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -34,24 +38,84 @@ async function bootstrap() {
   // Swagger documentation
   const config = new DocumentBuilder()
     .setTitle('KDS School Management System API')
-    .setDescription('API complète pour la gestion scolaire KDS')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('auth', 'Authentification et autorisation')
-    .addTag('students', 'Gestion des élèves')
-    .addTag('teachers', 'Gestion des enseignants')
-    .addTag('classes', 'Gestion des classes')
-    .addTag('grades', 'Gestion des notes')
-    .addTag('timetable', 'Emploi du temps')
-    .addTag('attendance', 'Présences')
-    .addTag('documents', 'Documents élèves')
-    .addTag('finance', 'Finances')
-    .addTag('import', 'Import/Export de données')
-    .addTag('analytics', 'Tableaux de bord et rapports')
+    .setDescription(`
+# API Complète pour la Gestion Scolaire KDS
+
+Cette API fournit tous les endpoints nécessaires pour gérer une école complète.
+
+## Authentification
+
+Tous les endpoints protégés nécessitent un JWT Bearer Token.
+
+### Flow d'authentification:
+1. **POST /auth/login** - Obtenir access_token + refresh_token
+2. **Ajouter le header**: \`Authorization: Bearer <access_token>\`
+3. **Refresh**: POST /auth/refresh avec le refresh_token quand l'access_token expire
+
+## Rate Limiting
+
+- Global: 60 requêtes/minute
+- Login: 5 tentatives/minute
+
+## Versions
+
+- **v1.0**: Version initiale avec tous les modules CRUD
+- **Sécurité**: Bcrypt, JWT, Refresh Tokens, Rate Limiting
+- **Monitoring**: Sentry, Health Checks
+
+## Support
+
+- **Email**: support@kds-school.ci
+- **Documentation**: https://docs.kds-school.ci
+`)
+    .setVersion('1.0.0')
+    .setContact('KDS School', 'https://kds-school.ci', 'support@kds-school.ci')
+    .setLicense('MIT', 'https://opensource.org/licenses/MIT')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .addTag('auth', '🔐 Authentification et autorisation')
+    .addTag('students', '👨‍🎓 Gestion des élèves')
+    .addTag('teachers', '👩‍🏫 Gestion des enseignants')
+    .addTag('classes', '🏫 Gestion des classes')
+    .addTag('grades', '📝 Gestion des notes')
+    .addTag('timetable', '📅 Emploi du temps')
+    .addTag('attendance', '✅ Présences et absences')
+    .addTag('documents', '📄 Documents élèves')
+    .addTag('finance', '💰 Gestion financière')
+    .addTag('import', '📊 Import/Export de données')
+    .addTag('analytics', '📈 Tableaux de bord et rapports')
+    .addTag('users', '👤 Gestion des utilisateurs')
+    .addTag('subjects', '📚 Matières')
+    .addTag('school-life', '🎉 Vie scolaire')
+    .addTag('inventory', '📦 Inventaire')
+    .addTag('health', '❤️ Health checks')
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  const document = SwaggerModule.createDocument(app, config, {
+    deepScanRoutes: true,
+    ignoreGlobalPrefix: false,
+  });
+  
+  SwaggerModule.setup('api/docs', app, document, {
+    customSiteTitle: 'KDS API Documentation',
+    customfavIcon: 'https://nestjs.com/img/logo-small.svg',
+    customCss: '.swagger-ui .topbar { display: none }',
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'none',
+      filter: true,
+      showRequestDuration: true,
+    },
+  });
 
   const port = process.env.PORT || 3001;
   await app.listen(port);

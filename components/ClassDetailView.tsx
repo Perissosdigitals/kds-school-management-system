@@ -11,7 +11,7 @@ interface ClassDetailViewProps {
     onBack: () => void;
 }
 
-type TabType = 'overview' | 'students' | 'attendance' | 'timetable' | 'statistics';
+type TabType = 'overview' | 'students' | 'attendance' | 'timetable' | 'statistics' | 'grades';
 
 export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBack }) => {
     const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -231,6 +231,17 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
                             <i className='bx bx-bar-chart mr-2'></i>
                             Statistiques
                         </button>
+                        <button
+                            onClick={() => setActiveTab('grades')}
+                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === 'grades'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            <i className='bx bx-trophy mr-2'></i>
+                            Notes
+                        </button>
                     </nav>
                 </div>
 
@@ -256,6 +267,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
                     )}
                     {activeTab === 'timetable' && <TimetableTab timetable={timetable} />}
                     {activeTab === 'statistics' && <StatisticsTab students={students} classData={classData} />}
+                    {activeTab === 'grades' && <GradesTab students={students} classData={classData} timetable={timetable} />}
                 </div>
             </div>
 
@@ -489,6 +501,66 @@ const StudentsTab: React.FC<{
     const [viewMode, setViewMode] = useState<'list' | 'seating'>('list');
     const [seatingArrangement, setSeatingArrangement] = useState<(Student | null)[][]>([]);
     const [draggedStudent, setDraggedStudent] = useState<Student | null>(null);
+    const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+    const [showBulkActions, setShowBulkActions] = useState(false);
+
+    // Utility functions for export
+    const generateStudentCSV = (studentsToExport: Student[]): string => {
+        const headers = ['ID', 'Nom', 'Prénom', 'Genre', 'Date naissance', 'Date inscription', 'Niveau', 'Statut'];
+        const rows = studentsToExport.map(s => {
+            // Calculate age from dob
+            const age = s.dob ? new Date().getFullYear() - new Date(s.dob).getFullYear() : '';
+            return [
+                s.id || '',
+                s.lastName || '',
+                s.firstName || '',
+                s.gender || '',
+                s.dob || '',
+                s.registrationDate || '',
+                s.gradeLevel || '',
+                s.status || 'Actif'
+            ];
+        });
+        
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+        
+        return csvContent;
+    };
+
+    const downloadFile = (content: string, filename: string, mimeType: string) => {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const toggleStudentSelection = (studentId: string) => {
+        setSelectedStudents(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(studentId)) {
+                newSet.delete(studentId);
+            } else {
+                newSet.add(studentId);
+            }
+            return newSet;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedStudents.size === filteredAndSortedStudents.length) {
+            setSelectedStudents(new Set());
+        } else {
+            setSelectedStudents(new Set(filteredAndSortedStudents.map(s => s.id)));
+        }
+    };
 
     // Initialiser le plan de classe (5 rangées x 6 colonnes = 30 places)
     React.useEffect(() => {
@@ -606,16 +678,63 @@ const StudentsTab: React.FC<{
                         </h3>
                         <p className="text-sm text-gray-500">
                             {classData.capacity - classData.currentOccupancy} place(s) disponible(s)
+                            {selectedStudents.size > 0 && ` • ${selectedStudents.size} sélectionné(s)`}
                         </p>
                     </div>
                 </div>
-                <button
-                    onClick={onAddStudent}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm"
-                >
-                    <i className='bx bx-user-plus'></i>
-                    Ajouter un élève
-                </button>
+                <div className="flex items-center gap-2">
+                    {selectedStudents.size > 0 && (
+                        <div className="flex items-center gap-2 mr-2 border-r pr-4">
+                            <button
+                                onClick={() => {
+                                    const csv = generateStudentCSV(students.filter(s => selectedStudents.has(s.id)));
+                                    downloadFile(csv, `eleves_${classData.name}_selection.csv`, 'text/csv');
+                                }}
+                                className="px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors flex items-center gap-2 text-sm font-medium"
+                                title="Exporter la sélection"
+                            >
+                                <i className='bx bx-download'></i>
+                                Exporter
+                            </button>
+                            <button
+                                onClick={() => {
+                                    window.print();
+                                }}
+                                className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-2 text-sm font-medium"
+                                title="Imprimer la sélection"
+                            >
+                                <i className='bx bx-printer'></i>
+                                Imprimer
+                            </button>
+                            <button
+                                onClick={() => setSelectedStudents(new Set())}
+                                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 text-sm font-medium"
+                                title="Désélectionner tout"
+                            >
+                                <i className='bx bx-x'></i>
+                                Annuler
+                            </button>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => {
+                            const csv = generateStudentCSV(students);
+                            downloadFile(csv, `eleves_${classData.name}.csv`, 'text/csv');
+                        }}
+                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 text-sm font-medium"
+                        title="Exporter tous les élèves"
+                    >
+                        <i className='bx bx-export'></i>
+                        Tout exporter
+                    </button>
+                    <button
+                        onClick={onAddStudent}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm"
+                    >
+                        <i className='bx bx-user-plus'></i>
+                        Ajouter un élève
+                    </button>
+                </div>
             </div>
 
             {/* Barre d'outils */}
@@ -661,6 +780,18 @@ const StudentsTab: React.FC<{
                 <>
                     {/* Filtres et recherche */}
                     <div className="flex gap-4 items-center">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={selectedStudents.size === filteredAndSortedStudents.length && filteredAndSortedStudents.length > 0}
+                                onChange={toggleSelectAll}
+                                className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                title="Tout sélectionner / Tout désélectionner"
+                            />
+                            <label className="text-sm text-gray-700 font-medium cursor-pointer" onClick={toggleSelectAll}>
+                                Tout sélectionner
+                            </label>
+                        </div>
                         <div className="flex-1 relative">
                             <i className='bx bx-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400'></i>
                             <input
@@ -677,47 +808,66 @@ const StudentsTab: React.FC<{
                             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                             <option value="name">Trier par nom</option>
-                            <option value="code">Trier par code</option>
+                            <option value="code">Trier par ID</option>
                             <option value="enrollment">Trier par inscription</option>
                         </select>
                     </div>
 
                     {/* Liste des élèves */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredAndSortedStudents.map((student) => (
-                            <div 
-                                key={student.id} 
-                                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
-                                onClick={() => onStudentClick(student)}
-                            >
-                                <div className="flex items-start gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                                        {student.firstName?.[0]}{student.lastName?.[0]}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-semibold text-gray-900 truncate hover:text-blue-600 transition-colors">
-                                                {student.firstName} {student.lastName}
-                                            </p>
-                                            <i className='bx bx-link-external text-blue-500 text-sm'></i>
+                        {filteredAndSortedStudents.map((student) => {
+                            const isSelected = selectedStudents.has(student.id);
+                            const studentAge = student.dob ? new Date().getFullYear() - new Date(student.dob).getFullYear() : null;
+                            
+                            return (
+                                <div 
+                                    key={student.id} 
+                                    className={`bg-white border-2 rounded-lg p-4 hover:shadow-md transition-all ${
+                                        isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                                    }`}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={(e) => {
+                                                e.stopPropagation();
+                                                toggleStudentSelection(student.id);
+                                            }}
+                                            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1 flex-shrink-0"
+                                            title="Sélectionner cet élève"
+                                        />
+                                        <div 
+                                            className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 cursor-pointer"
+                                            onClick={() => onStudentClick(student)}
+                                        >
+                                            {student.firstName?.[0]}{student.lastName?.[0]}
                                         </div>
-                                        <p className="text-xs text-gray-500">{student.studentCode}</p>
-                                        <div className="mt-2 flex items-center gap-2">
-                                            <span className={`text-xs px-2 py-1 rounded-full ${
-                                                student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male'
-                                                    ? 'bg-blue-100 text-blue-700'
-                                                    : 'bg-pink-100 text-pink-700'
-                                            }`}>
-                                                {student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male' ? 'Garçon' : 'Fille'}
-                                            </span>
-                                            {student.age && (
-                                                <span className="text-xs text-gray-500">{student.age} ans</span>
-                                            )}
+                                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onStudentClick(student)}>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-semibold text-gray-900 truncate hover:text-blue-600 transition-colors">
+                                                    {student.firstName} {student.lastName}
+                                                </p>
+                                                <i className='bx bx-link-external text-blue-500 text-sm'></i>
+                                            </div>
+                                            <p className="text-xs text-gray-500">{student.id.substring(0, 8)}...</p>
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                                    student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male'
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-pink-100 text-pink-700'
+                                                }`}>
+                                                    {student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male' ? 'Garçon' : 'Fille'}
+                                                </span>
+                                                {studentAge && (
+                                                    <span className="text-xs text-gray-500">{studentAge} ans</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
 
                     {filteredAndSortedStudents.length === 0 && (
@@ -836,32 +986,102 @@ const StudentsTab: React.FC<{
 
 const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }) => {
     const daysOfWeek = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [editingSession, setEditingSession] = useState<TimetableSession | null>(null);
+    const [localTimetable, setLocalTimetable] = useState<TimetableSession[]>(timetable);
+
+    React.useEffect(() => {
+        setLocalTimetable(timetable);
+    }, [timetable]);
     
     const groupedByDay = useMemo(() => {
         const grouped: Record<string, TimetableSession[]> = {};
         daysOfWeek.forEach(day => {
-            grouped[day] = timetable
+            grouped[day] = localTimetable
                 .filter(session => session.day === day)
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
         });
         return grouped;
-    }, [timetable]);
+    }, [localTimetable]);
 
-    if (timetable.length === 0) {
+    const handleDeleteSession = (sessionId: string) => {
+        if (confirm('Êtes-vous sûr de vouloir supprimer ce cours ?')) {
+            setLocalTimetable(prev => prev.filter(s => s.id !== sessionId));
+            console.log('Session supprimée:', sessionId);
+            // TODO: API call to delete
+        }
+    };
+
+    const handleSaveSession = (session: Partial<TimetableSession>) => {
+        if (editingSession) {
+            // Edit existing
+            setLocalTimetable(prev => prev.map(s => 
+                s.id === editingSession.id ? { ...s, ...session } : s
+            ));
+            console.log('Session modifiée:', session);
+        } else {
+            // Add new
+            const newSession: TimetableSession = {
+                id: `tt-${Date.now()}`,
+                day: session.day || 'Lundi',
+                startTime: session.startTime || '08:00',
+                endTime: session.endTime || '09:00',
+                subject: session.subject || '',
+                classId: session.classId || '',
+                teacherId: session.teacherId,
+                room: session.room
+            };
+            setLocalTimetable(prev => [...prev, newSession]);
+            console.log('Nouvelle session ajoutée:', newSession);
+        }
+        setShowAddForm(false);
+        setEditingSession(null);
+        // TODO: API call to save
+    };
+
+    if (localTimetable.length === 0) {
         return (
             <div className="text-center py-12">
                 <i className='bx bx-calendar-x text-6xl text-gray-300 mb-4'></i>
                 <p className="text-gray-500 mb-4">Aucun emploi du temps configuré</p>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <button 
+                    onClick={() => setShowAddForm(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
                     <i className='bx bx-plus mr-2'></i>
                     Créer l'emploi du temps
                 </button>
+                
+                {showAddForm && (
+                    <TimetableSessionForm
+                        session={null}
+                        onSave={handleSaveSession}
+                        onCancel={() => setShowAddForm(false)}
+                    />
+                )}
             </div>
         );
     }
 
     return (
         <div className="space-y-6">
+            {/* Header with Add button */}
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                    Emploi du temps ({localTimetable.length} cours)
+                </h3>
+                <button
+                    onClick={() => {
+                        setEditingSession(null);
+                        setShowAddForm(true);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                    <i className='bx bx-plus'></i>
+                    Ajouter un cours
+                </button>
+            </div>
+
             {daysOfWeek.map(day => (
                 <div key={day} className="bg-gray-50 rounded-lg p-4">
                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -871,7 +1091,7 @@ const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }
                     {groupedByDay[day]?.length > 0 ? (
                         <div className="space-y-2">
                             {groupedByDay[day].map((session) => (
-                                <div key={session.id} className="bg-white rounded-lg p-3 border border-gray-200 flex items-center gap-4">
+                                <div key={session.id} className="bg-white rounded-lg p-3 border border-gray-200 flex items-center gap-4 hover:border-blue-300 transition-colors group">
                                     <div className="flex-shrink-0 text-center">
                                         <p className="text-sm font-semibold text-gray-900">{session.startTime}</p>
                                         <p className="text-xs text-gray-500">{session.endTime}</p>
@@ -887,6 +1107,25 @@ const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }
                                             Salle {session.room}
                                         </div>
                                     )}
+                                    <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={() => {
+                                                setEditingSession(session);
+                                                setShowAddForm(true);
+                                            }}
+                                            className="p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                            title="Modifier"
+                                        >
+                                            <i className='bx bx-edit text-lg'></i>
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteSession(session.id)}
+                                            className="p-2 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                            title="Supprimer"
+                                        >
+                                            <i className='bx bx-trash text-lg'></i>
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -895,6 +1134,178 @@ const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }
                     )}
                 </div>
             ))}
+
+            {/* Modal for add/edit session */}
+            {showAddForm && (
+                <TimetableSessionForm
+                    session={editingSession}
+                    onSave={handleSaveSession}
+                    onCancel={() => {
+                        setShowAddForm(false);
+                        setEditingSession(null);
+                    }}
+                />
+            )}
+        </div>
+    );
+};
+
+// Timetable Session Form Component
+const TimetableSessionForm: React.FC<{
+    session: TimetableSession | null;
+    onSave: (session: Partial<TimetableSession>) => void;
+    onCancel: () => void;
+}> = ({ session, onSave, onCancel }) => {
+    const [formData, setFormData] = useState({
+        day: session?.day || 'Lundi',
+        startTime: session?.startTime || '08:00',
+        endTime: session?.endTime || '09:00',
+        subject: session?.subject || '',
+        teacherId: session?.teacherId || '',
+        room: session?.room || ''
+    });
+
+    const daysOfWeek = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+    const subjects = [
+        'Français', 'Mathématiques', 'Sciences', 'Histoire-Géographie',
+        'Anglais', 'Sport', 'Arts', 'Musique', 'Informatique', 'Éducation civique'
+    ];
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.subject || !formData.startTime || !formData.endTime) {
+            alert('Veuillez remplir tous les champs obligatoires');
+            return;
+        }
+        onSave(formData);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-gray-900">
+                        <i className='bx bx-calendar-plus mr-2'></i>
+                        {session ? 'Modifier le cours' : 'Ajouter un cours'}
+                    </h2>
+                    <button
+                        onClick={onCancel}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <i className='bx bx-x text-2xl'></i>
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Jour <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                value={formData.day}
+                                onChange={(e) => setFormData({ ...formData, day: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                required
+                            >
+                                {daysOfWeek.map(day => (
+                                    <option key={day} value={day}>{day}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Matière <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                value={formData.subject}
+                                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                required
+                            >
+                                <option value="">Sélectionner...</option>
+                                {subjects.map(subject => (
+                                    <option key={subject} value={subject}>{subject}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Heure début <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="time"
+                                value={formData.startTime}
+                                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Heure fin <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="time"
+                                value={formData.endTime}
+                                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Enseignant (ID)
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.teacherId}
+                                onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
+                                placeholder="teacher-001"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Salle
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.room}
+                                onChange={(e) => setFormData({ ...formData, room: e.target.value })}
+                                placeholder="A101"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            type="submit"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        >
+                            <i className='bx bx-save'></i>
+                            {session ? 'Modifier' : 'Ajouter'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };
@@ -1395,3 +1806,377 @@ const StatisticsTab: React.FC<{ students: Student[]; classData: SchoolClass }> =
         </div>
     );
 };
+
+const GradesTab: React.FC<{ 
+    students: Student[]; 
+    classData: SchoolClass;
+    timetable: TimetableSession[];
+}> = ({ students, classData, timetable }) => {
+    const [selectedSubject, setSelectedSubject] = useState<string>('all');
+    const [selectedPeriod, setSelectedPeriod] = useState<string>('T1');
+    const [gradesData, setGradesData] = useState<Record<string, Record<string, number>>>({});
+    const [showAddGradeForm, setShowAddGradeForm] = useState(false);
+    const [selectedStudentForGrade, setSelectedStudentForGrade] = useState<Student | null>(null);
+
+    // Extract unique subjects from timetable
+    const subjects = useMemo(() => {
+        const uniqueSubjects = new Set<string>();
+        timetable.forEach(session => {
+            if (session.subject) uniqueSubjects.add(session.subject);
+        });
+        return Array.from(uniqueSubjects);
+    }, [timetable]);
+
+    const periods = ['T1', 'T2', 'T3'];
+
+    // Calculate statistics for selected subject
+    const subjectStats = useMemo(() => {
+        const grades = Object.values(gradesData)
+            .map(studentGrades => studentGrades[selectedSubject])
+            .filter(grade => grade !== undefined);
+
+        if (grades.length === 0) {
+            return { average: 0, min: 0, max: 0, count: 0 };
+        }
+
+        const sum = grades.reduce((a, b) => a + b, 0);
+        return {
+            average: (sum / grades.length).toFixed(2),
+            min: Math.min(...grades),
+            max: Math.max(...grades),
+            count: grades.length
+        };
+    }, [gradesData, selectedSubject]);
+
+    const handleAddGrade = (studentId: string, subject: string, grade: number) => {
+        setGradesData(prev => ({
+            ...prev,
+            [studentId]: {
+                ...prev[studentId],
+                [subject]: grade
+            }
+        }));
+        setShowAddGradeForm(false);
+        setSelectedStudentForGrade(null);
+        console.log('Note ajoutée:', { studentId, subject, grade, period: selectedPeriod });
+        // TODO: API call to save grade
+    };
+
+    const exportGrades = () => {
+        const headers = ['Élève', ...subjects, 'Moyenne'];
+        const rows = students.map(student => {
+            const studentGrades = gradesData[student.id] || {};
+            const gradeValues = subjects.map(subject => studentGrades[subject] || '-');
+            const validGrades = gradeValues.filter(g => g !== '-').map(Number);
+            const average = validGrades.length > 0 
+                ? (validGrades.reduce((a, b) => a + b, 0) / validGrades.length).toFixed(2)
+                : '-';
+            
+            return [
+                `${student.firstName} ${student.lastName}`,
+                ...gradeValues,
+                average
+            ];
+        });
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `notes_${classData.name}_${selectedPeriod}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    if (students.length === 0) {
+        return (
+            <div className="text-center py-12">
+                <i className='bx bx-trophy text-6xl text-gray-300 mb-4'></i>
+                <p className="text-gray-500">Aucun élève dans cette classe</p>
+            </div>
+        );
+    }
+
+    if (subjects.length === 0) {
+        return (
+            <div className="text-center py-12">
+                <i className='bx bx-book text-6xl text-gray-300 mb-4'></i>
+                <p className="text-gray-500 mb-2">Aucune matière configurée</p>
+                <p className="text-sm text-gray-400">Ajoutez des cours à l'emploi du temps pour commencer</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Header with filters and actions */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div>
+                        <label className="block text-xs text-gray-600 mb-1">Période</label>
+                        <select
+                            value={selectedPeriod}
+                            onChange={(e) => setSelectedPeriod(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            {periods.map(period => (
+                                <option key={period} value={period}>Trimestre {period.substring(1)}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs text-gray-600 mb-1">Matière</label>
+                        <select
+                            value={selectedSubject}
+                            onChange={(e) => setSelectedSubject(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="all">Toutes les matières</option>
+                            {subjects.map(subject => (
+                                <option key={subject} value={subject}>{subject}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <button
+                    onClick={exportGrades}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                >
+                    <i className='bx bx-download'></i>
+                    Exporter
+                </button>
+            </div>
+
+            {/* Statistics cards */}
+            {selectedSubject !== 'all' && (
+                <div className="grid grid-cols-4 gap-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p className="text-xs text-blue-600 font-medium">Moyenne</p>
+                        <p className="text-2xl font-bold text-blue-700 mt-1">{subjectStats.average}/20</p>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <p className="text-xs text-green-600 font-medium">Note max</p>
+                        <p className="text-2xl font-bold text-green-700 mt-1">{subjectStats.max}/20</p>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                        <p className="text-xs text-orange-600 font-medium">Note min</p>
+                        <p className="text-2xl font-bold text-orange-700 mt-1">{subjectStats.min}/20</p>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <p className="text-xs text-purple-600 font-medium">Élèves notés</p>
+                        <p className="text-2xl font-bold text-purple-700 mt-1">{subjectStats.count}/{students.length}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Grades table */}
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">
+                                    Élève
+                                </th>
+                                {(selectedSubject === 'all' ? subjects : [selectedSubject]).map(subject => (
+                                    <th key={subject} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        {subject}
+                                    </th>
+                                ))}
+                                {selectedSubject === 'all' && (
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Moyenne
+                                    </th>
+                                )}
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {students.map((student) => {
+                                const studentGrades = gradesData[student.id] || {};
+                                const displaySubjects = selectedSubject === 'all' ? subjects : [selectedSubject];
+                                const gradeValues = displaySubjects.map(subject => studentGrades[subject]);
+                                const validGrades = gradeValues.filter(g => g !== undefined);
+                                const average = validGrades.length > 0
+                                    ? (validGrades.reduce((a, b) => a + b, 0) / validGrades.length).toFixed(2)
+                                    : null;
+
+                                return (
+                                    <tr key={student.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                                                    {student.firstName?.[0]}{student.lastName?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-900">
+                                                        {student.firstName} {student.lastName}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        {displaySubjects.map(subject => {
+                                            const grade = studentGrades[subject];
+                                            const gradeColor = grade !== undefined
+                                                ? grade >= 16 ? 'text-green-700 bg-green-100'
+                                                : grade >= 14 ? 'text-blue-700 bg-blue-100'
+                                                : grade >= 10 ? 'text-orange-700 bg-orange-100'
+                                                : 'text-red-700 bg-red-100'
+                                                : 'text-gray-500';
+
+                                            return (
+                                                <td key={subject} className="px-6 py-4 whitespace-nowrap text-center">
+                                                    {grade !== undefined ? (
+                                                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${gradeColor}`}>
+                                                            {grade}/20
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                        {selectedSubject === 'all' && (
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                {average ? (
+                                                    <span className="px-3 py-1 rounded-full text-sm font-bold bg-purple-100 text-purple-700">
+                                                        {average}/20
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-400">-</span>
+                                                )}
+                                            </td>
+                                        )}
+                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedStudentForGrade(student);
+                                                    setShowAddGradeForm(true);
+                                                }}
+                                                className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm"
+                                            >
+                                                <i className='bx bx-plus mr-1'></i>
+                                                Note
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Add grade modal */}
+            {showAddGradeForm && selectedStudentForGrade && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+                        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-gray-900">
+                                Ajouter une note
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowAddGradeForm(false);
+                                    setSelectedStudentForGrade(null);
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <i className='bx bx-x text-2xl'></i>
+                            </button>
+                        </div>
+
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                const formData = new FormData(e.currentTarget);
+                                const subject = formData.get('subject') as string;
+                                const grade = parseFloat(formData.get('grade') as string);
+                                
+                                if (grade < 0 || grade > 20) {
+                                    alert('La note doit être entre 0 et 20');
+                                    return;
+                                }
+                                
+                                handleAddGrade(selectedStudentForGrade.id, subject, grade);
+                            }}
+                            className="p-6 space-y-4"
+                        >
+                            <div>
+                                <p className="text-sm text-gray-600 mb-2">
+                                    Élève: <strong>{selectedStudentForGrade.firstName} {selectedStudentForGrade.lastName}</strong>
+                                </p>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    Période: <strong>Trimestre {selectedPeriod.substring(1)}</strong>
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Matière <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    name="subject"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                    {subjects.map(subject => (
+                                        <option key={subject} value={subject}>{subject}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Note /20 <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    name="grade"
+                                    min="0"
+                                    max="20"
+                                    step="0.25"
+                                    required
+                                    placeholder="15.5"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowAddGradeForm(false);
+                                        setSelectedStudentForGrade(null);
+                                    }}
+                                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                >
+                                    <i className='bx bx-check'></i>
+                                    Enregistrer
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+

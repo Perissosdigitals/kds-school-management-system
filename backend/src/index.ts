@@ -65,12 +65,11 @@ app.post('/api/v1/auth/login', async (c) => {
 app.get('/api/v1/students', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(`
-      SELECT s.*, u.first_name, u.last_name, u.email, c.name as class_name
+      SELECT s.*, c.name as class_name
       FROM students s
-      LEFT JOIN users u ON s.user_id = u.id
       LEFT JOIN classes c ON s.class_id = c.id
       WHERE s.status = 'active'
-      ORDER BY u.last_name, u.first_name
+      ORDER BY s.last_name, s.first_name
     `).all();
 
     return c.json(results);
@@ -83,9 +82,8 @@ app.get('/api/v1/students/:id', async (c) => {
   try {
     const id = c.req.param('id');
     const student = await c.env.DB.prepare(`
-      SELECT s.*, u.first_name, u.last_name, u.email, u.phone, c.name as class_name
+      SELECT s.*, c.name as class_name
       FROM students s
-      LEFT JOIN users u ON s.user_id = u.id
       LEFT JOIN classes c ON s.class_id = c.id
       WHERE s.id = ?
     `).bind(id).first();
@@ -117,30 +115,17 @@ app.post('/api/v1/students', async (c) => {
   try {
     const body = await c.req.json();
     const studentId = crypto.randomUUID();
-    const userId = crypto.randomUUID();
 
-    // Create user first
+    // Create student record with first_name and last_name directly
     await c.env.DB.prepare(`
-      INSERT INTO users (id, email, password_hash, role, first_name, last_name, phone, is_active)
-      VALUES (?, ?, ?, 'student', ?, ?, ?, 1)
-    `).bind(
-      userId,
-      body.email,
-      'hashed_password', // In production, hash the password
-      body.firstName,
-      body.lastName,
-      body.phone || null
-    ).run();
-
-    // Create student record
-    await c.env.DB.prepare(`
-      INSERT INTO students (id, user_id, student_code, birth_date, gender, nationality, 
-        birth_place, address, enrollment_date, class_id, parent_id, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+      INSERT INTO students (id, student_code, first_name, last_name, birth_date, gender, nationality, 
+        birth_place, address, enrollment_date, class_id, parent_id, emergency_contact, medical_info, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
     `).bind(
       studentId,
-      userId,
       body.studentCode || `KDS${Date.now()}`,
+      body.firstName,
+      body.lastName,
       body.birthDate,
       body.gender,
       body.nationality || null,
@@ -148,7 +133,9 @@ app.post('/api/v1/students', async (c) => {
       body.address || null,
       body.enrollmentDate || new Date().toISOString().split('T')[0],
       body.classId || null,
-      body.parentId || null
+      body.parentId || null,
+      body.emergencyContact || null,
+      body.medicalInfo || null
     ).run();
 
     return c.json({ id: studentId, message: 'Student created successfully' }, 201);
@@ -164,47 +151,33 @@ app.put('/api/v1/students/:id', async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json();
 
-    // Update user info
-    if (body.firstName || body.lastName || body.email || body.phone) {
-      const student = await c.env.DB.prepare('SELECT user_id FROM students WHERE id = ?').bind(id).first();
-      if (student) {
-        await c.env.DB.prepare(`
-          UPDATE users SET 
-            first_name = COALESCE(?, first_name),
-            last_name = COALESCE(?, last_name),
-            email = COALESCE(?, email),
-            phone = COALESCE(?, phone),
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `).bind(
-          body.firstName || null,
-          body.lastName || null,
-          body.email || null,
-          body.phone || null,
-          student.user_id
-        ).run();
-      }
-    }
-
-    // Update student record
+    // Update student record with first_name and last_name directly
     await c.env.DB.prepare(`
       UPDATE students SET
+        first_name = COALESCE(?, first_name),
+        last_name = COALESCE(?, last_name),
         birth_date = COALESCE(?, birth_date),
         gender = COALESCE(?, gender),
         nationality = COALESCE(?, nationality),
         birth_place = COALESCE(?, birth_place),
         address = COALESCE(?, address),
         class_id = COALESCE(?, class_id),
+        emergency_contact = COALESCE(?, emergency_contact),
+        medical_info = COALESCE(?, medical_info),
         status = COALESCE(?, status),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(
+      body.firstName || null,
+      body.lastName || null,
       body.birthDate || null,
       body.gender || null,
       body.nationality || null,
       body.birthPlace || null,
       body.address || null,
       body.classId || null,
+      body.emergencyContact || null,
+      body.medicalInfo || null,
       body.status || null,
       id
     ).run();
@@ -370,19 +343,180 @@ app.delete('/api/v1/teachers/:id', async (c) => {
 
 app.get('/api/v1/classes', async (c) => {
   try {
+    // Get pagination parameters
+    const page = parseInt(c.req.query('page') || '1');
+    const limit = parseInt(c.req.query('limit') || '100');
+    const offset = (page - 1) * limit;
+
+    // Get filters
+    const level = c.req.query('level');
+    const academicYear = c.req.query('academicYear');
+    const mainTeacherId = c.req.query('mainTeacherId');
+    const search = c.req.query('search');
+
+    // Build WHERE clause
+    let whereConditions = ['c.is_active = 1'];
+    const params: any[] = [];
+
+    if (level) {
+      whereConditions.push('c.level = ?');
+      params.push(level);
+    }
+    if (academicYear) {
+      whereConditions.push('c.academic_year = ?');
+      params.push(academicYear);
+    }
+    if (mainTeacherId) {
+      whereConditions.push('c.main_teacher_id = ?');
+      params.push(mainTeacherId);
+    }
+    if (search) {
+      whereConditions.push('(c.name LIKE ? OR c.level LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    const whereClause = whereConditions.join(' AND ');
+
+    // Get total count
+    const countResult = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM classes c WHERE ${whereClause}
+    `).bind(...params).first();
+    const total = countResult?.count || 0;
+
+    // Get paginated results
     const { results } = await c.env.DB.prepare(`
       SELECT c.*, u.first_name as teacher_first_name, u.last_name as teacher_last_name,
              (SELECT COUNT(*) FROM students WHERE class_id = c.id AND status = 'active') as student_count
       FROM classes c
       LEFT JOIN teachers t ON c.main_teacher_id = t.id
       LEFT JOIN users u ON t.user_id = u.id
-      WHERE c.is_active = 1
+      WHERE ${whereClause}
       ORDER BY c.level, c.name
-    `).all();
+      LIMIT ? OFFSET ?
+    `).bind(...params, limit, offset).all();
 
-    return c.json(results);
+    return c.json({
+      data: results,
+      total: total,
+      page: page,
+      limit: limit
+    });
   } catch (error) {
+    console.error('Failed to fetch classes:', error);
     return c.json({ error: 'Failed to fetch classes' }, 500);
+  }
+});
+
+// Get single class by ID with full details
+app.get('/api/v1/classes/:id', async (c) => {
+  try {
+    const classId = c.req.param('id');
+
+    // Get class details
+    const classData = await c.env.DB.prepare(`
+      SELECT c.*, u.first_name as teacher_first_name, u.last_name as teacher_last_name,
+             (SELECT COUNT(*) FROM students WHERE class_id = c.id AND status = 'active') as student_count
+      FROM classes c
+      LEFT JOIN teachers t ON c.main_teacher_id = t.id
+      LEFT JOIN users u ON t.user_id = u.id
+      WHERE c.id = ?
+    `).bind(classId).first();
+
+    if (!classData) {
+      return c.json({ error: 'Class not found' }, 404);
+    }
+
+    // Get students in this class
+    const { results: students } = await c.env.DB.prepare(`
+      SELECT 
+        s.id,
+        s.student_code as registrationNumber,
+        s.first_name as firstName,
+        s.last_name as lastName,
+        s.birth_date as dob,
+        s.gender,
+        s.nationality,
+        s.birth_place as birthPlace,
+        s.address,
+        s.enrollment_date as enrollmentDate,
+        s.enrollment_date as registrationDate,
+        s.class_id as classId,
+        s.academic_level as gradeLevel,
+        s.previous_school as previousSchool,
+        s.emergency_contact as emergencyContactPhone,
+        s.medical_info as medicalInfo,
+        s.status
+      FROM students s
+      WHERE s.class_id = ? AND s.status = 'active'
+      ORDER BY s.last_name, s.first_name
+    `).bind(classId).all();
+
+    // Get main teacher details if exists
+    let mainTeacher = null;
+    if (classData.main_teacher_id) {
+      const teacherData = await c.env.DB.prepare(`
+        SELECT 
+          t.id,
+          u.first_name as firstName,
+          u.last_name as lastName,
+          t.specialization,
+          u.email,
+          u.phone,
+          t.status
+        FROM teachers t
+        LEFT JOIN users u ON t.user_id = u.id
+        WHERE t.id = ?
+      `).bind(classData.main_teacher_id).first();
+
+      if (teacherData) {
+        mainTeacher = teacherData;
+      }
+    }
+
+    // Get timetable for this class (try both table names for compatibility)
+    let timetable = [];
+    try {
+      const result = await c.env.DB.prepare(`
+        SELECT 
+          ts.id,
+          ts.day_of_week as day,
+          ts.start_time as startTime,
+          ts.end_time as endTime,
+          ts.subject as subject,
+          ts.class_id as classId,
+          ts.teacher_id as teacherId,
+          ts.room
+        FROM timetable_slots ts
+        WHERE ts.class_id = ?
+        ORDER BY 
+          CASE ts.day_of_week
+            WHEN 'Lundi' THEN 1
+            WHEN 'Mardi' THEN 2
+            WHEN 'Mercredi' THEN 3
+            WHEN 'Jeudi' THEN 4
+            WHEN 'Vendredi' THEN 5
+            ELSE 6
+          END,
+          ts.start_time
+      `).bind(classId).all();
+      timetable = result.results || [];
+    } catch (e) {
+      // Table might not exist or be empty, that's okay
+      console.log('No timetable found:', e);
+      timetable = [];
+    }
+
+    // Return full class details
+    return c.json({
+      ...classData,
+      students: students,
+      mainTeacher: mainTeacher,
+      timetable: timetable || []
+    });
+
+  } catch (error) {
+    console.error('Failed to fetch class details:', error);
+    return c.json({ error: 'Failed to fetch class details' }, 500);
   }
 });
 
@@ -590,10 +724,9 @@ app.get('/api/v1/attendance', async (c) => {
     const { studentId, date } = c.req.query();
     
     let query = `
-      SELECT a.*, u.first_name, u.last_name, s.student_code
+      SELECT a.*, s.first_name, s.last_name, s.student_code
       FROM attendance a
       LEFT JOIN students s ON a.student_id = s.id
-      LEFT JOIN users u ON s.user_id = u.id
       WHERE 1=1
     `;
     
@@ -607,7 +740,7 @@ app.get('/api/v1/attendance', async (c) => {
       params.push(date);
     }
     
-    query += ' ORDER BY a.date DESC, u.last_name, u.first_name';
+    query += ' ORDER BY a.date DESC, s.last_name, s.first_name';
     
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json(results);
@@ -799,10 +932,9 @@ app.get('/api/v1/finance/transactions', async (c) => {
     const { studentId, status, type } = c.req.query();
     
     let query = `
-      SELECT ft.*, u.first_name, u.last_name, s.student_code
+      SELECT ft.*, s.first_name, s.last_name, s.student_code
       FROM financial_transactions ft
       LEFT JOIN students s ON ft.student_id = s.id
-      LEFT JOIN users u ON s.user_id = u.id
       WHERE 1=1
     `;
     

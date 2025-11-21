@@ -15,17 +15,17 @@ interface UserRole {
 const TEST_USERS: UserRole[] = [
   {
     id: 'fondatrice',
-    email: 'fondatrice@kds-school.com',
-    password: 'password123',
+    email: 'admin@kds-school.ci',
+    password: 'admin123',
     name: '👑 Fondatrice',
-    role: 'fondatrice',
+    role: 'admin',
     description: 'Accès complet - Gestion stratégique',
     icon: 'bx bxs-crown'
   },
   {
     id: 'admin',
-    email: 'admin@kds-school.com',
-    password: 'password123',
+    email: 'admin@kds-school.ci',
+    password: 'admin123',
     name: '⚙️ Administrateur',
     role: 'admin',
     description: 'Gestion complète du système',
@@ -33,37 +33,37 @@ const TEST_USERS: UserRole[] = [
   },
   {
     id: 'directrice',
-    email: 'directrice@kds-school.com',
-    password: 'password123',
-    name: '📋 Directrice',
-    role: 'directrice',
+    email: 'admin@kds-school.ci',
+    password: 'admin123',
+    name: '📋 Directrice (Admin)',
+    role: 'admin',
     description: 'Gestion pédagogique et administrative',
     icon: 'bx bxs-clipboard'
   },
   {
     id: 'comptable',
-    email: 'comptable@kds-school.com',
-    password: 'password123',
+    email: 'acoulibaly@kds-school.ci',
+    password: 'teacher123',
     name: '💰 Comptable',
-    role: 'comptable',
+    role: 'teacher',
     description: 'Gestion des finances',
     icon: 'bx bxs-dollar-circle'
   },
   {
     id: 'enseignant',
-    email: 'enseignant@kds-school.com',
-    password: 'password123',
+    email: 'mkone@kds-school.ci',
+    password: 'teacher123',
     name: '👨‍🏫 Enseignant',
-    role: 'enseignant',
+    role: 'teacher',
     description: 'Gestion des classes et notes',
     icon: 'bx bxs-user-voice'
   },
   {
     id: 'agent',
-    email: 'agent@kds-school.com',
-    password: 'password123',
+    email: 'parent1@example.ci',
+    password: 'parent123',
     name: '👤 Personnel Administratif',
-    role: 'agent',
+    role: 'parent',
     description: 'Support administratif',
     icon: 'bx bxs-user-detail'
   },
