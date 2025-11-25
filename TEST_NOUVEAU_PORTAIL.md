@@ -13,7 +13,7 @@ Tester le nouveau portail de connexion moderne et vérifier toutes ses fonctionn
 - [ ] Le portail s'affiche en mode bi-panel (marque à gauche, connexion à droite)
 - [ ] Le gradient violet est appliqué à l'arrière-plan
 - [ ] Le panel de marque affiche:
-  - [ ] Logo KDS School avec icône
+  - [ ] Logo KSP School avec icône
   - [ ] Message "🏫 Système de Gestion Scolaire"
   - [ ] 3 fonctionnalités avec icônes
   - [ ] Effet cercle en arrière-plan

@@ -18,7 +18,7 @@ export class DocumentHistoryLogDto {
   @IsString()
   timestamp: string;
 
-  @ApiProperty({ example: 'admin@kds.school' })
+  @ApiProperty({ example: 'admin@ksp.school' })
   @IsString()
   user: string;
 
@@ -28,14 +28,14 @@ export class DocumentHistoryLogDto {
 }
 
 export class StudentDocumentDto {
-  @ApiProperty({ 
+  @ApiProperty({
     enum: ['Extrait de naissance', 'Carnet de vaccination', 'Autorisation parentale', 'Fiche scolaire'],
     example: 'Extrait de naissance'
   })
   @IsEnum(['Extrait de naissance', 'Carnet de vaccination', 'Autorisation parentale', 'Fiche scolaire'])
   type: DocumentType;
 
-  @ApiProperty({ 
+  @ApiProperty({
     enum: ['Manquant', 'En attente', 'Validé', 'Rejeté'],
     example: 'Validé'
   })
@@ -137,8 +137,8 @@ export class CreateStudentDto {
   @IsString()
   medicalInfo?: string;
 
-  @ApiPropertyOptional({ 
-    enum: ['Actif', 'Inactif', 'En attente'], 
+  @ApiPropertyOptional({
+    enum: ['Actif', 'Inactif', 'En attente'],
     example: 'En attente',
     default: 'En attente'
   })

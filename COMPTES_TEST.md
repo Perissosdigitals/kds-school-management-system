@@ -1,4 +1,4 @@
-# 🔐 Comptes de Test - KDS School Management System
+# 🔐 Comptes de Test - KSP School Management System
 
 ## 📌 URL de l'Application
 - **Frontend**: https://1128523e.kds-school-management.pages.dev

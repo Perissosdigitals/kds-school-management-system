@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# 🚀 Script de démarrage complet de l'environnement local KDS
+# 🚀 Script de démarrage complet de l'environnement local KSP
 # Lance Backend + Frontend + Watchdog
 
 echo ""
-echo "🚀 DÉMARRAGE ENVIRONNEMENT LOCAL KDS"
+echo "🚀 DÉMARRAGE ENVIRONNEMENT LOCAL KSP"
 echo "====================================="
 echo ""
 
@@ -46,12 +46,12 @@ echo ""
 # 3. Démarrer le Backend
 echo "📦 Backend NestJS (port 3001)..."
 cd backend
-nohup npm run dev > /tmp/kds-backend.log 2>&1 &
+nohup npm run dev > /tmp/ksp-backend.log 2>&1 &
 BACKEND_PID=$!
 echo "$BACKEND_PID" > ../backend.pid
 cd ..
 echo "   PID: $BACKEND_PID"
-echo "   Logs: /tmp/kds-backend.log"
+echo "   Logs: /tmp/ksp-backend.log"
 
 # Attendre que le backend démarre
 echo "   ⏳ Attente du démarrage..."
@@ -70,8 +70,8 @@ done
 
 if [ $WAIT -eq $MAX_WAIT ]; then
     echo ""
-    echo "   ❌ Backend timeout - vérifiez /tmp/kds-backend.log"
-    tail -20 /tmp/kds-backend.log
+    echo "   ❌ Backend timeout - vérifiez /tmp/ksp-backend.log"
+    tail -20 /tmp/ksp-backend.log
     exit 1
 fi
 
@@ -79,11 +79,11 @@ echo ""
 
 # 4. Démarrer le Frontend avec Watchdog
 echo "🎨 Frontend Vite (port 5173) avec Watchdog..."
-nohup ./watchdog-frontend.sh > /tmp/kds-watchdog.log 2>&1 &
+nohup ./watchdog-frontend.sh > /tmp/ksp-watchdog.log 2>&1 &
 WATCHDOG_PID=$!
 echo "$WATCHDOG_PID" > watchdog.pid
 echo "   PID Watchdog: $WATCHDOG_PID"
-echo "   Logs: /tmp/kds-watchdog.log"
+echo "   Logs: /tmp/ksp-watchdog.log"
 
 # Attendre que le frontend démarre
 echo "   ⏳ Attente du démarrage..."
@@ -102,16 +102,16 @@ done
 
 if [ $WAIT -eq $MAX_WAIT ]; then
     echo ""
-    echo "   ❌ Frontend timeout - vérifiez /tmp/kds-watchdog.log"
-    tail -20 /tmp/kds-watchdog.log
-    tail -20 /tmp/kds-frontend-watchdog.log
+    echo "   ❌ Frontend timeout - vérifiez /tmp/ksp-watchdog.log"
+    tail -20 /tmp/ksp-watchdog.log
+    tail -20 /tmp/ksp-frontend-watchdog.log
     exit 1
 fi
 
 echo ""
 echo ""
 echo "✅ ═══════════════════════════════════════════"
-echo "✅  ENVIRONNEMENT LOCAL KDS PRÊT!"
+echo "✅  ENVIRONNEMENT LOCAL KSP PRÊT!"
 echo "✅ ═══════════════════════════════════════════"
 echo ""
 echo "🌐 Frontend:  http://localhost:5173"
@@ -124,9 +124,9 @@ echo "   Backend:  $BACKEND_PID (fichier: backend.pid)"
 echo "   Watchdog: $WATCHDOG_PID (fichier: watchdog.pid)"
 echo ""
 echo "📝 Logs:"
-echo "   Backend:  tail -f /tmp/kds-backend.log"
-echo "   Frontend: tail -f /tmp/kds-frontend-watchdog.log"
-echo "   Watchdog: tail -f /tmp/kds-watchdog.log"
+echo "   Backend:  tail -f /tmp/ksp-backend.log"
+echo "   Frontend: tail -f /tmp/ksp-frontend-watchdog.log"
+echo "   Watchdog: tail -f /tmp/ksp-watchdog.log"
 echo ""
 echo "🛑 Pour arrêter:"
 echo "   ./stop-local.sh"

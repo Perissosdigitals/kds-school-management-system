@@ -13,7 +13,7 @@ async function bootstrap() {
 
   // Security
   app.use(helmet());
-  
+
   // CORS
   app.enableCors({
     origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
@@ -37,9 +37,9 @@ async function bootstrap() {
 
   // Swagger documentation
   const config = new DocumentBuilder()
-    .setTitle('KDS School Management System API')
+    .setTitle('KSP School Management System API')
     .setDescription(`
-# API Complète pour la Gestion Scolaire KDS
+# API Complète pour la Gestion Scolaire KSP
 
 Cette API fournit tous les endpoints nécessaires pour gérer une école complète.
 
@@ -65,11 +65,11 @@ Tous les endpoints protégés nécessitent un JWT Bearer Token.
 
 ## Support
 
-- **Email**: support@kds-school.ci
-- **Documentation**: https://docs.kds-school.ci
+- **Email**: support@ksp-school.ci
+- **Documentation**: https://docs.ksp-school.ci
 `)
     .setVersion('1.0.0')
-    .setContact('KDS School', 'https://kds-school.ci', 'support@kds-school.ci')
+    .setContact('KSP School', 'https://ksp-school.ci', 'support@ksp-school.ci')
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
     .addBearerAuth(
       {
@@ -104,9 +104,9 @@ Tous les endpoints protégés nécessitent un JWT Bearer Token.
     deepScanRoutes: true,
     ignoreGlobalPrefix: false,
   });
-  
+
   SwaggerModule.setup('api/docs', app, document, {
-    customSiteTitle: 'KDS API Documentation',
+    customSiteTitle: 'KSP API Documentation',
     customfavIcon: 'https://nestjs.com/img/logo-small.svg',
     customCss: '.swagger-ui .topbar { display: none }',
     swaggerOptions: {
@@ -120,7 +120,7 @@ Tous les endpoints protégés nécessitent un JWT Bearer Token.
   const port = process.env.PORT || 3001;
   await app.listen(port);
 
-  console.log(`🚀 KDS API Gateway running on http://localhost:${port}`);
+  console.log(`🚀 KSP API Gateway running on http://localhost:${port}`);
   console.log(`📚 API Documentation available at http://localhost:${port}/api/docs`);
 }
 

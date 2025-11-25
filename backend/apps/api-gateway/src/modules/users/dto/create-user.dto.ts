@@ -3,7 +3,7 @@ import { IsEmail, IsString, IsEnum, IsOptional, MinLength } from 'class-validato
 import { UserRole } from '../entities/user.entity';
 
 export class CreateUserDto {
-  @ApiProperty({ description: 'Email de l\'utilisateur', example: 'user@kds.com' })
+  @ApiProperty({ description: 'Email de l\'utilisateur', example: 'user@ksp.com' })
   @IsEmail()
   email: string;
 

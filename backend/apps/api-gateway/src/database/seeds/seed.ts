@@ -9,7 +9,7 @@ async function bootstrap() {
   try {
     console.log('🚀 Starting seed process...\n');
     const result = await seedService.seed();
-    
+
     console.log('\n📊 Seeding Summary:');
     console.log('═══════════════════════════════════');
     console.log(`👤 Users: ${result.users}`);
@@ -25,7 +25,7 @@ async function bootstrap() {
     console.log('═══════════════════════════════════');
     console.log('\n🎉 All done! Database is ready for testing.');
     console.log('\n📝 Test credentials:');
-    console.log('   Email: admin@kds-school.com');
+    console.log('   Email: admin@ksp-school.com');
     console.log('   Password: admin123\n');
   } catch (error) {
     console.error('❌ Error during seeding:', error);

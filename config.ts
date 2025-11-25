@@ -7,9 +7,9 @@ export const config = {
    * Set this to `false` to attempt to connect to a real backend API.
    */
   USE_MOCK_DATA: false, // Now using live Cloudflare Workers backend
-  
+
   /**
    * Backend API URL - Cloudflare Workers deployment
    */
-  API_URL: import.meta.env.VITE_API_URL || 'https://kds-backend-api.perissosdigitals.workers.dev/api/v1',
+  API_URL: import.meta.env.VITE_API_URL || 'https://ksp-backend-api.perissosdigitals.workers.dev/api/v1',
 };

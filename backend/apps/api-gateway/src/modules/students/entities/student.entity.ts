@@ -9,7 +9,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { User } from '../../auth/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { SchoolClass } from '../../classes/entities/class.entity';
 
 export type Gender = 'Masculin' | 'Féminin';
@@ -38,7 +38,7 @@ export class Student {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ApiProperty({ example: 'KDS24001' })
+  @ApiProperty({ example: 'KSP24001' })
   @Column({ name: 'registration_number', type: 'varchar', length: 20, unique: true })
   registrationNumber: string;
 

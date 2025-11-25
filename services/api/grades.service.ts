@@ -84,6 +84,30 @@ export const GradesService = {
       console.error('GradesService: Erreur lors de l\'enregistrement', error);
       throw error;
     }
+  },
+
+  /**
+   * Récupère les notes par classe
+   */
+  async getGradesByClass(classId: string, params?: { 
+    trimester?: string; 
+    subjectId?: string;
+    academicYear?: string;
+  }): Promise<Grade[]> {
+    try {
+      console.log('GradesService: Récupération des notes pour la classe', classId);
+      const response = await httpClient.get<any[]>(`/grades/by-class/${classId}`, { params });
+      const mappedGrades = response.data.map(mapApiGradeToFrontend);
+      console.log('GradesService: Notes par classe chargées:', mappedGrades.length);
+      return mappedGrades;
+    } catch (error) {
+      console.warn('GradesService: Erreur API pour notes par classe, utilisation des données mock', error);
+      // Filtrer les notes mock par les étudiants de la classe
+      return grades.filter(grade => {
+        const student = allStudents.find(s => s.id === grade.studentId);
+        return student?.classId === classId;
+      });
+    }
   }
 };
 

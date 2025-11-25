@@ -1,4 +1,4 @@
-# ✅ Backend KDS - Setup Complet et Prochaines Étapes
+# ✅ Backend KSP - Setup Complet et Prochaines Étapes
 
 ## 🎉 Ce qui a été créé
 
@@ -268,4 +268,4 @@ PONG
 
 **Bérakhot ve-Hatzlakha pour la suite du développement ! 🚀**
 
-*Votre backend KDS est maintenant prêt pour le développement et l'intégration avec le frontend.*
+*Votre backend KSP est maintenant prêt pour le développement et l'intégration avec le frontend.*

@@ -15,7 +15,7 @@ Le **workflow complet d'inscription des élèves** a été implémenté, testé 
 - ✅ **2 élèves inscrits** avec succès (Jean KOUASSI, Fatou DIALLO)
 - ✅ **6 transactions financières** générées (225,000 FCFA par élève)
 - ✅ **8 documents requis** initialisés avec traçabilité
-- ✅ **2 matricules uniques** créés (format KDS2025CM2XXX)
+- ✅ **2 matricules uniques** créés (format KSP2025CM2XXX)
 - ✅ **1 classe** gérée avec suivi de capacité (30 max)
 - ✅ **100% des endpoints** opérationnels
 
@@ -64,8 +64,8 @@ GET    /api/v1/enrollment/student/:id/profile → Dossier complet
 
 ### Étape 2: **Génération Matricule Unique** ✓
 ```typescript
-Format: KDS{année}{niveau}{séquence}
-Exemple: KDS2025CM2022
+Format: KSP{année}{niveau}{séquence}
+Exemple: KSP2025CM2022
 ```
 
 ### Étape 3: **Création Élève** ✓
@@ -120,7 +120,7 @@ Solde: 225,000 FCFA (Impayé)
   "message": "Élève Jean KOUASSI inscrit avec succès dans la classe CM2 Test",
   "student": {
     "id": "fc362559-c40d-4354-bf28-ee937daa015a",
-    "registrationNumber": "KDS2025CM2022",
+    "registrationNumber": "KSP2025CM2022",
     "firstName": "Jean",
     "lastName": "KOUASSI",
     "status": "En attente"
@@ -142,7 +142,7 @@ Solde: 225,000 FCFA (Impayé)
 ```
 
 ### Test 2: Inscription Fatou DIALLO
-- ✅ Matricule: KDS2025CM2022 (séquence incrémentée)
+- ✅ Matricule: KSP2025CM2022 (séquence incrémentée)
 - ✅ Classe mise à jour: currentStudents = 2
 - ✅ 3 nouvelles transactions créées
 - ✅ 4 nouveaux documents initialisés
@@ -303,7 +303,7 @@ transactions.forEach(t => {
 ```typescript
 {
   id: UUID
-  registrationNumber: string        // KDS2025CM2022
+  registrationNumber: string        // KSP2025CM2022
   firstName, lastName: string
   dob: Date
   gender: 'Masculin' | 'Féminin'
@@ -383,5 +383,5 @@ Le **système d'inscription des élèves** est **100% opérationnel** et prêt p
 ---
 
 **Rapport généré le**: 19/11/2025 12:00:00 UTC  
-**Auteur**: KDS Development Team  
+**Auteur**: KSP Development Team  
 **Statut**: ✅ VALIDÉ - Prêt pour Production

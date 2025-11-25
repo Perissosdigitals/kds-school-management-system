@@ -93,7 +93,7 @@ export function initializeSentry() {
     // Tags par défaut
     initialScope: {
       tags: {
-        service: 'kds-frontend',
+        service: 'ksp-frontend',
         version: import.meta.env.VITE_APP_VERSION || '1.0.0',
       },
     },

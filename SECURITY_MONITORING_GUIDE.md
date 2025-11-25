@@ -320,13 +320,13 @@ if (userAcceptedCookies) {
 2. **Ajouter un monitor**:
    - Type: HTTP(s)
    - URL: `https://kds-backend-api.perissosdigitals.workers.dev/health`
-   - Nom: "KDS Backend API"
+   - Nom: "KSP Backend API"
    - Interval: 5 minutes
    - Alert Contacts: Votre email
 
 3. **Ajouter un second monitor** (Frontend):
    - URL: `https://2a143417.kds-school-management.pages.dev`
-   - Nom: "KDS Frontend"
+   - Nom: "KSP Frontend"
 
 4. **Configurer les alertes**:
    - Email immédiat si down

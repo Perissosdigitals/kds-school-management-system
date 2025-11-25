@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Configuration
+API_URL="http://localhost:3001/api/v1"
+CM2_TEST_ID="0b6cf1c7-1cd7-4d98-ab28-5b168f32b21b"
+CM2_A_TARGET_ID="60847cc8-814b-4d7c-8f2e-cf5ee3516854"
+
+# Classes to delete (Empty duplicates)
+declare -a CLASSES_TO_DELETE=(
+    "f7643c2a-911f-4f66-9d3a-fe7beba20fd8" # CE1-A (Empty)
+    "3ce10a38-ffe6-4e90-88a0-e421d0a3d7b8" # CE2-A (Empty)
+    "8cb82d1f-34a3-4cb5-8f2f-9461b1ee65ff" # CM1-A (Empty)
+    "b879624a-a37d-4b76-8f81-83d48df5b8c4" # CM2-A (Empty)
+)
+
+echo "🚀 Starting Class Cleanup V4 (Client-side Filtering)..."
+
+# 1. Find orphans from CM2 Test using jq to filter
+echo "📋 Fetching ALL students and filtering for CM2 Test..."
+# Fetch all students (limit 1000 to be safe)
+STUDENTS=$(curl -s "$API_URL/students?limit=1000" | jq -r --arg CLASS_ID "$CM2_TEST_ID" '.[] | select(.classId == $CLASS_ID) | .id')
+
+if [ -z "$STUDENTS" ]; then
+    echo "ℹ️  No students found in CM2 Test."
+else
+    echo "🔄 Migrating students to CM2-A..."
+    for STUDENT_ID in $STUDENTS; do
+        echo "  - Moving student $STUDENT_ID..."
+        # Capture HTTP status code
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$API_URL/students/$STUDENT_ID" \
+            -H "Content-Type: application/json" \
+            -d "{\"classId\": \"$CM2_A_TARGET_ID\"}")
+        
+        if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 201 ]; then
+            echo "    ✅ Success ($HTTP_CODE)"
+        else
+            echo "    ❌ Failed ($HTTP_CODE)"
+        fi
+    done
+    echo "✅ Migration complete."
+fi
+
+# 2. Delete CM2 Test Class
+echo "🗑️  Deleting CM2 Test class..."
+curl -s -X DELETE "$API_URL/classes/$CM2_TEST_ID" > /dev/null
+echo "✅ CM2 Test deleted."
+
+# 3. Delete Empty Duplicate Classes
+echo "🗑️  Deleting empty duplicate classes..."
+for CLASS_ID in "${CLASSES_TO_DELETE[@]}"; do
+    echo "  - Deleting class $CLASS_ID..."
+    curl -s -X DELETE "$API_URL/classes/$CLASS_ID" > /dev/null
+done
+
+echo "✨ Cleanup V4 complete!"

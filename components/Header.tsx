@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, users, o
         {/* Mobile Logo */}
         <div className="flex items-center gap-2 text-blue-700 md:hidden">
           <i className='bx bxs-school text-3xl'></i>
-          <h1 className="text-lg font-bold">École KDS</h1>
+          <h1 className="text-lg font-bold">École KSP</h1>
         </div>
       </div>
       

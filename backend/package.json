@@ -1,7 +1,7 @@
 {
-  "name": "@kds/backend",
+  "name": "@ksp/backend",
   "version": "1.0.0",
-  "description": "KDS School Management System - Backend API (NestJS Monorepo)",
+  "description": "KSP School Management System - Backend API (NestJS Monorepo)",
   "private": true,
   "workspaces": [
     "packages/*",

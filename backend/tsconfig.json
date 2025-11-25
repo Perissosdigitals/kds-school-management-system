@@ -20,16 +20,40 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "paths": {
-      "@kds/core/*": ["packages/core/*"],
-      "@kds/auth/*": ["packages/auth/*"],
-      "@kds/academy/*": ["packages/academy/*"],
-      "@kds/planning/*": ["packages/planning/*"],
-      "@kds/finance/*": ["packages/finance/*"],
-      "@kds/analytics/*": ["packages/analytics/*"],
-      "@kds/import-export/*": ["packages/import-export/*"],
-      "@kds/shared/*": ["shared/*"]
+      "@ksp/core/*": [
+        "packages/core/*"
+      ],
+      "@ksp/auth/*": [
+        "packages/auth/*"
+      ],
+      "@ksp/academy/*": [
+        "packages/academy/*"
+      ],
+      "@ksp/planning/*": [
+        "packages/planning/*"
+      ],
+      "@ksp/finance/*": [
+        "packages/finance/*"
+      ],
+      "@ksp/analytics/*": [
+        "packages/analytics/*"
+      ],
+      "@ksp/import-export/*": [
+        "packages/import-export/*"
+      ],
+      "@ksp/shared/*": [
+        "shared/*"
+      ]
     }
   },
-  "include": ["packages/**/*", "apps/**/*", "shared/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+  "include": [
+    "packages/**/*",
+    "apps/**/*",
+    "shared/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts"
+  ]
 }

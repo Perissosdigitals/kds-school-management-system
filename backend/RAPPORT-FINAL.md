@@ -1,4 +1,4 @@
-# 📊 KDS School Management System - Rapport Final de Progression
+# 📊 KSP School Management System - Rapport Final de Progression
 
 **Date**: 18 novembre 2025  
 **Version**: 1.0.0  
@@ -314,7 +314,7 @@ docker-compose down -v
 
 ## 🎓 Conclusion
 
-Le backend KDS School Management System V1 est **100% complet** avec:
+Le backend KSP School Management System V1 est **100% complet** avec:
 
 - ✅ **109 endpoints REST** couvrant tous les besoins métier
 - ✅ **2,750+ enregistrements** de données réalistes
@@ -340,4 +340,4 @@ Le backend KDS School Management System V1 est **100% complet** avec:
 ---
 
 *Généré automatiquement le 18 novembre 2025*
-*KDS School Management System - Version 1.0.0*
+*KSP School Management System - Version 1.0.0*

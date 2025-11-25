@@ -25,8 +25,8 @@ export const AuthService = {
       const response = await httpClient.post<LoginResponse>('/auth/login', credentials);
       
       if (response.data.access_token) {
-        localStorage.setItem('kds_token', response.data.access_token);
-        localStorage.setItem('kds_user', JSON.stringify(response.data.user));
+        localStorage.setItem('ksp_token', response.data.access_token);
+        localStorage.setItem('ksp_user', JSON.stringify(response.data.user));
       }
       
       return response.data;
@@ -40,8 +40,8 @@ export const AuthService = {
    * Déconnecte l'utilisateur
    */
   logout(): void {
-    localStorage.removeItem('kds_token');
-    localStorage.removeItem('kds_user');
+    localStorage.removeItem('ksp_token');
+    localStorage.removeItem('ksp_user');
     window.location.href = '/login';
   },
 
@@ -49,7 +49,7 @@ export const AuthService = {
    * Récupère l'utilisateur actuellement connecté
    */
   getCurrentUser() {
-    const user = localStorage.getItem('kds_user');
+    const user = localStorage.getItem('ksp_user');
     return user ? JSON.parse(user) : null;
   },
 
@@ -57,14 +57,14 @@ export const AuthService = {
    * Vérifie si l'utilisateur est authentifié
    */
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('kds_token');
+    return !!localStorage.getItem('ksp_token');
   },
 
   /**
    * Récupère le token JWT
    */
   getToken(): string | null {
-    return localStorage.getItem('kds_token');
+    return localStorage.getItem('ksp_token');
   },
 
   /**
@@ -74,7 +74,7 @@ export const AuthService = {
     try {
       const response = await httpClient.post<{ access_token: string }>('/auth/refresh');
       const newToken = response.data.access_token;
-      localStorage.setItem('kds_token', newToken);
+      localStorage.setItem('ksp_token', newToken);
       return newToken;
     } catch (error) {
       console.error('Token refresh error:', error);

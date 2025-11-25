@@ -1,7 +1,7 @@
-# KDS Backend - Cloudflare Deployment Guide
+# KSP Backend - Cloudflare Deployment Guide
 
 ## Overview
-This guide explains how to deploy the KDS School Management System backend to Cloudflare Workers with D1 Database.
+This guide explains how to deploy the KSP School Management System backend to Cloudflare Workers with D1 Database.
 
 ## Architecture
 - **Cloudflare Workers**: Serverless backend API

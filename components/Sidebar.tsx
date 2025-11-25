@@ -85,7 +85,7 @@ export const Sidebar: React.FC<SidebarPropsExtended> = React.memo(({ activePage,
       <div className="flex items-center gap-3 mb-12 text-blue-700">
         <i className='bx bxs-school text-5xl'></i>
         <div>
-          <h1 className="text-xl font-bold">École KDS</h1>
+          <h1 className="text-xl font-bold">École KSP</h1>
           <span className="text-sm text-gray-500">Système de Gestion</span>
         </div>
       </div>

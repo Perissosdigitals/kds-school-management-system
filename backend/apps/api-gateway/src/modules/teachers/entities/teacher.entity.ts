@@ -9,7 +9,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { User } from '../../auth/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 
 export type TeacherStatus = 'Actif' | 'Inactif';
 
@@ -35,7 +35,7 @@ export class Teacher {
   @Column({ type: 'varchar', length: 20 })
   phone: string;
 
-  @ApiProperty({ example: 'mamadou.traore@kds.school' })
+  @ApiProperty({ example: 'mamadou.traore@ksp.school' })
   @Column({ type: 'varchar', length: 150 })
   email: string;
 

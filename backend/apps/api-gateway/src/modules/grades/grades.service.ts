@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Grade } from './entities/grade.entity';
+import { Grade, Trimester } from './entities/grade.entity';
 import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
 import { QueryGradesDto } from './dto/query-grades.dto';
@@ -11,7 +11,7 @@ export class GradesService {
   constructor(
     @InjectRepository(Grade)
     private gradesRepository: Repository<Grade>,
-  ) {}
+  ) { }
 
   async findAll(queryDto: QueryGradesDto) {
     const {
@@ -159,10 +159,38 @@ export class GradesService {
     return query.getCount();
   }
 
+  async getGradesByClass(classId: string, trimester?: string, subjectId?: string, academicYear?: string) {
+    const query = this.gradesRepository
+      .createQueryBuilder('grade')
+      .leftJoinAndSelect('grade.student', 'student')
+      .leftJoinAndSelect('grade.subject', 'subject')
+      .leftJoinAndSelect('grade.teacher', 'teacher')
+      .where('student.class_id = :classId', { classId });
+
+    if (trimester) {
+      query.andWhere('grade.trimester = :trimester', { trimester });
+    }
+
+    if (subjectId) {
+      query.andWhere('grade.subject_id = :subjectId', { subjectId });
+    }
+
+    if (academicYear) {
+      query.andWhere('grade.academic_year = :academicYear', { academicYear });
+    }
+
+    query.orderBy('student.last_name', 'ASC')
+      .addOrderBy('grade.evaluation_date', 'DESC');
+
+    return query.getMany();
+  }
+
   async getAverageByStudent(studentId: string, subjectId?: string, trimester?: string, academicYear?: string) {
     const query = this.gradesRepository
       .createQueryBuilder('grade')
-      .select('AVG((grade.value / grade.max_value) * 20 * grade.coefficient)', 'average')
+      // Calculate weighted sum: SUM( (value/max_value)*20 * coefficient )
+      .select('SUM((grade.value / grade.max_value) * 20 * grade.coefficient)', 'weightedSum')
+      // Calculate total coefficient: SUM(coefficient)
       .addSelect('SUM(grade.coefficient)', 'totalCoefficient')
       .where('grade.student_id = :studentId', { studentId });
 
@@ -179,10 +207,13 @@ export class GradesService {
     }
 
     const result = await query.getRawOne();
-    
+
+    const weightedSum = result.weightedSum ? parseFloat(result.weightedSum) : 0;
+    const totalCoefficient = result.totalCoefficient ? parseFloat(result.totalCoefficient) : 0;
+
     return {
-      average: result.average ? parseFloat(result.average) : 0,
-      totalCoefficient: result.totalCoefficient ? parseFloat(result.totalCoefficient) : 0,
+      average: totalCoefficient > 0 ? Number((weightedSum / totalCoefficient).toFixed(2)) : 0,
+      totalCoefficient: totalCoefficient,
     };
   }
 
@@ -201,9 +232,99 @@ export class GradesService {
     }
 
     const result = await query.getRawOne();
-    
+
     return {
-      average: result.average ? parseFloat(result.average) : 0,
+      average: result.average ? Number(parseFloat(result.average).toFixed(2)) : 0,
+    };
+  }
+
+  async getReportCard(studentId: string, trimester: string, academicYear: string) {
+    // 1. Get all grades for the student in this period, joined with subjects
+    const grades = await this.gradesRepository.find({
+      where: {
+        studentId,
+        trimester: trimester as Trimester,
+        academicYear,
+      },
+      relations: ['subject'],
+    });
+
+    // 2. Group by subject
+    const subjectStats = new Map<string, {
+      subjectName: string;
+      subjectCode: string;
+      subjectCoefficient: number;
+      grades: any[];
+      totalWeightedScore: number;
+      totalCoefficients: number;
+    }>();
+
+    for (const grade of grades) {
+      if (!grade.subject) continue;
+
+      const subjectId = grade.subject.id;
+      if (!subjectStats.has(subjectId)) {
+        subjectStats.set(subjectId, {
+          subjectName: grade.subject.name,
+          subjectCode: grade.subject.code,
+          subjectCoefficient: Number(grade.subject.coefficient || 1),
+          grades: [],
+          totalWeightedScore: 0,
+          totalCoefficients: 0,
+        });
+      }
+
+      const stats = subjectStats.get(subjectId);
+      const normalizedValue = (grade.value / grade.maxValue) * 20;
+      const gradeCoefficient = Number(grade.coefficient || 1);
+
+      stats.grades.push({
+        id: grade.id,
+        value: grade.value,
+        maxValue: grade.maxValue,
+        normalizedValue: Number(normalizedValue.toFixed(2)),
+        coefficient: gradeCoefficient,
+        type: grade.evaluationType,
+        date: grade.evaluationDate,
+      });
+
+      stats.totalWeightedScore += normalizedValue * gradeCoefficient;
+      stats.totalCoefficients += gradeCoefficient;
+    }
+
+    // 3. Calculate subject averages and general average
+    const subjects = [];
+    let totalGeneralWeightedScore = 0;
+    let totalGeneralCoefficients = 0;
+
+    for (const [subjectId, stats] of subjectStats.entries()) {
+      const subjectAverage = stats.totalCoefficients > 0
+        ? stats.totalWeightedScore / stats.totalCoefficients
+        : 0;
+
+      subjects.push({
+        subjectId,
+        name: stats.subjectName,
+        code: stats.subjectCode,
+        coefficient: stats.subjectCoefficient,
+        average: Number(subjectAverage.toFixed(2)),
+        grades: stats.grades,
+      });
+
+      totalGeneralWeightedScore += subjectAverage * stats.subjectCoefficient;
+      totalGeneralCoefficients += stats.subjectCoefficient;
+    }
+
+    const generalAverage = totalGeneralCoefficients > 0
+      ? totalGeneralWeightedScore / totalGeneralCoefficients
+      : 0;
+
+    return {
+      studentId,
+      trimester,
+      academicYear,
+      generalAverage: Number(generalAverage.toFixed(2)),
+      subjects,
     };
   }
 

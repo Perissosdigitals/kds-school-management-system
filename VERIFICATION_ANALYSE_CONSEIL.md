@@ -347,7 +347,7 @@ npm install --save-dev jest @types/jest ts-jest
 
 ### ✅ **CE QUE NOUS AVONS VRAIMENT**
 
-**Application KDS School Management System**:
+**Application KSP School Management System**:
 - ✅ **Backend Local**: NestJS + PostgreSQL avec 143 élèves
 - ✅ **Backend Cloud**: Cloudflare Workers + D1 avec 70 élèves
 - ✅ **Frontend**: React 19 déployé sur Cloudflare Pages

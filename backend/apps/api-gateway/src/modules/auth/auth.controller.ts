@@ -1,15 +1,16 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Req, UseGuards, Get, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('login')
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 tentatives par minute max
@@ -51,5 +52,27 @@ export class AuthController {
   @ApiResponse({ status: 204, description: 'Toutes les sessions ont été révoquées' })
   async logoutAll(@Req() req: any) {
     await this.authService.logoutAll(req.user.userId);
+  }
+
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obtenir le profil de l\'utilisateur connecté' })
+  @ApiResponse({ status: 200, description: 'Profil utilisateur récupéré avec succès' })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async getProfile(@Req() req: any) {
+    return this.authService.getUserProfile(req.user.userId);
+  }
+
+  @Put('password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Changer le mot de passe de l\'utilisateur' })
+  @ApiResponse({ status: 200, description: 'Mot de passe changé avec succès' })
+  @ApiResponse({ status: 401, description: 'Mot de passe actuel incorrect' })
+  async changePassword(@Req() req: any, @Body() changePasswordDto: ChangePasswordDto) {
+    await this.authService.changePassword(req.user.userId, changePasswordDto);
+    return { message: 'Password changed successfully' };
   }
 }

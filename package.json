@@ -1,5 +1,5 @@
 {
-  "name": "kds-school-management-system",
+  "name": "ksp-school-management-system",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,7 +11,16 @@
     "build": "vite build --mode production",
     "build:local": "vite build --mode development",
     "preview": "vite preview",
-    "deploy": "npm run build && npx wrangler pages deploy dist --project-name=kds-school-management"
+    "deploy": "npm run build && npx wrangler pages deploy dist --project-name=ksp-school-management",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:auth": "playwright test e2e/auth.setup.ts",
+    "test:cycle1": "playwright test --project=cycle-notes",
+    "test:cycle2": "playwright test --project=cycle-attendance",
+    "test:cycle3": "playwright test --project=cycle-data-management",
+    "test:cycle4": "playwright test --project=cycle-multi-roles"
   },
   "dependencies": {
     "@jest/globals": "^30.2.0",
@@ -23,6 +32,7 @@
     "react-router-dom": "^7.9.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",

@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { StudentsController } from './students.controller';
 import { StudentsService } from './students.service';
 import { Student } from './entities/student.entity';
-import { User } from '../auth/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Student, User])],
@@ -11,4 +11,4 @@ import { User } from '../auth/entities/user.entity';
   providers: [StudentsService],
   exports: [StudentsService],
 })
-export class StudentsModule {}
+export class StudentsModule { }

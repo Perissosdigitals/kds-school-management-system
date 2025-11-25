@@ -1,4 +1,4 @@
-# 🎨 Nouveau Portail de Connexion - KDS School Management
+# 🎨 Nouveau Portail de Connexion - KSP School Management
 
 ## ✨ Vue d'Ensemble
 
@@ -12,7 +12,7 @@ Le nouveau portail de connexion offre une interface moderne et professionnelle a
 
 ### Panel de Marque (Gauche)
 ```
-🏫 KDS School - Management System
+🏫 KSP School - Management System
 ────────────────────────────────────
 ✓ Logo et identité visuelle
 ✓ Message de bienvenue

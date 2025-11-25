@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const httpClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://kds-backend-api.perissosdigitals.workers.dev/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'https://ksp-backend-api.perissosdigitals.workers.dev/api/v1',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -11,7 +11,7 @@ const httpClient = axios.create({
 // Intercepteur pour l'authentification
 httpClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('kds_token');
+    const token = localStorage.getItem('ksp_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -15,7 +15,7 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ApiProperty({ description: 'Email de l\'utilisateur', example: 'user@kds.com' })
+  @ApiProperty({ description: 'Email de l\'utilisateur', example: 'user@ksp.com' })
   @Column({ unique: true })
   email: string;
 

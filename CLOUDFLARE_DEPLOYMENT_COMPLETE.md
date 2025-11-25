@@ -1,4 +1,4 @@
-# KDS School Management System - Cloudflare Deployment Guide
+# KSP School Management System - Cloudflare Deployment Guide
 
 ## 🎉 Deployment Complete!
 
@@ -297,7 +297,7 @@ For issues or questions:
 
 ## ✨ Summary
 
-Your KDS School Management System is now fully deployed on Cloudflare's global network with:
+Your KSP School Management System is now fully deployed on Cloudflare's global network with:
 - ✅ React frontend on Pages
 - ✅ Serverless backend on Workers
 - ✅ SQLite database on D1

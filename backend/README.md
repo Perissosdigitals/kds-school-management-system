@@ -1,4 +1,4 @@
-# 🏫 KDS School Management System - Backend
+# 🏫 KSP School Management System - Backend
 
 [![NestJS](https://img.shields.io/badge/NestJS-10.3.0-E0234E?logo=nestjs)](https://nestjs.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript)](https://www.typescriptlang.org/)
@@ -6,11 +6,11 @@
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
 
-Backend API complet pour le système de gestion scolaire KDS, construit avec NestJS en architecture monorepo.
+Backend API complet pour le système de gestion scolaire KSP, construit avec NestJS en architecture monorepo.
 
 ## 🎯 Vue d'ensemble
 
-Le backend KDS est une API REST moderne, scalable et sécurisée qui gère toutes les opérations du système scolaire :
+Le backend KSP est une API REST moderne, scalable et sécurisée qui gère toutes les opérations du système scolaire :
 - 👥 Gestion des utilisateurs et authentification JWT
 - 🎓 Gestion des élèves, enseignants et classes
 - 📊 Système de notes et évaluations
@@ -219,7 +219,7 @@ Réponse :
     "email": "admin@kds.com",
     "role": "admin",
     "firstName": "Admin",
-    "lastName": "KDS"
+    "lastName": "KSP"
   }
 }
 \`\`\`
@@ -360,8 +360,8 @@ Pour contribuer au backend :
 
 ## 📝 License
 
-Propriétaire - KDS School Management System
+Propriétaire - KSP School Management System
 
 ---
 
-**Développé avec ❤️ pour KDS** | [Documentation Complète](http://localhost:3001/api/docs)
+**Développé avec ❤️ pour KSP** | [Documentation Complète](http://localhost:3001/api/docs)

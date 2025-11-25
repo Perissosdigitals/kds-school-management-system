@@ -1,0 +1,32 @@
+{
+  "name": "kds-school-management-system",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode development",
+    "dev:stable": "vite --mode development --port 5173",
+    "dev:clean": "pkill -f 'vite' || true && npm run dev:stable",
+    "dev:status": "lsof -ti:5173 && echo '✅ Frontend actif sur :5173' || echo '❌ Frontend arrêté'",
+    "build": "vite build --mode production",
+    "build:local": "vite build --mode development",
+    "preview": "vite preview",
+    "deploy": "npm run build && npx wrangler pages deploy dist --project-name=kds-school-management"
+  },
+  "dependencies": {
+    "@jest/globals": "^30.2.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "axios": "1.7.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.6"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

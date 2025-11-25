@@ -102,8 +102,8 @@ const AppContent: React.FC<{
             onUserChange={handleUserChange}
             onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             onLogout={() => {
-              localStorage.removeItem('kds_token');
-              localStorage.removeItem('kds_user');
+              localStorage.removeItem('ksp_token');
+              localStorage.removeItem('ksp_user');
               window.location.href = '/login';
             }}
         />
@@ -126,8 +126,8 @@ const App: React.FC = () => {
 
   // Check if user is logged in (from localStorage or API)
   useEffect(() => {
-    const storedUser = localStorage.getItem('kds_user');
-    const storedToken = localStorage.getItem('kds_token');
+    const storedUser = localStorage.getItem('ksp_user');
+    const storedToken = localStorage.getItem('ksp_token');
     
     console.log('[App] Checking authentication...', { hasUser: !!storedUser, hasToken: !!storedToken });
     
@@ -164,8 +164,8 @@ const App: React.FC = () => {
         console.log('[App] User authenticated:', mappedUser);
       } catch (err) {
         console.error('[App] Error parsing stored user:', err);
-        localStorage.removeItem('kds_user');
-        localStorage.removeItem('kds_token');
+        localStorage.removeItem('ksp_user');
+        localStorage.removeItem('ksp_token');
       }
     } else {
       console.log('[App] No stored credentials found');
@@ -202,8 +202,8 @@ const App: React.FC = () => {
   }
 
   // Vérification de l'authentification basée sur le localStorage ET currentUser
-  const hasToken = !!localStorage.getItem('kds_token');
-  const hasStoredUser = !!localStorage.getItem('kds_user');
+  const hasToken = !!localStorage.getItem('ksp_token');
+  const hasStoredUser = !!localStorage.getItem('ksp_user');
   const isAuthenticated = !!currentUser && hasToken;
   
   console.log('[App] Render state:', { 

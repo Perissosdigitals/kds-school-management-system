@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/node';
-import { ProfilingIntegration } from '@sentry/profiling-node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
 /**
  * Configuration Sentry pour le monitoring des erreurs en production
@@ -11,14 +11,14 @@ export function initializeSentry() {
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
       environment: process.env.NODE_ENV || 'development',
-      
+
       // Performance Monitoring
       tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-      
+
       // Profiling
       profilesSampleRate: 1.0,
       integrations: [
-        new ProfilingIntegration(),
+        nodeProfilingIntegration(),
       ],
 
       // Filtrer les erreurs sensibles
@@ -43,7 +43,7 @@ export function initializeSentry() {
       // Contexte par défaut
       initialScope: {
         tags: {
-          service: 'kds-backend-api',
+          service: 'ksp-backend-api',
           version: process.env.npm_package_version || '1.0.0',
         },
       },

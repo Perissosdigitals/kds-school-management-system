@@ -6,7 +6,7 @@
 
 ## 🎯 Objectif Accomplissement
 
-**Intégration complète Frontend-Backend pour le système de gestion scolaire KDS**
+**Intégration complète Frontend-Backend pour le système de gestion scolaire KSP**
 
 ✅ **RÉUSSI** - Tous les éléments essentiels sont en place et opérationnels
 

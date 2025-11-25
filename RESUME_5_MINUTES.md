@@ -1,5 +1,5 @@
 # ⚡ RÉSUMÉ EXÉCUTIF - 5 MINUTES
-## KDS School Management System - État Complet
+## KSP School Management System - État Complet
 
 **Date**: 20 novembre 2025  
 **Créé pour**: Visualisation rapide du projet complet  
@@ -9,7 +9,7 @@
 
 ## 🌟 LE GROS TITRE
 
-### KDS School Management System = **PRODUCTION READY** ✅
+### KSP School Management System = **PRODUCTION READY** ✅
 
 ```
 ✅ 12 modules CRUD fonctionnels
@@ -295,7 +295,7 @@ JJ+1
 
 > *"La question n'est pas si c'est possible, mais quand et comment."*
 
-KDS School Management System = **POSSIBLE + FAIT** ✅
+KSP School Management System = **POSSIBLE + FAIT** ✅
 
 Next: **SCALER** 🚀
 

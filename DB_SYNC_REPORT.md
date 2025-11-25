@@ -274,5 +274,5 @@ curl https://kds-backend-api.perissosdigitals.workers.dev/api/v1/students
 ---
 
 **Date de génération**: 19 novembre 2025 00:05 UTC  
-**Auteur**: KDS Development Team  
+**Auteur**: KSP Development Team  
 **Version**: 1.0.0

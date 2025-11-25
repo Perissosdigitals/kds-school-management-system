@@ -22,6 +22,7 @@ import { UsersModule } from './modules/users/users.module';
 import { SchoolLifeModule } from './modules/school-life/school-life.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { EnrollmentModule } from './modules/enrollment/enrollment.module';
+import { DataManagementModule } from './modules/data-management/data-management.module';
 
 @Module({
   imports: [
@@ -40,18 +41,18 @@ import { EnrollmentModule } from './modules/enrollment/enrollment.module';
     // Database (skip if not available)
     ...(process.env.DATABASE_HOST
       ? [
-          TypeOrmModule.forRoot({
-            type: 'postgres',
-            host: process.env.DATABASE_HOST || 'localhost',
-            port: parseInt(process.env.DATABASE_PORT || '5432'),
-            username: process.env.DATABASE_USER || 'kds_admin',
-            password: process.env.DATABASE_PASSWORD || 'kds_secure_password',
-            database: process.env.DATABASE_NAME || 'kds_school_db',
-            entities: [__dirname + '/**/*.entity{.ts,.js}'],
-            synchronize: process.env.NODE_ENV === 'development',
-            logging: process.env.NODE_ENV === 'development',
-          }),
-        ]
+        TypeOrmModule.forRoot({
+          type: 'postgres',
+          host: process.env.DATABASE_HOST || 'localhost',
+          port: parseInt(process.env.DATABASE_PORT || '5432'),
+          username: process.env.DATABASE_USER || 'ksp_admin',
+          password: process.env.DATABASE_PASSWORD || 'ksp_secure_password',
+          database: process.env.DATABASE_NAME || 'ksp_school_db',
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: process.env.NODE_ENV === 'development',
+          logging: process.env.NODE_ENV === 'development',
+        }),
+      ]
       : []),
 
     // Feature modules
@@ -72,6 +73,7 @@ import { EnrollmentModule } from './modules/enrollment/enrollment.module';
     InventoryModule,
     EnrollmentModule,
     SeedModule,
+    DataManagementModule,
   ],
   controllers: [HealthController, EnhancedHealthController],
   providers: [
@@ -81,4 +83,4 @@ import { EnrollmentModule } from './modules/enrollment/enrollment.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

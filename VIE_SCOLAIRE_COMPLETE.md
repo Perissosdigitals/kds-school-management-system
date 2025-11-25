@@ -381,4 +381,4 @@ onSave={async (activity) => {
 20 novembre 2025
 
 ## Auteur
-Développé pour KDS School Management System
+Développé pour KSP School Management System

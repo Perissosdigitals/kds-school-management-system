@@ -6,6 +6,7 @@ import { SchoolClass } from '../classes/entities/class.entity';
 import { Transaction, TransactionType, PaymentStatus, TransactionCategory } from '../finance/entities/transaction.entity';
 import { Teacher } from '../teachers/entities/teacher.entity';
 import { EnrollStudentDto } from './dto/enroll-student.dto';
+import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { EnrollmentResultDto } from './dto/enrollment-result.dto';
 
 @Injectable()
@@ -20,7 +21,7 @@ export class EnrollmentService {
     @InjectRepository(Teacher)
     private teacherRepository: Repository<Teacher>,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
   /**
    * Workflow complet d'inscription d'un élève
@@ -166,14 +167,14 @@ export class EnrollmentService {
   private async generateRegistrationNumber(gradeLevel: string): Promise<string> {
     const year = new Date().getFullYear();
     const levelCode = gradeLevel.replace(/\s+/g, '').toUpperCase().substring(0, 4);
-    
+
     // Compter les élèves existants pour cette année et ce niveau
     const count = await this.studentRepository.count({
       where: { gradeLevel },
     });
 
     const sequence = (count + 1).toString().padStart(3, '0');
-    return `KDS${year}${levelCode}${sequence}`;
+    return `KSP${year}${levelCode}${sequence}`;
   }
 
   /**
@@ -210,7 +211,7 @@ export class EnrollmentService {
     // UUID système pour les inscriptions automatiques
     // TODO: Remplacer par l'UUID de l'utilisateur authentifié dans une vraie application
     const systemUserId = '00000000-0000-0000-0000-000000000000';
-    
+
     const transactions: Partial<Transaction>[] = [
       {
         type: TransactionType.REVENUE,
@@ -277,7 +278,7 @@ export class EnrollmentService {
     const totalDue = financialRecords
       .filter(t => t.type === TransactionType.REVENUE)
       .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
     const totalPaid = financialRecords
       .filter(t => t.type === TransactionType.REVENUE)
       .reduce((sum, t) => sum + Number(t.amountPaid), 0);
@@ -295,5 +296,79 @@ export class EnrollmentService {
       },
       documents: student.documents,
     };
+  }
+
+  /**
+   * Mettre à jour une inscription
+   * Permet de modifier le statut, transférer vers une autre classe, ou enregistrer un retrait
+   */
+  async updateEnrollment(studentId: string, updateDto: UpdateEnrollmentDto) {
+    const student = await this.studentRepository.findOne({
+      where: { id: studentId },
+      relations: ['class'],
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    // Si transfert vers une nouvelle classe
+    if (updateDto.class_id && updateDto.class_id !== student.classId) {
+      const newClass = await this.validateClass(updateDto.class_id);
+
+      // Vérifier la capacité de la nouvelle classe
+      const currentStudents = await this.studentRepository.count({
+        where: { classId: updateDto.class_id, status: 'Actif' },
+      });
+
+      if (currentStudents >= newClass.capacity) {
+        throw new BadRequestException(`Class ${newClass.name} is full (capacity: ${newClass.capacity})`);
+      }
+
+      student.classId = updateDto.class_id;
+      student.status = 'Actif';
+    }
+
+    // Mise à jour du statut si fourni
+    if (updateDto.enrollment_status) {
+      const statusMap = {
+        'active': 'Actif',
+        'transferred': 'Inactif', // Mark as inactive when transferred
+        'withdrawn': 'Inactif',
+        'completed': 'Actif', // Graduate but keep active
+      };
+      student.status = statusMap[updateDto.enrollment_status] || student.status;
+    }
+
+    // Enregistrer les informations de retrait
+    if (updateDto.withdrawal_date || updateDto.withdrawal_reason) {
+      student.status = 'Inactif';
+    }
+
+    await this.studentRepository.save(student);
+
+    return {
+      id: student.id,
+      registrationNumber: student.registrationNumber,
+      status: student.status,
+      classId: student.classId,
+      message: 'Enrollment updated successfully',
+    };
+  }
+
+  /**
+   * Retirer un élève (annuler l'inscription)
+   */
+  async withdrawStudent(studentId: string): Promise<void> {
+    const student = await this.studentRepository.findOne({
+      where: { id: studentId },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    student.status = 'Inactif'; // Use valid StudentStatus enum value
+    await this.studentRepository.save(student);
   }
 }

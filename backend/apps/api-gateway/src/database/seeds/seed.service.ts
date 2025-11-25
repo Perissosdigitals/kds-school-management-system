@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../../modules/auth/entities/user.entity';
+import { User, UserRole } from '../../modules/users/entities/user.entity';
+
+// ... inside the class ...
+
+
 import { Teacher, TeacherStatus } from '../../modules/teachers/entities/teacher.entity';
 import { Student } from '../../modules/students/entities/student.entity';
 import { SchoolClass } from '../../modules/classes/entities/class.entity';
@@ -36,7 +40,7 @@ export class SeedService {
     private transactionRepository: Repository<Transaction>,
     @InjectRepository(Document)
     private documentRepository: Repository<Document>,
-  ) {}
+  ) { }
 
   async seed() {
     console.log('🌱 Starting database seeding...');
@@ -89,26 +93,41 @@ export class SeedService {
 
   private async seedUsers() {
     console.log('👤 Seeding users with multiple roles...');
-    const hashedPassword = await bcrypt.hash('password123', 10);
-    
+    const defaultPasswordHash = await bcrypt.hash('password123', 10);
+
     const usersData = [
-      { email: 'fondatrice@kds-school.com', role: 'fondatrice', firstName: 'Madame', lastName: 'Fondatrice' },
-      { email: 'admin@kds-school.com', role: 'admin', firstName: 'Admin', lastName: 'KDS' },
-      { email: 'directrice@kds-school.com', role: 'directrice', firstName: 'Mme', lastName: 'Directrice' },
-      { email: 'comptable@kds-school.com', role: 'comptable', firstName: 'Mlle', lastName: 'Comptable' },
-      { email: 'enseignant@kds-school.com', role: 'enseignant', firstName: 'M.', lastName: 'Enseignant' },
-      { email: 'agent@kds-school.com', role: 'agent', firstName: 'Mlle', lastName: 'Administratif' },
+      // Standard Users
+      { email: 'fondatrice@ksp-school.com', role: 'fondatrice', firstName: 'Madame', lastName: 'Fondatrice' },
+      { email: 'admin@ksp-school.com', role: 'admin', firstName: 'Admin', lastName: 'KSP' },
+      { email: 'directrice@ksp-school.com', role: 'directrice', firstName: 'Mme', lastName: 'Directrice' },
+      { email: 'comptable@ksp-school.com', role: 'comptable', firstName: 'Mlle', lastName: 'Comptable' },
+      { email: 'enseignant@ksp-school.com', role: 'enseignant', firstName: 'M.', lastName: 'Enseignant' },
+      { email: 'agent@ksp-school.com', role: 'agent', firstName: 'Mlle', lastName: 'Administratif' },
+
+      // Demo Users (from ModernLogin.tsx)
+      { email: 'admin@ksp-school.ci', role: 'admin', firstName: 'Admin', lastName: 'Demo', password: 'admin123' },
+      { email: 'acoulibaly@ksp-school.ci', role: 'teacher', firstName: 'Awa', lastName: 'Coulibaly', password: 'teacher123' },
+      { email: 'mkone@ksp-school.ci', role: 'teacher', firstName: 'Moussa', lastName: 'Kone', password: 'teacher123' },
+      { email: 'parent1@example.ci', role: 'parent', firstName: 'Parent', lastName: 'Test', password: 'parent123' },
     ];
 
     const users = [];
     for (const data of usersData) {
+      let passwordHash = defaultPasswordHash;
+      if (data.password) {
+        passwordHash = await bcrypt.hash(data.password, 10);
+      }
+
       const user = this.userRepository.create({
-        ...data,
-        passwordHash: hashedPassword,
+        email: data.email,
+        password_hash: passwordHash,
+        role: data.role as UserRole,
+        first_name: data.firstName,
+        last_name: data.lastName,
       });
       const savedUser = await this.userRepository.save(user);
       users.push(savedUser);
-      console.log(`  ✅ ${data.role}: ${data.email} (password: password123)`);
+      console.log(`  ✅ ${data.role}: ${data.email} (password: ${data.password || 'password123'})`);
     }
 
     console.log(`✅ ${users.length} users seeded`);
@@ -117,16 +136,16 @@ export class SeedService {
 
   private async seedTeachers(adminUser: User) {
     console.log('👨‍🏫 Seeding teachers...');
-    
+
     const teachersData = [
-      { firstName: 'Sarah', lastName: 'Cohen', email: 'sarah.cohen@kds.com', phone: '0612345678', subject: 'Mathématiques', status: 'Actif' as const },
-      { firstName: 'David', lastName: 'Levy', email: 'david.levy@kds.com', phone: '0612345679', subject: 'Français', status: 'Actif' as const },
-      { firstName: 'Rachel', lastName: 'Abitbol', email: 'rachel.abitbol@kds.com', phone: '0612345680', subject: 'Sciences', status: 'Actif' as const },
-      { firstName: 'Michael', lastName: 'Benayoun', email: 'michael.benayoun@kds.com', phone: '0612345681', subject: 'Histoire', status: 'Actif' as const },
-      { firstName: 'Esther', lastName: 'Azoulay', email: 'esther.azoulay@kds.com', phone: '0612345682', subject: 'Anglais', status: 'Actif' as const },
-      { firstName: 'Yossef', lastName: 'Attias', email: 'yossef.attias@kds.com', phone: '0612345683', subject: 'Hébreu', status: 'Actif' as const },
-      { firstName: 'Miriam', lastName: 'Toledano', email: 'miriam.toledano@kds.com', phone: '0612345684', subject: 'Torah', status: 'Actif' as const },
-      { firstName: 'Benjamin', lastName: 'Elfassi', email: 'benjamin.elfassi@kds.com', phone: '0612345685', subject: 'Sport', status: 'Actif' as const },
+      { firstName: 'Sarah', lastName: 'Cohen', email: 'sarah.cohen@ksp.com', phone: '0612345678', subject: 'Mathématiques', status: 'Actif' as const },
+      { firstName: 'David', lastName: 'Levy', email: 'david.levy@ksp.com', phone: '0612345679', subject: 'Français', status: 'Actif' as const },
+      { firstName: 'Rachel', lastName: 'Abitbol', email: 'rachel.abitbol@ksp.com', phone: '0612345680', subject: 'Sciences', status: 'Actif' as const },
+      { firstName: 'Michael', lastName: 'Benayoun', email: 'michael.benayoun@ksp.com', phone: '0612345681', subject: 'Histoire', status: 'Actif' as const },
+      { firstName: 'Esther', lastName: 'Azoulay', email: 'esther.azoulay@ksp.com', phone: '0612345682', subject: 'Anglais', status: 'Actif' as const },
+      { firstName: 'Yossef', lastName: 'Attias', email: 'yossef.attias@ksp.com', phone: '0612345683', subject: 'Hébreu', status: 'Actif' as const },
+      { firstName: 'Miriam', lastName: 'Toledano', email: 'miriam.toledano@ksp.com', phone: '0612345684', subject: 'Torah', status: 'Actif' as const },
+      { firstName: 'Benjamin', lastName: 'Elfassi', email: 'benjamin.elfassi@ksp.com', phone: '0612345685', subject: 'Sport', status: 'Actif' as const },
     ];
 
     const teachers = [];
@@ -144,7 +163,7 @@ export class SeedService {
 
   private async seedClasses(teachers: Teacher[]) {
     console.log('🏫 Seeding classes...');
-    
+
     const classesData = [
       { name: 'CP-A', level: 'CP', academicYear: '2024-2025', classTeacher: teachers[0].id, capacity: 25 },
       { name: 'CE1-A', level: 'CE1', academicYear: '2024-2025', classTeacher: teachers[1].id, capacity: 28 },
@@ -166,7 +185,7 @@ export class SeedService {
 
   private async seedSubjects() {
     console.log('📚 Seeding subjects...');
-    
+
     const subjectsData = [
       { name: 'Mathématiques', code: 'MATH', gradeLevel: 'Primaire', weeklyHours: 5, coefficient: 3, status: 'Actif' },
       { name: 'Français', code: 'FR', gradeLevel: 'Primaire', weeklyHours: 5, coefficient: 3, status: 'Actif' },
@@ -190,21 +209,21 @@ export class SeedService {
 
   private async seedStudents(classes: SchoolClass[], adminUser: User) {
     console.log('👨‍🎓 Seeding students...');
-    
+
     const firstNames = ['Yaakov', 'Moche', 'Avraham', 'Yitzhak', 'Shlomo', 'Chana', 'Sarah', 'Rivka', 'Rachel', 'Lea', 'Nathan', 'Daniel', 'Elie', 'Samuel', 'Noam'];
     const lastNames = ['Cohen', 'Levy', 'Abitbol', 'Benayoun', 'Azoulay', 'Attias', 'Toledano', 'Elfassi', 'Sibony', 'Kalfon'];
-    
+
     const students = [];
     let regNumber = 2024001;
 
     for (const schoolClass of classes) {
       const studentsPerClass = 20 + Math.floor(Math.random() * 8);
-      
+
       for (let i = 0; i < studentsPerClass; i++) {
         const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
         const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
         const gender = Math.random() > 0.5 ? 'Masculin' : 'Féminin';
-        
+
         const student = this.studentRepository.create({
           firstName,
           lastName,
@@ -224,7 +243,7 @@ export class SeedService {
           status: 'Actif' as const,
           userId: adminUser.id,
         });
-        
+
         students.push(await this.studentRepository.save(student));
       }
     }
@@ -235,7 +254,7 @@ export class SeedService {
 
   private async seedTimetable(classes: SchoolClass[], teachers: Teacher[], subjects: Subject[]) {
     console.log('📅 Seeding timetable...');
-    
+
     const days: DayOfWeek[] = [DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY];
     const timeSlots = [
       { start: '08:30', end: '09:30' },
@@ -277,18 +296,18 @@ export class SeedService {
 
   private async seedGrades(students: Student[], subjects: Subject[], teachers: Teacher[]) {
     console.log('📊 Seeding grades...');
-    
+
     const evaluationTypes: EvaluationType[] = [EvaluationType.DEVOIR, EvaluationType.INTERROGATION, EvaluationType.EXAMEN, EvaluationType.ORAL];
     let gradesCount = 0;
 
     for (const student of students.slice(0, 50)) { // First 50 students for performance
       const numGrades = 3 + Math.floor(Math.random() * 5);
-      
+
       for (let i = 0; i < numGrades; i++) {
         const subject = subjects[Math.floor(Math.random() * subjects.length)];
         const teacher = teachers[Math.floor(Math.random() * teachers.length)];
         const score = 8 + Math.random() * 12; // Between 8 and 20
-        
+
         const grade = this.gradeRepository.create({
           studentId: student.id,
           subjectId: subject.id,
@@ -302,7 +321,7 @@ export class SeedService {
           trimester: Trimester.FIRST,
           academicYear: '2024-2025',
         });
-        
+
         await this.gradeRepository.save(grade);
         gradesCount++;
       }
@@ -313,7 +332,7 @@ export class SeedService {
 
   private async seedAttendance(students: Student[], classes: SchoolClass[], timetableSlots: TimetableSlot[], adminUser: User) {
     console.log('✅ Seeding attendance...');
-    
+
     const statuses = [AttendanceStatus.PRESENT, AttendanceStatus.PRESENT, AttendanceStatus.PRESENT, AttendanceStatus.LATE, AttendanceStatus.ABSENT];
     let attendanceCount = 0;
 
@@ -321,16 +340,16 @@ export class SeedService {
     for (let day = 0; day < 30; day++) {
       const date = new Date();
       date.setDate(date.getDate() - day);
-      
+
       // Skip weekends
       if (date.getDay() === 0 || date.getDay() === 6) continue;
 
       for (const schoolClass of classes) {
         const classStudents = students.filter(s => s.classId === schoolClass.id).slice(0, 15);
-        
+
         for (const student of classStudents) {
           const status = statuses[Math.floor(Math.random() * statuses.length)];
-          
+
           const attendance = this.attendanceRepository.create({
             studentId: student.id,
             classId: schoolClass.id,
@@ -340,7 +359,7 @@ export class SeedService {
             isJustified: status === AttendanceStatus.ABSENT && Math.random() > 0.5,
             recordedBy: adminUser.id,
           });
-          
+
           await this.attendanceRepository.save(attendance);
           attendanceCount++;
         }
@@ -352,7 +371,7 @@ export class SeedService {
 
   private async seedFinance(students: Student[], adminUser: User) {
     console.log('💰 Seeding finance...');
-    
+
     let transactionsCount = 0;
 
     // Tuition fees for students
@@ -425,7 +444,7 @@ export class SeedService {
 
   private async seedDocuments(students: Student[], teachers: Teacher[], adminUser: User) {
     console.log('📄 Seeding documents...');
-    
+
     let documentsCount = 0;
 
     // Student documents

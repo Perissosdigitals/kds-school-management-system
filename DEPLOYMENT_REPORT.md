@@ -1,4 +1,4 @@
-# 🚀 RAPPORT DE DÉPLOIEMENT - KDS School Management System
+# 🚀 RAPPORT DE DÉPLOIEMENT - KSP School Management System
 
 **Date**: 19 novembre 2025 23:36 UTC  
 **Statut**: ✅ DÉPLOIEMENT RÉUSSI  
@@ -8,7 +8,7 @@
 
 ## ✅ Résumé Exécutif
 
-Baruch HaShem! 🙏 Le système de gestion scolaire KDS a été **déployé avec succès** sur Cloudflare avec des améliorations majeures.
+Baruch HaShem! 🙏 Le système de gestion scolaire KSP a été **déployé avec succès** sur Cloudflare avec des améliorations majeures.
 
 ---
 
@@ -355,7 +355,7 @@ npm run deploy
 
 **État**: ✅ **PRODUCTION READY**
 
-Le système KDS est maintenant déployé sur l'infrastructure Cloudflare avec:
+Le système KSP est maintenant déployé sur l'infrastructure Cloudflare avec:
 - **Frontend réactif** avec filtrage avancé et formulaires enrichis
 - **Backend performant** avec API D1 et enrichissement relationnel
 - **Documentation complète** pour développement et maintenance
@@ -367,10 +367,10 @@ Le système KDS est maintenant déployé sur l'infrastructure Cloudflare avec:
 
 **Bérakhot ve-Shalom! 🙏**
 
-*Que ce système apporte bénédiction et efficacité à l'école KDS.*
+*Que ce système apporte bénédiction et efficacité à l'école KSP.*
 
 ---
 
 **Date de génération**: 19 novembre 2025 23:40 UTC  
-**Généré par**: KDS Development Team  
+**Généré par**: KSP Development Team  
 **Version**: 1.0.0 (Commit: ed32df0)

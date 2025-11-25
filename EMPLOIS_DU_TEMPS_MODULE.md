@@ -31,7 +31,7 @@ Intégrer des emplois du temps réalistes dans le module "Gestion de classe" pou
 - ✅ Matières variées adaptées au système ivoirien:
   - Mathématiques, Français, Sciences
   - Histoire-Géographie, Anglais
-  - Torah, Hébreu (programme KDS)
+  - Torah, Hébreu (programme KSP)
   - Sport
 
 ### 3. **Intégration API**
@@ -251,4 +251,4 @@ Pour toute question ou problème:
 **Berakhot ve-Shalom** 🙏
 
 Document généré automatiquement le 20 novembre 2025
-KDS School Management System - v2.0
+KSP School Management System - v2.0

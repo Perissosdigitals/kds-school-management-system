@@ -14,7 +14,7 @@ interface UserRole {
 
 const TEST_USERS: UserRole[] = [
   {
-    email: 'admin@kds-school.ci',
+    email: 'admin@ksp-school.ci',
     password: 'admin123',
     role: 'admin',
     label: 'Fondatrice',
@@ -22,7 +22,7 @@ const TEST_USERS: UserRole[] = [
     icon: '👑',
   },
   {
-    email: 'admin@kds-school.ci',
+    email: 'admin@ksp-school.ci',
     password: 'admin123',
     role: 'admin',
     label: 'Administrateur',
@@ -30,7 +30,7 @@ const TEST_USERS: UserRole[] = [
     icon: '⚙️',
   },
   {
-    email: 'admin@kds-school.ci',
+    email: 'admin@ksp-school.ci',
     password: 'admin123',
     role: 'admin',
     label: 'Directrice',
@@ -38,7 +38,7 @@ const TEST_USERS: UserRole[] = [
     icon: '📋',
   },
   {
-    email: 'acoulibaly@kds-school.ci',
+    email: 'acoulibaly@ksp-school.ci',
     password: 'teacher123',
     role: 'teacher',
     label: 'Comptable',
@@ -46,7 +46,7 @@ const TEST_USERS: UserRole[] = [
     icon: '💰',
   },
   {
-    email: 'mkone@kds-school.ci',
+    email: 'mkone@ksp-school.ci',
     password: 'teacher123',
     role: 'teacher',
     label: 'Enseignant',
@@ -96,8 +96,8 @@ export const EnhancedLogin: React.FC = () => {
       });
 
       if (response.access_token) {
-        localStorage.setItem('kds_token', response.access_token);
-        localStorage.setItem('kds_user', JSON.stringify(response.user));
+        localStorage.setItem('ksp_token', response.access_token);
+        localStorage.setItem('ksp_user', JSON.stringify(response.user));
         
         // Force un rechargement complet pour que App.tsx détecte l'authentification
         window.location.href = '/dashboard';
@@ -115,7 +115,7 @@ export const EnhancedLogin: React.FC = () => {
       <div className="login-card">
         <div className="login-header">
           <h1>🏫 Système de Gestion Scolaire</h1>
-          <p className="login-subtitle">KDS School Management System</p>
+          <p className="login-subtitle">KSP School Management System</p>
         </div>
 
         {!showManualLogin ? (

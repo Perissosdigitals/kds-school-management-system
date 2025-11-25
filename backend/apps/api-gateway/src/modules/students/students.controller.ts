@@ -33,10 +33,10 @@ import { Public } from '../../common/decorators/public.decorator';
 @ApiBearerAuth()
 @Controller('students')
 export class StudentsController {
-  constructor(private readonly studentsService: StudentsService) {}
+  constructor(private readonly studentsService: StudentsService) { }
 
   @Get()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Récupérer tous les élèves',
     description: 'Récupère la liste complète des élèves avec possibilité de filtrer par niveau, statut ou recherche textuelle'
   })
@@ -51,12 +51,12 @@ export class StudentsController {
   }
 
   @Get('stats/count')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Compter les élèves',
     description: 'Retourne le nombre total d\'élèves avec filtres optionnels'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Nombre d\'élèves',
     schema: { type: 'object', properties: { count: { type: 'number' } } }
   })
@@ -66,12 +66,12 @@ export class StudentsController {
   }
 
   @Get('stats/by-grade')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Statistiques par niveau',
     description: 'Retourne le nombre d\'élèves par niveau scolaire'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Statistiques par niveau',
     schema: {
       type: 'array',
@@ -89,12 +89,12 @@ export class StudentsController {
   }
 
   @Get('stats/by-status')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Statistiques par statut',
     description: 'Retourne le nombre d\'élèves par statut (Actif, Inactif, En attente)'
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Statistiques par statut',
     schema: {
       type: 'array',
@@ -112,11 +112,11 @@ export class StudentsController {
   }
 
   @Get('registration/:registrationNumber')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Récupérer un élève par numéro d\'inscription',
-    description: 'Récupère un élève en utilisant son numéro d\'inscription (ex: KDS24001)'
+    description: 'Récupère un élève en utilisant son numéro d\'inscription (ex: KSP24001)'
   })
-  @ApiParam({ name: 'registrationNumber', example: 'KDS24001' })
+  @ApiParam({ name: 'registrationNumber', example: 'KSP24001' })
   @ApiResponse({ status: 200, description: 'Élève trouvé', type: Student })
   @ApiResponse({ status: 404, description: 'Élève non trouvé' })
   async findByRegistrationNumber(
@@ -126,7 +126,7 @@ export class StudentsController {
   }
 
   @Get(':id')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Récupérer un élève par ID',
     description: 'Récupère les détails complets d\'un élève spécifique'
   })
@@ -141,7 +141,7 @@ export class StudentsController {
   @Public()  // 🔓 Temporaire: Endpoint public pour développement
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('fondatrice', 'admin', 'directrice')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Créer un nouvel élève',
     description: 'Enregistre un nouvel élève dans le système. Le numéro d\'inscription est généré automatiquement.'
   })
@@ -165,7 +165,7 @@ export class StudentsController {
   @Public()  // 🔓 Temporaire: Endpoint public pour développement
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('fondatrice', 'admin', 'directrice')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Mettre à jour un élève',
     description: 'Met à jour les informations d\'un élève existant'
   })
@@ -181,7 +181,7 @@ export class StudentsController {
   }
 
   @Patch(':id/status')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Mettre à jour le statut d\'un élève',
     description: 'Change le statut d\'un élève (Actif, Inactif, En attente)'
   })
@@ -195,7 +195,7 @@ export class StudentsController {
   }
 
   @Patch(':id/documents')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Mettre à jour les documents d\'un élève',
     description: 'Met à jour la liste des documents administratifs d\'un élève'
   })
@@ -213,7 +213,7 @@ export class StudentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('fondatrice', 'admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Supprimer un élève',
     description: 'Supprime définitivement un élève du système'
   })

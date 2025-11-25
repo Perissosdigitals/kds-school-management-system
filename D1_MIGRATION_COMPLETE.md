@@ -231,5 +231,5 @@ Le prochain défi est de corriger les données PostgreSQL locales pour pouvoir i
 ---
 
 **Date de création**: 20 novembre 2025 00:25 UTC  
-**Auteur**: KDS Development Team  
+**Auteur**: KSP Development Team  
 **Version**: 1.0.0

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SeedService } from './seed.service';
-import { User } from '../../modules/auth/entities/user.entity';
+import { User } from '../../modules/users/entities/user.entity';
 import { Teacher } from '../../modules/teachers/entities/teacher.entity';
 import { Student } from '../../modules/students/entities/student.entity';
 import { SchoolClass } from '../../modules/classes/entities/class.entity';
@@ -30,4 +30,4 @@ import { Document } from '../../modules/documents/entities/document.entity';
   providers: [SeedService],
   exports: [SeedService],
 })
-export class SeedModule {}
+export class SeedModule { }

@@ -1815,6 +1815,8 @@ const GradesTab: React.FC<{
     const [selectedSubject, setSelectedSubject] = useState<string>('all');
     const [selectedPeriod, setSelectedPeriod] = useState<string>('T1');
     const [gradesData, setGradesData] = useState<Record<string, Record<string, number>>>({});
+    const [realGrades, setRealGrades] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [showAddGradeForm, setShowAddGradeForm] = useState(false);
     const [selectedStudentForGrade, setSelectedStudentForGrade] = useState<Student | null>(null);
 
@@ -1828,6 +1830,48 @@ const GradesTab: React.FC<{
     }, [timetable]);
 
     const periods = ['T1', 'T2', 'T3'];
+
+    // Charger les notes réelles depuis l'API
+    useEffect(() => {
+        const loadGrades = async () => {
+            try {
+                setLoading(true);
+                // Import du service dynamiquement pour éviter les erreurs de SSR
+                const { GradesService } = await import('../services/api/grades.service');
+                
+                const trimesterMap: Record<string, string> = {
+                    'T1': 'Premier trimestre',
+                    'T2': 'Deuxième trimestre',
+                    'T3': 'Troisième trimestre'
+                };
+
+                const grades = await GradesService.getGradesByClass(classData.id, {
+                    trimester: trimesterMap[selectedPeriod],
+                    academicYear: classData.academicYear
+                });
+
+                console.log('📊 Notes chargées pour la classe:', grades.length);
+                setRealGrades(grades);
+
+                // Transformer les notes en format pour affichage
+                const gradesMap: Record<string, Record<string, number>> = {};
+                grades.forEach((grade: any) => {
+                    if (!gradesMap[grade.studentId]) {
+                        gradesMap[grade.studentId] = {};
+                    }
+                    gradesMap[grade.studentId][grade.subject] = grade.grade;
+                });
+                setGradesData(gradesMap);
+
+            } catch (error) {
+                console.error('Erreur lors du chargement des notes:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadGrades();
+    }, [classData.id, classData.academicYear, selectedPeriod]);
 
     // Calculate statistics for selected subject
     const subjectStats = useMemo(() => {
@@ -1895,6 +1939,15 @@ const GradesTab: React.FC<{
         URL.revokeObjectURL(url);
     };
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <LoadingSpinner size="lg" />
+                <span className="ml-3 text-gray-600">Chargement des notes...</span>
+            </div>
+        );
+    }
+
     if (students.length === 0) {
         return (
             <div className="text-center py-12">
@@ -1947,17 +2000,65 @@ const GradesTab: React.FC<{
                     </div>
                 </div>
 
-                <button
-                    onClick={exportGrades}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-                >
-                    <i className='bx bx-download'></i>
-                    Exporter
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={async () => {
+                            setLoading(true);
+                            const { GradesService } = await import('../services/api/grades.service');
+                            const trimesterMap: Record<string, string> = {
+                                'T1': 'Premier trimestre',
+                                'T2': 'Deuxième trimestre',
+                                'T3': 'Troisième trimestre'
+                            };
+                            const grades = await GradesService.getGradesByClass(classData.id, {
+                                trimester: trimesterMap[selectedPeriod],
+                                academicYear: classData.academicYear
+                            });
+                            setRealGrades(grades);
+                            const gradesMap: Record<string, Record<string, number>> = {};
+                            grades.forEach((grade: any) => {
+                                if (!gradesMap[grade.studentId]) {
+                                    gradesMap[grade.studentId] = {};
+                                }
+                                gradesMap[grade.studentId][grade.subject] = grade.grade;
+                            });
+                            setGradesData(gradesMap);
+                            setLoading(false);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                        disabled={loading}
+                    >
+                        <i className={`bx bx-refresh ${loading ? 'animate-spin' : ''}`}></i>
+                        Actualiser
+                    </button>
+                    <button
+                        onClick={exportGrades}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                    >
+                        <i className='bx bx-download'></i>
+                        Exporter
+                    </button>
+                </div>
             </div>
 
+            {/* Message informatif si pas de notes */}
+            {realGrades.length === 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <div className="flex items-start gap-3">
+                        <i className='bx bx-info-circle text-2xl text-blue-600'></i>
+                        <div>
+                            <h4 className="font-semibold text-blue-900 mb-1">Aucune note pour cette période</h4>
+                            <p className="text-sm text-blue-700">
+                                Il n'y a pas encore de notes enregistrées pour le <strong>{selectedPeriod === 'T1' ? 'premier' : selectedPeriod === 'T2' ? 'deuxième' : 'troisième'} trimestre</strong>.
+                                Les notes apparaîtront ici une fois qu'elles seront saisies dans le module de gestion des notes.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Statistics cards */}
-            {selectedSubject !== 'all' && (
+            {selectedSubject !== 'all' && realGrades.length > 0 && (
                 <div className="grid grid-cols-4 gap-4">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <p className="text-xs text-blue-600 font-medium">Moyenne</p>

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# 🛑 Script pour arrêter l'environnement local KDS
+# 🛑 Script pour arrêter l'environnement local KSP
 
 echo ""
-echo "🛑 ARRÊT ENVIRONNEMENT LOCAL KDS"
+echo "🛑 ARRÊT ENVIRONNEMENT LOCAL KSP"
 echo "================================="
 echo ""
 

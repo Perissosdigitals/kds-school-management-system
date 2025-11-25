@@ -1,7 +1,7 @@
 # 📋 Récapitulatif des Problèmes Résolus
 
 Date: 2025-11-19  
-Application: KDS School Management System
+Application: KSP School Management System
 
 ---
 

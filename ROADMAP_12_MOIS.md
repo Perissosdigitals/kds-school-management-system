@@ -1,5 +1,5 @@
 # 📅 ROADMAP PROCHAINES ÉTAPES
-## Après Implémentation Complète - KDS School Management
+## Après Implémentation Complète - KSP School Management
 
 **Créé**: 20 novembre 2025  
 **Horizon**: 12 prochains mois  
@@ -371,7 +371,7 @@ Croissance: 10x utilisateurs potentiels
 Créer: Intégrations 3rd party
 ├─ Google Classroom
 │  ├─ Sync classes automatique
-│  ├─ Assignments depuis KDS
+│  ├─ Assignments depuis KSP
 │  └─ Grades sync bi-directionnel
 ├─ Microsoft Teams
 │  ├─ Teams per class auto-created
@@ -390,11 +390,11 @@ Créer: Intégrations 3rd party
 │  ├─ Collaborative work
 │  └─ Version history
 └─ Slack/Discord
-   ├─ Notifications depuis KDS
+   ├─ Notifications depuis KSP
    ├─ Commandes slash (/notes, /emploi-temps)
    └─ Thread-based class discussions
 
-Résultat: KDS as central hub pour tout
+Résultat: KSP as central hub pour tout
 ```
 
 ### ✅ Mois 9-10: Kubernetes & Infrastructure
@@ -502,7 +502,7 @@ OCTOBRE-NOVEMBRE
 ## 💰 BUDGET ESTIMÉ
 
 ### Infrastructure
-- Cloudflare Workers/Pages: $200/mois (inclus dans KDS)
+- Cloudflare Workers/Pages: $200/mois (inclus dans KSP)
 - Azure ML/AWS ML: $500-1000/mois (Phase 3)
 - Kubernetes cluster: $300-500/mois (Phase 4)
 - **Total mensuel**: $500-1500/mois

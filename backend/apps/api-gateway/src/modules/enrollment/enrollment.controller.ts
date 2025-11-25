@@ -1,13 +1,14 @@
-import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { EnrollmentService } from './enrollment.service';
 import { EnrollStudentDto } from './dto/enroll-student.dto';
+import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { EnrollmentResultDto } from './dto/enrollment-result.dto';
 
 @ApiTags('Enrollment')
 @Controller('enrollment')
 export class EnrollmentController {
-  constructor(private readonly enrollmentService: EnrollmentService) {}
+  constructor(private readonly enrollmentService: EnrollmentService) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -57,5 +58,49 @@ export class EnrollmentController {
   })
   async getStudentProfile(@Param('id') id: string) {
     return this.enrollmentService.getStudentFullProfile(id);
+  }
+
+  @Put(':id')
+  @ApiOperation({
+    summary: 'Mettre à jour une inscription',
+    description: 'Permet de modifier le statut de l\'inscription, transférer vers une autre classe, ou enregistrer un retrait',
+  })
+  @ApiParam({ name: 'id', description: 'ID de l\'élève inscrit (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Inscription mise à jour avec succès',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Élève ou classe introuvable',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Données invalides',
+  })
+  async updateEnrollment(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateEnrollmentDto,
+  ) {
+    return this.enrollmentService.updateEnrollment(id, updateDto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Retirer un élève (annuler l\'inscription)',
+    description: 'Retire définitivement un élève du système. À utiliser avec précaution.',
+  })
+  @ApiParam({ name: 'id', description: 'ID de l\'élève à retirer (UUID)' })
+  @ApiResponse({
+    status: 204,
+    description: 'Élève retiré avec succès',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Élève introuvable',
+  })
+  async withdrawStudent(@Param('id') id: string) {
+    await this.enrollmentService.withdrawStudent(id);
   }
 }

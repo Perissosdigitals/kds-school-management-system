@@ -1,5 +1,5 @@
 /**
- * Cloudflare Workers Backend for KDS School Management System
+ * Cloudflare Workers Backend for KSP School Management System
  * Lightweight API handler using Hono framework
  */
 

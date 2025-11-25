@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { GradesService } from './grades.service';
+import { GradeCalculationService } from './services/grade-calculation.service';
 import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
 import { QueryGradesDto } from './dto/query-grades.dto';
@@ -20,7 +21,10 @@ import { Grade } from './entities/grade.entity';
 @ApiTags('Grades')
 @Controller('grades')
 export class GradesController {
-  constructor(private readonly gradesService: GradesService) {}
+  constructor(
+    private readonly gradesService: GradesService,
+    private readonly calculationService: GradeCalculationService,
+  ) { }
 
   @Get()
   @ApiOperation({ summary: 'Get all grades with filters and pagination' })
@@ -50,6 +54,20 @@ export class GradesController {
     @Query('academicYear') academicYear?: string,
   ) {
     return this.gradesService.getAverageByStudent(studentId, subjectId, trimester, academicYear);
+  }
+
+  @Get('report-card/student/:studentId')
+  @ApiOperation({ summary: 'Get full report card for a student' })
+  @ApiParam({ name: 'studentId', description: 'Student ID (UUID)' })
+  @ApiQuery({ name: 'trimester', required: true, description: 'Trimester' })
+  @ApiQuery({ name: 'academicYear', required: true, description: 'Academic Year' })
+  @ApiResponse({ status: 200, description: 'Report card retrieved successfully' })
+  getReportCard(
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Query('trimester') trimester: string,
+    @Query('academicYear') academicYear: string,
+  ) {
+    return this.gradesService.getReportCard(studentId, trimester, academicYear);
   }
 
   @Get('stats/average/subject/:subjectId')
@@ -110,6 +128,22 @@ export class GradesController {
     return this.gradesService.getStatsByEvaluationType(studentId, subjectId, academicYear);
   }
 
+  @Get('by-class/:classId')
+  @ApiOperation({ summary: 'Get all grades for a specific class' })
+  @ApiParam({ name: 'classId', description: 'Class ID (UUID)' })
+  @ApiQuery({ name: 'trimester', required: false, description: 'Filter by trimester' })
+  @ApiQuery({ name: 'subjectId', required: false, description: 'Filter by subject ID' })
+  @ApiQuery({ name: 'academicYear', required: false, description: 'Filter by academic year' })
+  @ApiResponse({ status: 200, description: 'Grades for class retrieved successfully', type: [Grade] })
+  async getGradesByClass(
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Query('trimester') trimester?: string,
+    @Query('subjectId') subjectId?: string,
+    @Query('academicYear') academicYear?: string,
+  ) {
+    return this.gradesService.getGradesByClass(classId, trimester, subjectId, academicYear);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a grade by ID' })
   @ApiParam({ name: 'id', description: 'Grade ID (UUID)' })
@@ -163,5 +197,111 @@ export class GradesController {
   @ApiResponse({ status: 404, description: 'Grade not found' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.gradesService.remove(id);
+  }
+
+  // ============= NOUVEAUX ENDPOINTS INTELLIGENTS =============
+
+  @Get('analytics/student/:studentId/performance')
+  @ApiOperation({ summary: 'Obtenir les performances complètes d\'un élève avec moyennes calculées' })
+  @ApiParam({ name: 'studentId', description: 'Student ID (UUID)' })
+  @ApiQuery({ name: 'trimester', required: false, description: 'Trimester filter' })
+  @ApiQuery({ name: 'academicYear', required: false, description: 'Academic year filter' })
+  @ApiResponse({ status: 200, description: 'Performance complète calculée' })
+  async getStudentPerformance(
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Query('trimester') trimester?: string,
+    @Query('academicYear') academicYear?: string,
+  ) {
+    return this.calculationService.calculateStudentAverage(studentId, trimester, academicYear);
+  }
+
+  @Get('analytics/class/:classId/ranking')
+  @ApiOperation({ summary: 'Obtenir le classement complet d\'une classe' })
+  @ApiParam({ name: 'classId', description: 'Class ID (UUID)' })
+  @ApiQuery({ name: 'trimester', required: true, description: 'Trimester' })
+  @ApiQuery({ name: 'academicYear', required: true, description: 'Academic year' })
+  @ApiResponse({ status: 200, description: 'Classement complet avec moyennes' })
+  async getClassRanking(
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Query('trimester') trimester: string,
+    @Query('academicYear') academicYear: string,
+  ) {
+    return this.calculationService.calculateClassRanking(classId, trimester, academicYear);
+  }
+
+  @Get('analytics/class/:classId/statistics')
+  @ApiOperation({ summary: 'Obtenir les statistiques complètes d\'une classe' })
+  @ApiParam({ name: 'classId', description: 'Class ID (UUID)' })
+  @ApiQuery({ name: 'trimester', required: true, description: 'Trimester' })
+  @ApiQuery({ name: 'academicYear', required: true, description: 'Academic year' })
+  @ApiResponse({ status: 200, description: 'Statistiques détaillées (moyenne, médiane, écart-type, taux de réussite, etc.)' })
+  async getClassStatistics(
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Query('trimester') trimester: string,
+    @Query('academicYear') academicYear: string,
+  ) {
+    return this.calculationService.calculateClassStatistics(classId, trimester, academicYear);
+  }
+
+  @Get('analytics/class/:classId/alerts')
+  @ApiOperation({ summary: 'Détecter les élèves nécessitant une attention particulière' })
+  @ApiParam({ name: 'classId', description: 'Class ID (UUID)' })
+  @ApiQuery({ name: 'trimester', required: true, description: 'Trimester' })
+  @ApiQuery({ name: 'academicYear', required: true, description: 'Academic year' })
+  @ApiResponse({ status: 200, description: 'Liste des alertes par ordre de priorité' })
+  async getStudentAlerts(
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Query('trimester') trimester: string,
+    @Query('academicYear') academicYear: string,
+  ) {
+    return this.calculationService.detectStudentAlerts(classId, trimester, academicYear);
+  }
+
+  @Get('analytics/student/:studentId/progression')
+  @ApiOperation({ summary: 'Calculer la progression d\'un élève entre deux trimestres' })
+  @ApiParam({ name: 'studentId', description: 'Student ID (UUID)' })
+  @ApiQuery({ name: 'fromTrimester', required: true, description: 'Trimester de départ' })
+  @ApiQuery({ name: 'toTrimester', required: true, description: 'Trimester d\'arrivée' })
+  @ApiQuery({ name: 'academicYear', required: true, description: 'Academic year' })
+  @ApiResponse({ status: 200, description: 'Progression détaillée avec tendances' })
+  async getStudentProgression(
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Query('fromTrimester') fromTrimester: string,
+    @Query('toTrimester') toTrimester: string,
+    @Query('academicYear') academicYear: string,
+  ) {
+    return this.calculationService.calculateStudentProgression(
+      studentId,
+      fromTrimester,
+      toTrimester,
+      academicYear,
+    );
+  }
+
+  @Post('analytics/classes/compare')
+  @ApiOperation({ summary: 'Comparer les performances entre plusieurs classes' })
+  @ApiResponse({ status: 200, description: 'Comparaison détaillée entre classes' })
+  async compareClasses(
+    @Body() body: { classIds: string[]; trimester: string; academicYear: string },
+  ) {
+    return this.calculationService.compareClasses(
+      body.classIds,
+      body.trimester,
+      body.academicYear,
+    );
+  }
+
+  @Get('analytics/student/:studentId/report-card')
+  @ApiOperation({ summary: 'Générer un bulletin complet pour un élève' })
+  @ApiParam({ name: 'studentId', description: 'Student ID (UUID)' })
+  @ApiQuery({ name: 'trimester', required: true, description: 'Trimester' })
+  @ApiQuery({ name: 'academicYear', required: true, description: 'Academic year' })
+  @ApiResponse({ status: 200, description: 'Bulletin complet avec rang, moyennes par matière et appréciation' })
+  async generateReportCard(
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Query('trimester') trimester: string,
+    @Query('academicYear') academicYear: string,
+  ) {
+    return this.calculationService.generateReportCard(studentId, trimester, academicYear);
   }
 }

@@ -1,4 +1,4 @@
-# 📡 API Endpoints Complets - KDS School Management System
+# 📡 API Endpoints Complets - KSP School Management System
 
 **Backend URL:** https://kds-backend-api.perissosdigitals.workers.dev  
 **Database:** Cloudflare D1 (kds-school-db)  
@@ -359,7 +359,7 @@ Créer un nouvel événement.
   "eventType": "open_house",
   "startDate": "2025-12-15",
   "endDate": "2025-12-15",
-  "location": "École KDS - Dakar",
+  "location": "École KSP - Dakar",
   "status": "scheduled"
 }
 ```

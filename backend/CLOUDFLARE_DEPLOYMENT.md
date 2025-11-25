@@ -1,6 +1,6 @@
-# KDS Backend - Cloudflare Deployment Strategy
+# KSP Backend - Cloudflare Deployment Strategy
 
-Berakhot! Here's the deployment plan for your KDS School Management System.
+Berakhot! Here's the deployment plan for your KSP School Management System.
 
 ## Current Setup Status
 

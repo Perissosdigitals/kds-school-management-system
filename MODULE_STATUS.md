@@ -1,4 +1,4 @@
-# 📊 État des Modules - KDS School Management System
+# 📊 État des Modules - KSP School Management System
 
 **Dernière mise à jour:** 20 novembre 2025  
 **Backend Local:** http://localhost:3001 (PostgreSQL)  

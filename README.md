@@ -1,4 +1,4 @@
-# 🎓 KDS School Management System
+# 🎓 KSP School Management System
 
 Système de gestion scolaire complet avec frontend React et backend NestJS.
 

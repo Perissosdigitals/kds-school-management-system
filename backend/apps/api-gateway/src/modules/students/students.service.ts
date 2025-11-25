@@ -18,14 +18,14 @@ export class StudentsService {
   constructor(
     @InjectRepository(Student)
     private studentsRepository: Repository<Student>,
-  ) {}
+  ) { }
 
   /**
    * Génère un numéro d'inscription unique au format KDS + année + numéro séquentiel
    */
   private async generateRegistrationNumber(): Promise<string> {
     const currentYear = new Date().getFullYear().toString().slice(-2);
-    const prefix = `KDS${currentYear}`;
+    const prefix = `KSP${currentYear}`;
 
     const lastStudent = await this.studentsRepository
       .createQueryBuilder('student')
@@ -86,7 +86,7 @@ export class StudentsService {
   }
 
   async findByRegistrationNumber(registrationNumber: string): Promise<Student> {
-    const student = await this.studentsRepository.findOne({ 
+    const student = await this.studentsRepository.findOne({
       where: { registrationNumber },
       relations: ['class', 'user'],
     });
@@ -122,16 +122,30 @@ export class StudentsService {
   }
 
   async update(id: string, updateStudentDto: UpdateStudentDto): Promise<Student> {
-    const student = await this.findOne(id);
-
-    Object.assign(student, {
+    // Utilisation de update() au lieu de save() pour éviter les problèmes de relations
+    // et garantir que le classId est bien mis à jour
+    const updateData: any = {
       ...updateStudentDto,
-      dob: updateStudentDto.dob ? new Date(updateStudentDto.dob) : student.dob,
-    });
+    };
+
+    if (updateStudentDto.dob) {
+      updateData.dob = new Date(updateStudentDto.dob);
+    }
 
     try {
-      return await this.studentsRepository.save(student);
+      // Utilisation de createQueryBuilder pour forcer la mise à jour brute
+      // C'est la méthode la plus fiable pour contourner les problèmes de mapping TypeORM
+      const queryBuilder = this.studentsRepository.createQueryBuilder()
+        .update(Student)
+        .set(updateData)
+        .where("id = :id", { id });
+
+      await queryBuilder.execute();
+
+      // On retourne l'élève mis à jour avec ses relations
+      return this.findOne(id);
     } catch (error) {
+      console.error('Error updating student:', error);
       throw new BadRequestException(
         `Erreur lors de la mise à jour de l'élève: ${error.message}`
       );
@@ -157,12 +171,12 @@ export class StudentsService {
 
   async bulkCreate(students: CreateStudentDto[]): Promise<Student[]> {
     const createdStudents: Student[] = [];
-    
+
     for (const studentDto of students) {
       const student = await this.create(studentDto);
       createdStudents.push(student);
     }
-    
+
     return createdStudents;
   }
 

@@ -7,7 +7,7 @@
 cd /Users/apple/Desktop/kds-school-management-system/backend
 npm run dev:gateway
 ```
-✅ Attendre: `🚀 KDS API Gateway running on http://localhost:3001`
+✅ Attendre: `🚀 KSP API Gateway running on http://localhost:3001`
 
 ### Terminal 2 - Frontend
 ```bash

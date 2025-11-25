@@ -235,7 +235,7 @@ cd backend && npx wrangler deploy
 
 **BARUKH HASHEM!** 🎉
 
-Vous avez maintenant un système KDS **100% fonctionnel en production** avec:
+Vous avez maintenant un système KSP **100% fonctionnel en production** avec:
 - ✅ 40 élèves pour simulation réaliste
 - ✅ 8 enseignants multi-spécialisations
 - ✅ API REST complète et performante

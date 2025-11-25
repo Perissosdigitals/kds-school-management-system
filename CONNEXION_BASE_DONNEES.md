@@ -2,7 +2,7 @@
 
 ## ✅ État Actuel : Application Connectée à la Base de Données
 
-Baruch HaShem! 🙏 Votre application KDS est maintenant pleinement connectée à votre base de données PostgreSQL locale.
+Baruch HaShem! 🙏 Votre application KSP est maintenant pleinement connectée à votre base de données PostgreSQL locale.
 
 ---
 
@@ -173,7 +173,7 @@ const data = await httpClient.get('/finance');
 POST /enrollment
 
 1. ✅ Valider la classe (capacité disponible)
-2. ✅ Générer le matricule unique (KDS2025CM2022)
+2. ✅ Générer le matricule unique (KSP2025CM2022)
 3. ✅ Créer l'élève dans la DB
 4. ✅ Assigner à la classe
 5. ✅ Initialiser 4 documents requis
@@ -187,7 +187,7 @@ POST /enrollment
 {
   "student": {
     "id": "uuid",
-    "registrationNumber": "KDS2025CM2022",
+    "registrationNumber": "KSP2025CM2022",
     "lastName": "KOUASSI",
     "firstName": "Jean",
     "status": "En attente"

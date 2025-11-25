@@ -184,7 +184,7 @@ const AdminDashboard: React.FC<{ setActivePage: (page: Page) => void }> = ({ set
         <div className="space-y-8">
             <div className="flex justify-between items-start">
                 <div>
-                    <h2 className="text-3xl font-bold text-slate-800">Bienvenue à l'École KDS ! 👋</h2>
+                    <h2 className="text-3xl font-bold text-slate-800">Bienvenue à l'École KSP ! 👋</h2>
                     <p className="text-gray-500">Tableau de Bord Administratif - Données en Temps Réel</p>
                     {realTimeStats.students > 0 && (
                         <p className="text-xs text-green-600 mt-1">

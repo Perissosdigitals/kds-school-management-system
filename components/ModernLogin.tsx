@@ -15,7 +15,7 @@ interface UserRole {
 const TEST_USERS: UserRole[] = [
   {
     id: 'fondatrice',
-    email: 'admin@kds-school.ci',
+    email: 'admin@ksp-school.ci',
     password: 'admin123',
     name: '👑 Fondatrice',
     role: 'admin',
@@ -24,7 +24,7 @@ const TEST_USERS: UserRole[] = [
   },
   {
     id: 'admin',
-    email: 'admin@kds-school.ci',
+    email: 'admin@ksp-school.ci',
     password: 'admin123',
     name: '⚙️ Administrateur',
     role: 'admin',
@@ -33,7 +33,7 @@ const TEST_USERS: UserRole[] = [
   },
   {
     id: 'directrice',
-    email: 'admin@kds-school.ci',
+    email: 'admin@ksp-school.ci',
     password: 'admin123',
     name: '📋 Directrice (Admin)',
     role: 'admin',
@@ -42,7 +42,7 @@ const TEST_USERS: UserRole[] = [
   },
   {
     id: 'comptable',
-    email: 'acoulibaly@kds-school.ci',
+    email: 'acoulibaly@ksp-school.ci',
     password: 'teacher123',
     name: '💰 Comptable',
     role: 'teacher',
@@ -51,7 +51,7 @@ const TEST_USERS: UserRole[] = [
   },
   {
     id: 'enseignant',
-    email: 'mkone@kds-school.ci',
+    email: 'mkone@ksp-school.ci',
     password: 'teacher123',
     name: '👨‍🏫 Enseignant',
     role: 'teacher',
@@ -126,8 +126,8 @@ export const ModernLogin: React.FC = () => {
       console.log('[ModernLogin] Login successful:', response);
 
       if (response.access_token) {
-        localStorage.setItem('kds_token', response.access_token);
-        localStorage.setItem('kds_user', JSON.stringify(response.user));
+        localStorage.setItem('ksp_token', response.access_token);
+        localStorage.setItem('ksp_user', JSON.stringify(response.user));
         
         console.log('[ModernLogin] Redirecting to dashboard...');
         
@@ -152,7 +152,7 @@ export const ModernLogin: React.FC = () => {
           <div className="brand-logo">
             <i className='bx bxs-school'></i>
             <div className="logo-text">
-              <h1>KDS School</h1>
+              <h1>KSP School</h1>
               <span>Management System</span>
             </div>
           </div>
@@ -234,6 +234,7 @@ export const ModernLogin: React.FC = () => {
                 <label className="modern-form-label">Email</label>
                 <input
                   type="email"
+                  name="email"
                   className="modern-form-input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -247,6 +248,7 @@ export const ModernLogin: React.FC = () => {
                 <label className="modern-form-label">Mot de passe</label>
                 <input
                   type="password"
+                  name="password"
                   className="modern-form-input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

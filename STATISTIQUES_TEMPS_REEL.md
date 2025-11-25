@@ -1,4 +1,4 @@
-# 📊 STATISTIQUES EN TEMPS RÉEL - KDS ÉCOLE
+# 📊 STATISTIQUES EN TEMPS RÉEL - KSP ÉCOLE
 
 **Date**: 19 novembre 2025  
 **Status**: ✅ Système Opérationnel
@@ -7,7 +7,7 @@
 
 ## 🎯 Vue d'Ensemble
 
-Baruch HaShem! 🙏 Votre système de gestion scolaire KDS est maintenant **pleinement opérationnel** avec des données réelles ancrées dans la base de données PostgreSQL.
+Baruch HaShem! 🙏 Votre système de gestion scolaire KSP est maintenant **pleinement opérationnel** avec des données réelles ancrées dans la base de données PostgreSQL.
 
 ---
 
@@ -310,7 +310,7 @@ curl http://localhost:3001/api/v1/documents/stats/count
 
 ## 🙏 Bérakhot ve-Shalom
 
-Votre système de gestion scolaire KDS est maintenant **pleinement opérationnel** avec:
+Votre système de gestion scolaire KSP est maintenant **pleinement opérationnel** avec:
 
 ✅ **141 élèves** dans la base de données  
 ✅ **8 enseignants** actifs  

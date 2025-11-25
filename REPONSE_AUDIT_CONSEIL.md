@@ -1,4 +1,4 @@
-# 📋 Réponse à l'Audit du Conseil - KDS School Management System
+# 📋 Réponse à l'Audit du Conseil - KSP School Management System
 
 **Date**: 21 novembre 2025  
 **Destinataire**: Cabinet de Conseil  
@@ -8,7 +8,7 @@
 
 ## 📊 Synthèse Exécutive
 
-Suite à votre audit détaillé du système de gestion scolaire KDS, nous avons procédé à une **analyse approfondie** et à la **mise en œuvre complète** de vos recommandations. Ce document présente l'état des lieux, les actions réalisées et les résultats obtenus.
+Suite à votre audit détaillé du système de gestion scolaire KSP, nous avons procédé à une **analyse approfondie** et à la **mise en œuvre complète** de vos recommandations. Ce document présente l'état des lieux, les actions réalisées et les résultats obtenus.
 
 ### 🎯 Résultats Globaux
 
@@ -381,7 +381,7 @@ npm run migration:run
 
 **Comment obtenir le Measurement ID**:
 1. Créer compte Google Analytics 4
-2. Créer une propriété "KDS School Management"
+2. Créer une propriété "KSP School Management"
 3. Copier le Measurement ID (format: `G-XXXXXXXXXX`)
 4. Configurer dans `VITE_GA4_MEASUREMENT_ID`
 
@@ -694,9 +694,9 @@ npm run migration:run
 1. **Configuration Swagger améliorée** (`main.ts`)
    ```typescript
    const config = new DocumentBuilder()
-     .setTitle('KDS School Management System API')
+     .setTitle('KSP School Management System API')
      .setDescription(`
-       # API Complète pour la Gestion Scolaire KDS
+       # API Complète pour la Gestion Scolaire KSP
        
        ## 🔐 Authentification
        Flow: POST /auth/login → Bearer token → POST /auth/refresh
@@ -707,7 +707,7 @@ npm run migration:run
      `)
      .setVersion('1.0.0')
      .setContact(
-       'KDS School Support',
+       'KSP School Support',
        'https://kds-school.ci',
        'support@kds-school.ci'
      )
@@ -736,7 +736,7 @@ npm run migration:run
      .build();
    
    SwaggerModule.setup('api/docs', app, document, {
-     customSiteTitle: 'KDS API Documentation',
+     customSiteTitle: 'KSP API Documentation',
      customCss: '.swagger-ui .topbar { display: none }',
      swaggerOptions: {
        persistAuthorization: true,    // Garde le token
@@ -911,7 +911,7 @@ async createStudent(@Body() dto: CreateStudentDto) { ... }
 
 6. **Créer Compte Sentry**
    - Aller sur [sentry.io](https://sentry.io)
-   - Créer projet "KDS School Management"
+   - Créer projet "KSP School Management"
    - Copier DSN backend + frontend
    - Configurer dans env vars
 
@@ -1216,5 +1216,5 @@ curl https://kds-backend-api.perissosdigitals.workers.dev/health
 
 *Document généré automatiquement suite à l'audit du cabinet de conseil et à l'implémentation complète de ses recommandations.*
 
-**Signature**: Équipe Développement KDS School Management System  
+**Signature**: Équipe Développement KSP School Management System  
 **Version**: 1.0.0

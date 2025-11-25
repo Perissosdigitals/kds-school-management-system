@@ -32,13 +32,13 @@ export class CreateTeacherDto {
   @MaxLength(20)
   phone: string;
 
-  @ApiProperty({ example: 'mamadou.traore@kds.school' })
+  @ApiProperty({ example: 'mamadou.traore@ksp.school' })
   @IsEmail()
   @MaxLength(150)
   email: string;
 
-  @ApiPropertyOptional({ 
-    enum: ['Actif', 'Inactif'], 
+  @ApiPropertyOptional({
+    enum: ['Actif', 'Inactif'],
     example: 'Actif',
     default: 'Actif'
   })
