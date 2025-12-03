@@ -23,6 +23,181 @@ app.use('/*', cors({
 }));
 
 // ========================================================================
+// SYSTEM / HEALTH ROUTES
+// ========================================================================
+
+app.get('/api/v1/health', async (c) => {
+  return c.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'kds-backend-api',
+    version: '1.0.0',
+  });
+});
+
+app.get('/api/v1/system/database-info', async (c) => {
+  try {
+    // Get table counts
+    const studentsCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM students').first();
+    const classesCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM classes').first();
+    const teachersCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM teachers').first();
+    const gradesCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM grades').first();
+    const attendanceCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM attendance').first();
+    const usersCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM users').first();
+
+    return c.json({
+      name: 'kds-school-db',
+      type: 'Cloudflare D1',
+      tables: ['students', 'classes', 'teachers', 'grades', 'attendance', 'users', 'subjects', 'parents'],
+      recordCounts: {
+        students: studentsCount?.count || 0,
+        classes: classesCount?.count || 0,
+        teachers: teachersCount?.count || 0,
+        grades: gradesCount?.count || 0,
+        attendance: attendanceCount?.count || 0,
+        users: usersCount?.count || 0,
+      },
+    });
+  } catch (error) {
+    return c.json({ error: 'Failed to get database info' }, 500);
+  }
+});
+
+// Data preview endpoint with pagination
+app.get('/api/v1/data/preview/:table', async (c) => {
+  try {
+    const table = c.req.param('table');
+    const page = parseInt(c.req.query('page') || '1');
+    const limit = parseInt(c.req.query('limit') || '50');
+    const search = c.req.query('search') || '';
+    const offset = (page - 1) * limit;
+
+    // Whitelist tables for security
+    const allowedTables = ['students', 'classes', 'teachers', 'grades', 'attendance', 'users', 'subjects', 'parents'];
+    if (!allowedTables.includes(table)) {
+      return c.json({ error: 'Invalid table name' }, 400);
+    }
+
+    // Build query based on table type
+    let query = '';
+    let countQuery = '';
+    
+    switch (table) {
+      case 'students':
+        query = `
+          SELECT s.*, c.name as class_name, c.level as class_level
+          FROM students s
+          LEFT JOIN classes c ON s.class_id = c.id
+          WHERE s.status = 'active'
+          ${search ? `AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.student_code LIKE ?)` : ''}
+          ORDER BY s.last_name, s.first_name
+          LIMIT ? OFFSET ?
+        `;
+        countQuery = `SELECT COUNT(*) as count FROM students WHERE status = 'active' ${search ? `AND (first_name LIKE ? OR last_name LIKE ? OR student_code LIKE ?)` : ''}`;
+        break;
+        
+      case 'grades':
+        query = `
+          SELECT g.*, s.first_name || ' ' || s.last_name as student_name, s.student_code,
+                 c.name as class_name, sub.name as subject_name, t.first_name || ' ' || t.last_name as teacher_name
+          FROM grades g
+          LEFT JOIN students s ON g.student_id = s.id
+          LEFT JOIN classes c ON g.class_id = c.id
+          LEFT JOIN subjects sub ON g.subject_id = sub.id
+          LEFT JOIN teachers t ON g.teacher_id = t.id
+          ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ? OR sub.name LIKE ?)` : ''}
+          ORDER BY g.created_at DESC
+          LIMIT ? OFFSET ?
+        `;
+        countQuery = `
+          SELECT COUNT(*) as count FROM grades g
+          LEFT JOIN students s ON g.student_id = s.id
+          LEFT JOIN subjects sub ON g.subject_id = sub.id
+          ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ? OR sub.name LIKE ?)` : ''}
+        `;
+        break;
+        
+      case 'attendance':
+        query = `
+          SELECT a.*, s.first_name || ' ' || s.last_name as student_name, s.student_code,
+                 c.name as class_name
+          FROM attendance a
+          LEFT JOIN students s ON a.student_id = s.id
+          LEFT JOIN classes c ON a.class_id = c.id
+          ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ?)` : ''}
+          ORDER BY a.date DESC
+          LIMIT ? OFFSET ?
+        `;
+        countQuery = `
+          SELECT COUNT(*) as count FROM attendance a
+          LEFT JOIN students s ON a.student_id = s.id
+          ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ?)` : ''}
+        `;
+        break;
+        
+      default:
+        query = `SELECT * FROM ${table} ${search ? `WHERE name LIKE ?` : ''} LIMIT ? OFFSET ?`;
+        countQuery = `SELECT COUNT(*) as count FROM ${table} ${search ? `WHERE name LIKE ?` : ''}`;
+    }
+
+    // Execute queries with proper binding
+    const searchPattern = search ? `%${search}%` : '';
+    let results, totalCount;
+    
+    if (search) {
+      if (table === 'students' || table === 'grades') {
+        results = await c.env.DB.prepare(query).bind(searchPattern, searchPattern, searchPattern, limit, offset).all();
+        totalCount = await c.env.DB.prepare(countQuery).bind(searchPattern, searchPattern, searchPattern).first();
+      } else if (table === 'attendance') {
+        results = await c.env.DB.prepare(query).bind(searchPattern, searchPattern, limit, offset).all();
+        totalCount = await c.env.DB.prepare(countQuery).bind(searchPattern, searchPattern).first();
+      } else {
+        results = await c.env.DB.prepare(query).bind(searchPattern, limit, offset).all();
+        totalCount = await c.env.DB.prepare(countQuery).bind(searchPattern).first();
+      }
+    } else {
+      results = await c.env.DB.prepare(query).bind(limit, offset).all();
+      totalCount = await c.env.DB.prepare(countQuery).first();
+    }
+
+    return c.json({
+      table,
+      data: results.results,
+      pagination: {
+        page,
+        limit,
+        total: totalCount?.count || 0,
+        totalPages: Math.ceil((totalCount?.count || 0) / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Preview error:', error);
+    return c.json({ error: 'Failed to preview data' }, 500);
+  }
+});
+
+// Search for specific student by code
+app.get('/api/v1/data/search-student/:code', async (c) => {
+  try {
+    const code = c.req.param('code');
+    const student = await c.env.DB.prepare(`
+      SELECT s.*, c.name as class_name, c.level as class_level
+      FROM students s
+      LEFT JOIN classes c ON s.class_id = c.id
+      WHERE s.student_code = ?
+    `).bind(code).first();
+
+    if (!student) {
+      return c.json({ error: 'Student not found', found: false }, 404);
+    }
+
+    return c.json({ found: true, student });
+  } catch (error) {
+    return c.json({ error: 'Search failed' }, 500);
+  }
+});
+
+// ========================================================================
 // AUTH ROUTES
 // ========================================================================
 

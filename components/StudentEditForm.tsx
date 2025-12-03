@@ -122,8 +122,8 @@ export const StudentEditForm: React.FC<StudentEditFormProps> = ({ student, onSav
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Sélectionner...</option>
-                <option value="M">Masculin</option>
-                <option value="F">Féminin</option>
+                <option value="Masculin">Masculin</option>
+                <option value="Féminin">Féminin</option>
               </select>
             </div>
             <div>

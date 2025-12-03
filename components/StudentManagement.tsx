@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import type { Student, DocumentType, User, SchoolClass, Teacher } from '../types';
 import { exportToCSV, exportCSVTemplate } from '../utils/csvExport';
+import { IMPORT_TEMPLATES } from '../src/constants/import-templates';
 import { ImportCSVModal } from './ui/ImportCSVModal';
 import { FilterInput, FilterSelect } from './ui/FilterControls';
 import StudentDocuments from './StudentDocuments';
@@ -254,7 +255,20 @@ export const StudentManagement: React.FC<{ currentUser: User }> = ({ currentUser
 
 
   const handleExport = useCallback(() => {
-    exportToCSV(filteredAndSortedStudents, 'liste_eleves');
+    const mappedData = filteredAndSortedStudents.map(s => ({
+      'ID': s.id,
+      'Nom': s.lastName,
+      'Prénom': s.firstName,
+      'Date Naissance': s.dob,
+      'Sexe': s.gender,
+      'Classe': s.gradeLevel,
+      'Contact Urgence': `${s.emergencyContactName || ''} ${s.emergencyContactPhone || ''}`.trim(),
+      'Téléphone': s.phone,
+      'Adresse': s.address,
+      'Info Médicale': s.medicalInfo,
+      'Statut': s.status
+    }));
+    exportToCSV(mappedData, 'liste_eleves', IMPORT_TEMPLATES.students);
   }, [filteredAndSortedStudents]);
 
   const handleImport = useCallback((importedData: any[]) => {

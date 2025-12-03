@@ -4,14 +4,94 @@ import type { User, Student, Teacher, SchoolClass, TimetableSession, FinancialTr
 // USERS & STAFF DATA
 // =============================================================================
 export const allUsers: User[] = [
-  { id: 'user-1', name: 'Aïssatou Diallo', role: 'Fondatrice', avatar: 'AD' },
-  { id: 'user-2', name: 'Mamadou Keita', role: 'Directrice', avatar: 'MK' },
-  { id: 'user-3', name: 'Fatou Camara', role: 'Comptable', avatar: 'FC' },
-  { id: 'user-4', name: 'Ibrahim Traoré', role: 'Gestionnaire', avatar: 'IT' },
-  { id: 'user-5', name: 'Awa Cissé', role: 'Agent Administratif', avatar: 'AC' },
-  { id: 'user-6', name: 'Mamadou Traoré', role: 'Enseignant', avatar: 'MT' },
-  { id: 'user-7', name: 'Fatima Coulibaly', role: 'Enseignant', avatar: 'FC' },
-  { id: 'user-8', name: 'Issa Koné', role: 'Enseignant', avatar: 'IK' },
+  { 
+    id: 'user-1', 
+    email: 'aissatou.diallo@kds.ci', 
+    role: 'director', 
+    first_name: 'Aïssatou', 
+    last_name: 'Diallo',
+    phone: '+225 07 00 00 001',
+    is_active: true,
+    last_login_at: '2025-12-03T10:30:00.000Z',
+    created_at: '2025-01-01T00:00:00.000Z'
+  },
+  { 
+    id: 'user-2', 
+    email: 'mamadou.keita@kds.ci', 
+    role: 'admin', 
+    first_name: 'Mamadou', 
+    last_name: 'Keita',
+    phone: '+225 07 00 00 002',
+    is_active: true,
+    last_login_at: '2025-12-02T14:15:00.000Z',
+    created_at: '2025-01-15T00:00:00.000Z'
+  },
+  { 
+    id: 'user-3', 
+    email: 'fatou.camara@kds.ci', 
+    role: 'accountant', 
+    first_name: 'Fatou', 
+    last_name: 'Camara',
+    phone: '+225 07 00 00 003',
+    is_active: true,
+    last_login_at: null,
+    created_at: '2025-02-01T00:00:00.000Z'
+  },
+  { 
+    id: 'user-4', 
+    email: 'ibrahim.traore@kds.ci', 
+    role: 'manager', 
+    first_name: 'Ibrahim', 
+    last_name: 'Traoré',
+    phone: '+225 07 00 00 004',
+    is_active: true,
+    last_login_at: '2025-11-30T09:00:00.000Z',
+    created_at: '2025-02-15T00:00:00.000Z'
+  },
+  { 
+    id: 'user-5', 
+    email: 'awa.cisse@kds.ci', 
+    role: 'agent', 
+    first_name: 'Awa', 
+    last_name: 'Cissé',
+    phone: '+225 07 00 00 005',
+    is_active: true,
+    last_login_at: '2025-12-01T11:45:00.000Z',
+    created_at: '2025-03-01T00:00:00.000Z'
+  },
+  { 
+    id: 'user-6', 
+    email: 'mamadou.traore@kds.ci', 
+    role: 'teacher', 
+    first_name: 'Mamadou', 
+    last_name: 'Traoré',
+    phone: '+225 07 11 22 33 44',
+    is_active: true,
+    last_login_at: '2025-12-03T08:30:00.000Z',
+    created_at: '2025-09-01T00:00:00.000Z'
+  },
+  { 
+    id: 'user-7', 
+    email: 'fatima.coulibaly@kds.ci', 
+    role: 'teacher', 
+    first_name: 'Fatima', 
+    last_name: 'Coulibaly',
+    phone: '+225 01 55 66 77 88',
+    is_active: true,
+    last_login_at: '2025-12-03T08:15:00.000Z',
+    created_at: '2025-09-01T00:00:00.000Z'
+  },
+  { 
+    id: 'user-8', 
+    email: 'issa.kone@kds.ci', 
+    role: 'teacher', 
+    first_name: 'Issa', 
+    last_name: 'Koné',
+    phone: '+225 07 00 00 008',
+    is_active: true,
+    last_login_at: null,
+    created_at: '2025-09-15T00:00:00.000Z'
+  },
 ];
 
 export const teacherDetails: Teacher[] = [

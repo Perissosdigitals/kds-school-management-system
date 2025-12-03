@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Student, SchoolClass } from '../types';
 import { StudentsService } from '../services/api/students.service';
-import { schoolClasses } from '../data/mockData';
+import { ClassesService } from '../services/api/classes.service';
 
 interface StudentRegistrationFormProps {
   onSuccess: (newStudent: Student) => void;
@@ -37,19 +37,33 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
   });
 
   const [availableClasses, setAvailableClasses] = useState<SchoolClass[]>([]);
+  const [allClasses, setAllClasses] = useState<SchoolClass[]>([]);
+
+  // Charger toutes les classes au démarrage
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const response = await ClassesService.getClasses({ limit: 100 });
+        setAllClasses(response.data);
+      } catch (err) {
+        console.error("Erreur lors du chargement des classes", err);
+      }
+    };
+    fetchClasses();
+  }, []);
 
   // Initialiser les classes disponibles au chargement si gradeLevel est préfillé
   useEffect(() => {
-    if (prefilledGradeLevel) {
-      const filtered = schoolClasses.filter(cls => cls.level === prefilledGradeLevel);
+    if (prefilledGradeLevel && allClasses.length > 0) {
+      const filtered = allClasses.filter(cls => cls.level === prefilledGradeLevel);
       setAvailableClasses(filtered);
     }
-  }, [prefilledGradeLevel]);
+  }, [prefilledGradeLevel, allClasses]);
 
   // Filtrer les classes disponibles selon le niveau scolaire sélectionné
   useEffect(() => {
-    if (formData.gradeLevel) {
-      const filtered = schoolClasses.filter(cls => cls.level === formData.gradeLevel);
+    if (formData.gradeLevel && allClasses.length > 0) {
+      const filtered = allClasses.filter(cls => cls.level === formData.gradeLevel);
       setAvailableClasses(filtered);
       
       // Si une seule classe disponible, la sélectionner automatiquement
@@ -65,7 +79,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
         setFormData(prev => ({ ...prev, classId: '' }));
       }
     }
-  }, [formData.gradeLevel, prefilledClassId]);
+  }, [formData.gradeLevel, prefilledClassId, allClasses]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

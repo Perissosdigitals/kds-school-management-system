@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { DataManagementService } from '../../services/api/data-management.service';
 import type { ExportFormat, ExportFilters } from '../../types';
+import { DATA_TYPES } from '../../constants/import-templates';
 
 export const DataExportPanel: React.FC = () => {
   // State
-  const [dataType, setDataType] = useState<'grades' | 'attendance' | 'students' | 'all'>('grades');
+  const [dataType, setDataType] = useState<string>('grades');
   const [format, setFormat] = useState<ExportFormat>('excel');
   const [filters, setFilters] = useState<Partial<ExportFilters>>({
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
@@ -49,6 +50,18 @@ export const DataExportPanel: React.FC = () => {
         case 'students':
           blob = await DataManagementService.exportStudents(exportFilters);
           filename = `students_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'csv'}`;
+          break;
+        case 'teachers':
+          blob = await DataManagementService.exportTeachers(exportFilters);
+          filename = `teachers_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'csv'}`;
+          break;
+        case 'classes':
+          blob = await DataManagementService.exportClasses(exportFilters);
+          filename = `classes_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'csv'}`;
+          break;
+        case 'enrollments':
+          blob = await DataManagementService.exportEnrollments(exportFilters);
+          filename = `enrollments_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'csv'}`;
           break;
         case 'all':
           blob = await DataManagementService.exportAll(exportFilters);
@@ -105,15 +118,13 @@ export const DataExportPanel: React.FC = () => {
           </label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { value: 'grades', label: 'Notes', icon: '📊', desc: 'Export notes élèves' },
-              { value: 'attendance', label: 'Présences', icon: '📅', desc: 'Export présences' },
-              { value: 'students', label: 'Élèves', icon: '👨‍🎓', desc: 'Liste élèves' },
+              ...DATA_TYPES,
               { value: 'all', label: 'Tout', icon: '📦', desc: 'Export complet' },
             ].map((type) => (
               <button
                 key={type.value}
                 type="button"
-                onClick={() => setDataType(type.value as any)}
+                onClick={() => setDataType(type.value)}
                 className={`p-4 border-2 rounded-lg text-left transition-all ${dataType === type.value
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'

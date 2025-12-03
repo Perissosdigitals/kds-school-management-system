@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
         emptyOutDir: true,
       },
       server: {
-        port: 5173,
+        port: 5174,
         strictPort: true, // Fail if port unavailable instead of trying another port
         host: '0.0.0.0',
         hmr: {

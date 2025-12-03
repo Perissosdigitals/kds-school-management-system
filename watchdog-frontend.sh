@@ -22,7 +22,7 @@ start_frontend() {
     
     # Démarrer Vite
     cd /Users/apple/Desktop/kds-school-management-system
-    npm run dev > /tmp/kds-frontend-watchdog.log 2>&1 &
+    npm run dev:stable > /tmp/kds-frontend-watchdog.log 2>&1 &
     VITE_PID=$!
     
     echo "   PID: $VITE_PID"

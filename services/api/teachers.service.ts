@@ -130,7 +130,7 @@ export const TeachersService = {
         address: teacherData.address || '',
         emergencyContact: teacherData.emergencyContact || '',
         qualifications: teacherData.qualifications || '',
-        status: teacherData.status === 'Actif' ? 'active' : 'inactive',
+        status: teacherData.status, // 'Actif' ou 'Inactif'
       };
       
       console.log('📤 TeachersService: Envoi vers API POST /teachers', apiPayload);

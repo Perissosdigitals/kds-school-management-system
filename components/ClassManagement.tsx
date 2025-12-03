@@ -557,7 +557,7 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
 
     const availableClasses = useMemo(() => {
         if (!data) return [];
-        if (currentUser.role === 'Enseignant') {
+        if (currentUser.role === 'teacher') {
             return data.classes.filter(c => c.teacherId === currentUser.id);
         }
         return data.classes;

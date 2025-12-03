@@ -57,6 +57,48 @@ export const FinancesService = {
       console.error('FinancesService: Erreur lors de la mise à jour', error);
       throw error;
     }
+  },
+
+  /**
+   * Récupère les statistiques de revenus
+   */
+  async getTotalRevenue(startDate?: Date, endDate?: Date): Promise<{ total: number }> {
+    try {
+      const params = { startDate, endDate };
+      const response = await httpClient.get<{ total: number }>('/finance/stats/revenue', { params });
+      return response.data;
+    } catch (error) {
+      console.warn('FinancesService: Erreur stats revenue', error);
+      return { total: 0 };
+    }
+  },
+
+  /**
+   * Récupère les statistiques de dépenses
+   */
+  async getTotalExpenses(startDate?: Date, endDate?: Date): Promise<{ total: number }> {
+    try {
+      const params = { startDate, endDate };
+      const response = await httpClient.get<{ total: number }>('/finance/stats/expenses', { params });
+      return response.data;
+    } catch (error) {
+      console.warn('FinancesService: Erreur stats expenses', error);
+      return { total: 0 };
+    }
+  },
+
+  /**
+   * Récupère la balance
+   */
+  async getBalance(startDate?: Date, endDate?: Date): Promise<{ balance: number }> {
+    try {
+      const params = { startDate, endDate };
+      const response = await httpClient.get<{ balance: number }>('/finance/stats/balance', { params });
+      return response.data;
+    } catch (error) {
+      console.warn('FinancesService: Erreur stats balance', error);
+      return { balance: 0 };
+    }
   }
 };
 

@@ -34,7 +34,7 @@ fi
 echo "🧹 Nettoyage des anciens processus..."
 pkill -f "nest start" 2>/dev/null
 pkill -f "vite" 2>/dev/null
-lsof -ti:3001 | xargs kill -9 2>/dev/null
+lsof -ti:3002 | xargs kill -9 2>/dev/null
 lsof -ti:5173 | xargs kill -9 2>/dev/null
 sleep 2
 echo "✅ Nettoyage terminé"
@@ -44,7 +44,7 @@ echo "🚀 Démarrage des services..."
 echo ""
 
 # 3. Démarrer le Backend
-echo "📦 Backend NestJS (port 3001)..."
+echo "📦 Backend NestJS (port 3002)..."
 cd backend
 nohup npm run dev > /tmp/ksp-backend.log 2>&1 &
 BACKEND_PID=$!
@@ -59,7 +59,7 @@ WAIT=0
 MAX_WAIT=30
 
 while [ $WAIT -lt $MAX_WAIT ]; do
-    if curl -s http://localhost:3001/api/v1/health 2>/dev/null | grep -q "ok"; then
+    if curl -s http://localhost:3002/api/v1/health 2>/dev/null | grep -q "ok"; then
         echo "   ✅ Backend prêt!"
         break
     fi
@@ -104,7 +104,7 @@ if [ $WAIT -eq $MAX_WAIT ]; then
     echo ""
     echo "   ❌ Frontend timeout - vérifiez /tmp/ksp-watchdog.log"
     tail -20 /tmp/ksp-watchdog.log
-    tail -20 /tmp/ksp-frontend-watchdog.log
+    tail -20 /tmp/kds-frontend-watchdog.log
     exit 1
 fi
 
@@ -115,8 +115,8 @@ echo "✅  ENVIRONNEMENT LOCAL KSP PRÊT!"
 echo "✅ ═══════════════════════════════════════════"
 echo ""
 echo "🌐 Frontend:  http://localhost:5173"
-echo "⚙️  Backend:   http://localhost:3001"
-echo "📚 API Docs:  http://localhost:3001/api/docs"
+echo "⚙️  Backend:   http://localhost:3002"
+echo "📚 API Docs:  http://localhost:3002/api/docs"
 echo "🗄️  Database: PostgreSQL localhost:5432"
 echo ""
 echo "📊 PIDs:"
@@ -125,7 +125,7 @@ echo "   Watchdog: $WATCHDOG_PID (fichier: watchdog.pid)"
 echo ""
 echo "📝 Logs:"
 echo "   Backend:  tail -f /tmp/ksp-backend.log"
-echo "   Frontend: tail -f /tmp/ksp-frontend-watchdog.log"
+echo "   Frontend: tail -f /tmp/kds-frontend-watchdog.log"
 echo "   Watchdog: tail -f /tmp/ksp-watchdog.log"
 echo ""
 echo "🛑 Pour arrêter:"

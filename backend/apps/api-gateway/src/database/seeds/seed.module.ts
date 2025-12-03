@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SeedService } from './seed.service';
+import { SeedController } from '../../modules/seed/seed.controller';
 import { User } from '../../modules/users/entities/user.entity';
 import { Teacher } from '../../modules/teachers/entities/teacher.entity';
 import { Student } from '../../modules/students/entities/student.entity';
@@ -27,6 +28,7 @@ import { Document } from '../../modules/documents/entities/document.entity';
       Document,
     ]),
   ],
+  controllers: [SeedController],
   providers: [SeedService],
   exports: [SeedService],
 })

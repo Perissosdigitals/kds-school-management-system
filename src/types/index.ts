@@ -169,6 +169,7 @@ export interface ExportFilters {
 // Import Types
 export interface ImportValidationResult {
   isValid: boolean;
+  validRecords: number;
   errors: Array<{
     row: number;
     field: string;

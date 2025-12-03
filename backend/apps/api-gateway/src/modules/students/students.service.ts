@@ -122,30 +122,46 @@ export class StudentsService {
   }
 
   async update(id: string, updateStudentDto: UpdateStudentDto): Promise<Student> {
-    // Utilisation de update() au lieu de save() pour éviter les problèmes de relations
-    // et garantir que le classId est bien mis à jour
-    const updateData: any = {
-      ...updateStudentDto,
-    };
-
-    if (updateStudentDto.dob) {
-      updateData.dob = new Date(updateStudentDto.dob);
-    }
+    // Mapper les champs camelCase (DTO) vers les noms de propriétés TypeScript
+    // TypeORM gérera automatiquement le mapping vers les colonnes snake_case
+    const updateData: any = {};
+    
+    if (updateStudentDto.firstName !== undefined) updateData.firstName = updateStudentDto.firstName;
+    if (updateStudentDto.lastName !== undefined) updateData.lastName = updateStudentDto.lastName;
+    if (updateStudentDto.dob !== undefined) updateData.dob = new Date(updateStudentDto.dob);
+    if (updateStudentDto.gender !== undefined) updateData.gender = updateStudentDto.gender;
+    if (updateStudentDto.nationality !== undefined) updateData.nationality = updateStudentDto.nationality;
+    if (updateStudentDto.birthPlace !== undefined) updateData.birthPlace = updateStudentDto.birthPlace;
+    if (updateStudentDto.address !== undefined) updateData.address = updateStudentDto.address;
+    if (updateStudentDto.phone !== undefined) updateData.phone = updateStudentDto.phone;
+    if (updateStudentDto.email !== undefined) updateData.email = updateStudentDto.email;
+    if (updateStudentDto.gradeLevel !== undefined) updateData.gradeLevel = updateStudentDto.gradeLevel;
+    if (updateStudentDto.previousSchool !== undefined) updateData.previousSchool = updateStudentDto.previousSchool;
+    if (updateStudentDto.emergencyContactName !== undefined) updateData.emergencyContactName = updateStudentDto.emergencyContactName;
+    if (updateStudentDto.emergencyContactPhone !== undefined) updateData.emergencyContactPhone = updateStudentDto.emergencyContactPhone;
+    if (updateStudentDto.medicalInfo !== undefined) updateData.medicalInfo = updateStudentDto.medicalInfo;
+    if (updateStudentDto.status !== undefined) updateData.status = updateStudentDto.status;
+    if (updateStudentDto.classId !== undefined) updateData.classId = updateStudentDto.classId;
 
     try {
-      // Utilisation de createQueryBuilder pour forcer la mise à jour brute
-      // C'est la méthode la plus fiable pour contourner les problèmes de mapping TypeORM
-      const queryBuilder = this.studentsRepository.createQueryBuilder()
-        .update(Student)
-        .set(updateData)
-        .where("id = :id", { id });
-
-      await queryBuilder.execute();
-
-      // On retourne l'élève mis à jour avec ses relations
-      return this.findOne(id);
+      // Utiliser save() qui gère correctement le mapping des propriétés
+      const student = await this.findOne(id);
+      if (!student) {
+        throw new NotFoundException(`Élève avec l'ID ${id} introuvable`);
+      }
+      
+      console.log('Updating student with data:', updateData);
+      Object.assign(student, updateData);
+      const updated = await this.studentsRepository.save(student);
+      console.log('Student updated successfully:', updated.id);
+      
+      // Retourner avec les relations
+      return this.findOne(updated.id);
     } catch (error) {
       console.error('Error updating student:', error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new BadRequestException(
         `Erreur lors de la mise à jour de l'élève: ${error.message}`
       );

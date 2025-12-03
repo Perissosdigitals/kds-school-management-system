@@ -39,7 +39,7 @@ export const AttendanceTracker: React.FC<{ currentUser: User }> = ({ currentUser
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   
   const availableClasses = useMemo(() => {
-    if (currentUser.role === 'Enseignant') {
+    if (currentUser.role === 'teacher') {
         return allClasses.filter(c => c.teacherId === currentUser.id);
     }
     return allClasses; // Admins see all classes
@@ -54,7 +54,7 @@ export const AttendanceTracker: React.FC<{ currentUser: User }> = ({ currentUser
         setAllClasses(classes);
         setAllStudents(students);
         
-        const firstAvailableClass = currentUser.role === 'Enseignant' 
+        const firstAvailableClass = currentUser.role === 'teacher' 
             ? classes.find(c => c.teacherId === currentUser.id) 
             : classes[0];
             
@@ -179,7 +179,7 @@ export const AttendanceTracker: React.FC<{ currentUser: User }> = ({ currentUser
             <div className="text-center py-10 text-gray-500">
                 <i className='bx bx-info-circle text-4xl mb-2'></i>
                 <p>Aucun élève trouvé pour cette classe.</p>
-                {currentUser.role === 'Enseignant' && availableClasses.length === 0 && <p className="text-xs mt-1">Aucune classe ne vous est assignée.</p>}
+                {currentUser.role === 'teacher' && availableClasses.length === 0 && <p className="text-xs mt-1">Aucune classe ne vous est assignée.</p>}
             </div>
           )}
         </div>

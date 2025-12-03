@@ -14,6 +14,8 @@ export const TeacherEditForm: React.FC<TeacherEditFormProps> = ({ teacher, onSav
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const isCreateMode = !teacher.id || teacher.id === '';
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -30,15 +32,24 @@ export const TeacherEditForm: React.FC<TeacherEditFormProps> = ({ teacher, onSav
     setSuccessMessage(null);
 
     try {
-      console.log('TeacherEditForm: Mise à jour de l\'enseignant...', formData);
-      const updatedTeacher = await TeachersService.updateTeacher(teacher.id, formData);
-      setSuccessMessage('Enseignant mis à jour avec succès!');
-      setTimeout(() => {
-        onSave(updatedTeacher);
-      }, 1500);
+      if (isCreateMode) {
+        console.log('TeacherEditForm: Création d\'un nouvel enseignant...', formData);
+        const newTeacher = await TeachersService.createTeacher(formData);
+        setSuccessMessage('Enseignant créé avec succès!');
+        setTimeout(() => {
+          onSave(newTeacher);
+        }, 1500);
+      } else {
+        console.log('TeacherEditForm: Mise à jour de l\'enseignant...', formData);
+        const updatedTeacher = await TeachersService.updateTeacher(teacher.id, formData);
+        setSuccessMessage('Enseignant mis à jour avec succès!');
+        setTimeout(() => {
+          onSave(updatedTeacher);
+        }, 1500);
+      }
     } catch (err) {
-      console.error('Erreur lors de la mise à jour:', err);
-      setError('Erreur lors de la mise à jour de l\'enseignant. Veuillez réessayer.');
+      console.error('Erreur lors de la sauvegarde:', err);
+      setError(`Erreur lors de ${isCreateMode ? 'la création' : 'la mise à jour'} de l'enseignant. Veuillez réessayer.`);
     } finally {
       setIsLoading(false);
     }
@@ -47,7 +58,9 @@ export const TeacherEditForm: React.FC<TeacherEditFormProps> = ({ teacher, onSav
   return (
     <div className="bg-white p-8 rounded-xl shadow-lg">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Modifier l'enseignant</h2>
+        <h2 className="text-2xl font-bold text-slate-800">
+          {isCreateMode ? 'Créer un nouvel enseignant' : 'Modifier l\'enseignant'}
+        </h2>
         <button
           onClick={onCancel}
           className="text-gray-500 hover:text-gray-700 text-2xl"

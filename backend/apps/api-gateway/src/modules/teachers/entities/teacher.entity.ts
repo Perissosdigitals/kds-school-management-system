@@ -39,6 +39,26 @@ export class Teacher {
   @Column({ type: 'varchar', length: 150 })
   email: string;
 
+  @ApiProperty({ example: 'Algèbre, Géométrie', required: false })
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  specialization: string;
+
+  @ApiProperty({ example: '2023-09-01', required: false })
+  @Column({ name: 'hire_date', type: 'date', nullable: true })
+  hireDate: Date;
+
+  @ApiProperty({ example: 'Abidjan, Cocody', required: false })
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  address: string;
+
+  @ApiProperty({ example: 'Mme Traoré: 0707070707', required: false })
+  @Column({ name: 'emergency_contact', type: 'varchar', length: 255, nullable: true })
+  emergencyContact: string;
+
+  @ApiProperty({ example: 'Master en Mathématiques', required: false })
+  @Column({ type: 'text', nullable: true })
+  qualifications: string;
+
   @ApiProperty({ enum: ['Actif', 'Inactif'], default: 'Actif' })
   @Column({ type: 'enum', enum: ['Actif', 'Inactif'], default: 'Actif' })
   status: TeacherStatus;

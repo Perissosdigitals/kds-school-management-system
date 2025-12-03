@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Teacher } from '../types';
 import { exportToCSV, exportCSVTemplate } from '../utils/csvExport';
+import { IMPORT_TEMPLATES } from '../src/constants/import-templates';
 import { ImportCSVModal } from './ui/ImportCSVModal';
 import { TeachersService } from '../services/api/teachers.service';
 import { LoadingSpinner } from './ui/LoadingSpinner';
@@ -299,7 +300,16 @@ export const TeacherManagement: React.FC = () => {
   };
 
   const handleExport = useCallback(() => {
-    exportToCSV(teachers, 'liste_professeurs');
+    const mappedData = teachers.map(t => ({
+      'ID_Prof': t.id,
+      'Nom': t.lastName,
+      'Prenom': t.firstName,
+      'Matiere': t.subject,
+      'Tel': t.phone,
+      'Email': t.email,
+      'Classes_Assignees': t.classes ? t.classes.map(c => c.name).join(', ') : ''
+    }));
+    exportToCSV(mappedData, 'liste_professeurs', IMPORT_TEMPLATES.teachers);
   }, [teachers]);
   
   const handleImport = useCallback((importedData: Teacher[]) => {
@@ -330,20 +340,11 @@ export const TeacherManagement: React.FC = () => {
     setViewMode('create');
   };
 
-  const handleSaveNewTeacher = async (newTeacher: Teacher) => {
-    try {
-      // Remove the temporary id if it exists
-      const { id, ...teacherData } = newTeacher;
-      const created = await TeachersService.createTeacher(teacherData);
-      setTeachers(prev => [...prev, created]);
-      setViewMode('list');
-      setSelectedTeacher(null);
-      alert('Enseignant créé avec succès !');
-      loadTeachers(); // Refresh
-    } catch (error) {
-      console.error('Erreur lors de la création:', error);
-      alert('Erreur lors de la création de l\'enseignant.');
-    }
+  const handleSaveNewTeacher = (newTeacher: Teacher) => {
+    setTeachers(prev => [...prev, newTeacher]);
+    setViewMode('list');
+    setSelectedTeacher(null);
+    loadTeachers(); // Refresh
   };
 
   // Show detail view

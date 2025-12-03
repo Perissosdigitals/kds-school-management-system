@@ -1,6 +1,8 @@
 import { httpClient } from '../httpClient';
 import { evaluations, grades, schoolClasses, allStudents } from '../../data/mockData';
 import type { Evaluation, Grade, SchoolClass, Student } from '../../types';
+import { ClassesService } from './classes.service';
+import { StudentsService } from './students.service';
 
 export interface GradesData {
     evaluations: Evaluation[];
@@ -17,7 +19,8 @@ const mapApiGradeToFrontend = (apiGrade: any): Grade => {
     studentName: `${apiGrade.student_first_name || ''} ${apiGrade.student_last_name || ''}`.trim(),
     subject: apiGrade.subject_name || '',
     evaluationTitle: apiGrade.evaluation_title || 'Évaluation',
-    grade: apiGrade.grade || 0,
+    evaluationId: apiGrade.evaluation_id,
+    score: apiGrade.grade !== undefined ? Number(apiGrade.grade) : null,
     maxGrade: apiGrade.max_grade || 20,
     date: apiGrade.evaluation_date 
       ? new Date(apiGrade.evaluation_date).toLocaleDateString('fr-FR')
@@ -114,15 +117,17 @@ export const GradesService = {
 export const getGradesData = async (): Promise<GradesData> => {
   console.log('Fetching grades data from API...');
   try {
-    const [evaluationsData, gradesData] = await Promise.all([
+    const [evaluationsData, gradesData, classesResult, studentsData] = await Promise.all([
       GradesService.getEvaluations(),
       GradesService.getGrades(),
+      ClassesService.getClasses({ limit: 1000 }),
+      StudentsService.getStudents({ limit: 1000 }),
     ]);
     return {
       evaluations: evaluationsData,
       grades: gradesData,
-      classes: schoolClasses,
-      students: allStudents,
+      classes: classesResult.data,
+      students: studentsData,
     };
   } catch (error) {
     console.warn('GradesService: Erreur lors de la récupération', error);

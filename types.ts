@@ -13,13 +13,18 @@ export type Page =
   | 'class-management'
   | 'data-management';
 
-export type UserRole = 'Fondatrice' | 'Directrice' | 'Comptable' | 'Gestionnaire' | 'Agent Administratif' | 'Enseignant';
+export type UserRole = 'director' | 'admin' | 'teacher' | 'accountant' | 'manager' | 'agent' | 'student' | 'parent';
 
 export interface User {
   id: string;
-  name: string;
+  email: string;
   role: UserRole;
-  avatar: string; // URL to avatar image or initials
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  is_active: boolean;
+  last_login_at: string | null;
+  created_at: string;
 }
 
 export type DocumentType = 'Extrait de naissance' | 'Carnet de vaccination' | 'Autorisation parentale' | 'Fiche scolaire';
@@ -182,9 +187,16 @@ export interface Evaluation {
 }
 
 export interface Grade {
+  id?: string;
   studentId: string;
+  studentName?: string;
   evaluationId: string;
+  evaluationTitle?: string;
+  subject?: string;
   score: number | null;
+  maxGrade?: number;
+  date?: string;
+  teacher?: string;
   comment: string;
 }
 

@@ -209,24 +209,25 @@ export const StudentsService = {
       
       // Mapper les champs frontend vers le format API
       const apiPayload: any = {};
-      if (studentData.firstName) apiPayload.firstName = studentData.firstName;
-      if (studentData.lastName) apiPayload.lastName = studentData.lastName;
-      if (studentData.dob) apiPayload.dob = studentData.dob;
-      if (studentData.gender) apiPayload.gender = studentData.gender;
-      if (studentData.nationality) apiPayload.nationality = studentData.nationality;
-      if (studentData.birthPlace) apiPayload.birthPlace = studentData.birthPlace;
-      if (studentData.address) apiPayload.address = studentData.address;
-      if (studentData.phone) apiPayload.phone = studentData.phone;
-      if (studentData.email) apiPayload.email = studentData.email;
-      if (studentData.gradeLevel) apiPayload.gradeLevel = studentData.gradeLevel;
-      if (studentData.previousSchool) apiPayload.previousSchool = studentData.previousSchool;
-      if (studentData.emergencyContactName) apiPayload.emergencyContactName = studentData.emergencyContactName;
-      if (studentData.emergencyContactPhone) apiPayload.emergencyContactPhone = studentData.emergencyContactPhone;
-      if (studentData.medicalInfo) apiPayload.medicalInfo = studentData.medicalInfo;
-      if (studentData.status) apiPayload.status = studentData.status;
-      // Conversion du genre si nécessaire
-      if (studentData.gender) {
-        apiPayload.gender = studentData.gender === 'Masculin' ? 'male' : 'female';
+      if (studentData.firstName !== undefined) apiPayload.firstName = studentData.firstName;
+      if (studentData.lastName !== undefined) apiPayload.lastName = studentData.lastName;
+      if (studentData.dob !== undefined) apiPayload.dob = studentData.dob;
+      if (studentData.nationality !== undefined) apiPayload.nationality = studentData.nationality;
+      if (studentData.birthPlace !== undefined) apiPayload.birthPlace = studentData.birthPlace;
+      if (studentData.address !== undefined) apiPayload.address = studentData.address;
+      if (studentData.phone !== undefined) apiPayload.phone = studentData.phone;
+      if (studentData.email !== undefined) apiPayload.email = studentData.email;
+      if (studentData.gradeLevel !== undefined) apiPayload.gradeLevel = studentData.gradeLevel;
+      if (studentData.classId !== undefined) apiPayload.classId = studentData.classId;
+      if (studentData.previousSchool !== undefined) apiPayload.previousSchool = studentData.previousSchool;
+      if (studentData.emergencyContactName !== undefined) apiPayload.emergencyContactName = studentData.emergencyContactName;
+      if (studentData.emergencyContactPhone !== undefined) apiPayload.emergencyContactPhone = studentData.emergencyContactPhone;
+      if (studentData.medicalInfo !== undefined) apiPayload.medicalInfo = studentData.medicalInfo;
+      if (studentData.status !== undefined) apiPayload.status = studentData.status;
+      
+      // Gender: backend expects 'Masculin'/'Féminin', no conversion needed
+      if (studentData.gender !== undefined) {
+        apiPayload.gender = studentData.gender;
       }
       
       console.log(`StudentsService: Payload API pour mise à jour:`, apiPayload);

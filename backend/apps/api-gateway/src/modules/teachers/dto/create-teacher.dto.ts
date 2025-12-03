@@ -37,6 +37,34 @@ export class CreateTeacherDto {
   @MaxLength(150)
   email: string;
 
+  @ApiPropertyOptional({ example: 'Algèbre, Géométrie' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  specialization?: string;
+
+  @ApiPropertyOptional({ example: '2023-09-01' })
+  @IsOptional()
+  @IsString()
+  hireDate?: string;
+
+  @ApiPropertyOptional({ example: 'Abidjan, Cocody' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  address?: string;
+
+  @ApiPropertyOptional({ example: 'Mme Traoré: 0707070707' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  emergencyContact?: string;
+
+  @ApiPropertyOptional({ example: 'Master en Mathématiques' })
+  @IsOptional()
+  @IsString()
+  qualifications?: string;
+
   @ApiPropertyOptional({
     enum: ['Actif', 'Inactif'],
     example: 'Actif',

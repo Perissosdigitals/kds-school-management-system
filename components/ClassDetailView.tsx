@@ -5,6 +5,7 @@ import { LoadingSpinner } from './ui/LoadingSpinner';
 import { StudentRegistrationForm } from './StudentRegistrationForm';
 import { StudentDetail } from './StudentDetail';
 import { ClassEditForm } from './ClassEditForm';
+import { IMPORT_TEMPLATES } from '../src/constants/import-templates';
 
 interface ClassDetailViewProps {
     classId: string;
@@ -506,25 +507,26 @@ const StudentsTab: React.FC<{
 
     // Utility functions for export
     const generateStudentCSV = (studentsToExport: Student[]): string => {
-        const headers = ['ID', 'Nom', 'Prénom', 'Genre', 'Date naissance', 'Date inscription', 'Niveau', 'Statut'];
+        const headers = IMPORT_TEMPLATES.students;
         const rows = studentsToExport.map(s => {
-            // Calculate age from dob
-            const age = s.dob ? new Date().getFullYear() - new Date(s.dob).getFullYear() : '';
             return [
                 s.id || '',
                 s.lastName || '',
                 s.firstName || '',
-                s.gender || '',
                 s.dob || '',
-                s.registrationDate || '',
+                s.gender || '',
                 s.gradeLevel || '',
+                `${s.emergencyContactName || ''} ${s.emergencyContactPhone || ''}`.trim(),
+                s.phone || '',
+                s.address || '',
+                s.medicalInfo || '',
                 s.status || 'Actif'
             ];
         });
         
         const csvContent = [
             headers.join(','),
-            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+            ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
         ].join('\n');
         
         return csvContent;

@@ -40,7 +40,7 @@ const TeacherDashboard: React.FC<{ currentUser: User, setActivePage: (page: Page
   return (
     <div className="space-y-6 sm:space-y-8">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-slate-800">Bonjour, {currentUser.name.split(' ')[0]} ! 👋</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-slate-800">Bonjour, {currentUser.first_name} ! 👋</h2>
         <p className="text-sm sm:text-base text-gray-500">Voici votre tableau de bord d'enseignant.</p>
       </div>
 
@@ -279,7 +279,7 @@ const AdminDashboard: React.FC<{ setActivePage: (page: Page) => void }> = ({ set
 
 
 export const Dashboard: React.FC<{ setActivePage: (page: Page) => void, currentUser: User }> = ({ setActivePage, currentUser }) => {
-    if (currentUser.role === 'Enseignant') {
+    if (currentUser.role === 'teacher') {
         return <TeacherDashboard currentUser={currentUser} setActivePage={setActivePage} />;
     }
     

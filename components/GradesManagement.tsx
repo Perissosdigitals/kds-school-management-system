@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { User, SchoolClass, Evaluation, Student, Grade } from '../types';
 import { FilterSelect } from './ui/FilterControls';
-import { getGradesData, GradesData } from '../services/api/grades.service';
+import { getGradesData, GradesData, GradesService } from '../services/api/grades.service';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 
 const GradeRow = React.memo(({ student, grade, onGradeChange, maxScore }: { student: Student, grade: Grade, onGradeChange: (studentId: string, score: number | null, comment: string) => void, maxScore: number }) => {
@@ -87,7 +87,7 @@ const GradesManagement: React.FC<{ currentUser: User }> = ({ currentUser }) => {
     
     const availableClasses = useMemo(() => {
         if (!data) return [];
-        if (currentUser.role === 'Enseignant') {
+        if (currentUser.role === 'teacher') {
             return data.classes.filter(c => c.teacherId === currentUser.id);
         }
         return data.classes;
@@ -160,24 +160,46 @@ const GradesManagement: React.FC<{ currentUser: User }> = ({ currentUser }) => {
     
     const handleSaveGrades = useCallback(async () => {
         setIsSaving(true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('Saving grades:', Object.values(gradesForEvaluation));
+        try {
+            const gradesToSave = Object.values(gradesForEvaluation).filter(g => g.score !== null);
+            console.log('Saving grades:', gradesToSave);
 
-        if (selectedEvaluation) {
-            const gradedStudents = (Object.values(gradesForEvaluation) as Grade[]).filter(g => g.score !== null);
-            if (gradedStudents.length > 0) {
-                const totalScore = gradedStudents.reduce((sum, g) => sum + (g.score || 0), 0);
-                const average = totalScore / gradedStudents.length;
-                setSavedClassAverage(`${average.toFixed(2)} / ${selectedEvaluation.maxScore}`);
-            } else {
-                setSavedClassAverage('N/A');
+            // Save each grade sequentially to avoid overwhelming the server
+            for (const grade of gradesToSave) {
+                await GradesService.recordGrade({
+                    studentId: grade.studentId,
+                    evaluationId: grade.evaluationId,
+                    score: grade.score!,
+                    comment: grade.comment,
+                    subject: selectedEvaluation?.subject || '',
+                    date: new Date().toISOString(),
+                    studentName: '', // Backend will fill this
+                    evaluationTitle: '', // Backend will fill this
+                    maxGrade: selectedEvaluation?.maxScore || 20,
+                    teacher: `${currentUser.first_name} ${currentUser.last_name}`
+                });
             }
-        }
 
-        setIsSaving(false);
-        setIsSaved(true);
-        setTimeout(() => setIsSaved(false), 3000);
-    }, [gradesForEvaluation, selectedEvaluation]);
+            if (selectedEvaluation) {
+                const gradedStudents = gradesToSave;
+                if (gradedStudents.length > 0) {
+                    const totalScore = gradedStudents.reduce((sum, g) => sum + (g.score || 0), 0);
+                    const average = totalScore / gradedStudents.length;
+                    setSavedClassAverage(`${average.toFixed(2)} / ${selectedEvaluation.maxScore}`);
+                } else {
+                    setSavedClassAverage('N/A');
+                }
+            }
+
+            setIsSaved(true);
+            setTimeout(() => setIsSaved(false), 3000);
+        } catch (error) {
+            console.error("Error saving grades:", error);
+            alert("Erreur lors de l'enregistrement des notes.");
+        } finally {
+            setIsSaving(false);
+        }
+    }, [gradesForEvaluation, selectedEvaluation, currentUser]);
 
     if (isLoading) return <LoadingSpinner />;
     if (!data) return <p>Erreur de chargement des données.</p>;

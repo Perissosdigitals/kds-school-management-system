@@ -267,16 +267,16 @@ export const Timetable: React.FC<{ currentUser: User }> = ({ currentUser }) => {
         const newLog: TimetableLog = {
             id: `log-${Date.now()}`,
             timestamp: new Date().toISOString(),
-            user: currentUser.name,
+            user: `${currentUser.first_name} ${currentUser.last_name}`,
             action: action,
         };
         setLogs(prev => [newLog, ...prev]);
-    }, [currentUser.name]);
+    }, [currentUser.first_name, currentUser.last_name]);
 
     const canEditSchedule = useMemo(() => {
         if (!view) return false;
-        if (currentUser.role === 'Fondatrice' || currentUser.role === 'Directrice') return true;
-        if (currentUser.role === 'Enseignant') {
+        if (currentUser.role === 'director' || currentUser.role === 'admin') return true;
+        if (currentUser.role === 'teacher') {
             const [type, id] = view.split('-');
             return type === 'teacher' && id === currentUser.id;
         }
@@ -470,7 +470,7 @@ export const Timetable: React.FC<{ currentUser: User }> = ({ currentUser }) => {
                     ) : (
                         <div>
                             <label className="text-sm font-medium text-slate-600 block mb-1">Mon emploi du temps</label>
-                            <p className="font-semibold text-slate-800 h-[42px] flex items-center">{currentUser.name}</p>
+                            <p className="font-semibold text-slate-800 h-[42px] flex items-center">{currentUser.first_name} {currentUser.last_name}</p>
                         </div>
                     )}
                     <div>

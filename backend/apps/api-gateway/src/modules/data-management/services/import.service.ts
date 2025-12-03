@@ -276,21 +276,68 @@ export class ImportService {
 
         try {
           const student = new Student();
-          student.registrationNumber = row['Matricule'] || row['registrationNumber'];
+          // Map Excel columns to Student entity
+          student.registrationNumber = row['ID'] || row['id'] || row['Matricule'];
           student.firstName = row['Prénom'] || row['firstName'];
           student.lastName = row['Nom'] || row['lastName'];
-          student.registrationDate = row['Date Naissance'] ? new Date(row['Date Naissance']) : new Date(); // Using registrationDate
-          student.gender = row['Genre'] || row['gender'];
-          student.classId = row['ID Classe'] || row['classId'];
-          student.email = row['Email'] || row['email'];
-          // phoneNumber, guardianName, guardianPhone, isActive not in entity - skip them
+          
+          // Date handling
+          if (row['Date Naissance']) {
+             student.dob = new Date(row['Date Naissance']);
+          } else if (row['dob']) {
+             student.dob = new Date(row['dob']);
+          }
+
+          // Gender mapping
+          const genderRaw = row['Sexe'] || row['gender'];
+          if (genderRaw === 'M' || genderRaw === 'Masculin') student.gender = 'Masculin';
+          else if (genderRaw === 'F' || genderRaw === 'Féminin') student.gender = 'Féminin';
+          else student.gender = genderRaw;
+
+          student.gradeLevel = row['Classe'] || row['gradeLevel'];
+          
+          // Contact Urgence splitting (Name + Phone)
+          const contactUrgence = row['Contact Urgence'] || row['emergencyContact'];
+          if (contactUrgence) {
+             // Simple heuristic: split by first number found, or just put all in name
+             // For now, put all in name as phone is optional in entity but required in DB?
+             // Entity has emergencyContactName and emergencyContactPhone.
+             // Let's try to extract phone if it looks like a phone number
+             const phoneMatch = contactUrgence.match(/(\+?\d[\d\s]{8,})/);
+             if (phoneMatch) {
+                 student.emergencyContactPhone = phoneMatch[0].trim();
+                 student.emergencyContactName = contactUrgence.replace(phoneMatch[0], '').trim();
+             } else {
+                 student.emergencyContactName = contactUrgence;
+                 student.emergencyContactPhone = ''; // Or default '0'
+             }
+          }
+
+          student.phone = row['Téléphone'] || row['phone'];
+          if (student.phone === '0') student.phone = '';
+
           student.address = row['Adresse'] || row['address'];
+          if (student.address === '0') student.address = '';
+
+          student.medicalInfo = row['Info Médicale'] || row['medicalInfo'];
+          if (student.medicalInfo === '0') student.medicalInfo = '';
+          
+          // Status mapping
+          const statusRaw = row['Statut'] || row['status'] || 'Actif';
+          student.status = statusRaw as any;
+
+          // Defaults for required fields not in this specific template
+          if (!student.registrationDate) student.registrationDate = new Date();
+          if (!student.nationality) student.nationality = 'Ivoirienne'; // Default or leave empty if nullable? Entity says length 100, not nullable.
+          if (!student.birthPlace) student.birthPlace = ''; // Entity says length 200, not nullable.
+          if (!student.emergencyContactName) student.emergencyContactName = 'Inconnu';
+          if (!student.emergencyContactPhone) student.emergencyContactPhone = '00000000';
 
           // Validation
           if (!student.firstName || !student.lastName || !student.registrationNumber) {
             result.errors.push({
               row: rowNumber,
-              message: 'Nom, prénom et matricule requis',
+              message: 'Nom, prénom et ID requis',
             });
             result.failedImports++;
             continue;

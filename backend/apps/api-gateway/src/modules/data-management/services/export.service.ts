@@ -320,46 +320,57 @@ export class ExportService {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Élèves');
 
+    // Add Title Row
+    worksheet.mergeCells('A1:K1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = 'LISTE DES ÉLÈVES';
+    titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF2F75B5' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+    worksheet.getRow(1).height = 30;
+
     // Add headers
+    worksheet.getRow(2).values = [
+      'ID', 'Nom', 'Prénom', 'Date Naissance', 'Sexe', 'Classe', 'Contact Urgence', 'Téléphone', 'Adresse', 'Info Médicale', 'Statut'
+    ];
+
     worksheet.columns = [
-      { header: 'Matricule', key: 'registrationNumber', width: 15 },
-      { header: 'Nom', key: 'lastName', width: 20 },
-      { header: 'Prénom', key: 'firstName', width: 20 },
-      { header: 'Date Naissance', key: 'birthDate', width: 15 },
-      { header: 'Genre', key: 'gender', width: 10 },
-      { header: 'Classe', key: 'class', width: 10 },
-      { header: 'Email', key: 'email', width: 30 },
-      { header: 'Téléphone', key: 'phone', width: 15 },
-      { header: 'Adresse', key: 'address', width: 40 },
-      { header: 'Parent/Tuteur', key: 'guardianName', width: 25 },
-      { header: 'Contact Parent', key: 'guardianPhone', width: 15 },
-      { header: 'Statut', key: 'isActive', width: 10 },
+      { key: 'id', width: 15 },
+      { key: 'lastName', width: 20 },
+      { key: 'firstName', width: 20 },
+      { key: 'dob', width: 15 },
+      { key: 'gender', width: 10 },
+      { key: 'gradeLevel', width: 10 },
+      { key: 'emergencyContact', width: 30 },
+      { key: 'phone', width: 15 },
+      { key: 'address', width: 30 },
+      { key: 'medicalInfo', width: 20 },
+      { key: 'status', width: 10 },
     ];
 
     // Style header
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).fill = {
+    const headerRow = worksheet.getRow(2);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FFFFC000' },
+      fgColor: { argb: 'FF4472C4' },
     };
-    worksheet.getRow(1).font = { bold: true, color: { argb: 'FF000000' } };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
     // Add data
     for (const student of students) {
       worksheet.addRow({
-        registrationNumber: student.registrationNumber,
+        id: student.registrationNumber,
         lastName: student.lastName,
         firstName: student.firstName,
-        birthDate: student.registrationDate, // Using registrationDate instead
-        gender: student.gender,
-        class: student.class?.name || 'N/A',
-        email: student.email || '',
-        phone: '', // phoneNumber not in entity
-        address: student.address || '',
-        guardianName: '', // guardianName not in entity
-        guardianPhone: '', // guardianPhone not in entity
-        isActive: 'Actif', // isActive not in entity, default to Actif
+        dob: student.dob, // Date formatting handled by Excel usually, or convert to string
+        gender: student.gender === 'Masculin' ? 'M' : (student.gender === 'Féminin' ? 'F' : student.gender),
+        gradeLevel: student.gradeLevel,
+        emergencyContact: `${student.emergencyContactName || ''} ${student.emergencyContactPhone || ''}`.trim(),
+        phone: student.phone || '0',
+        address: student.address || '0',
+        medicalInfo: student.medicalInfo || '0',
+        status: student.status,
       });
     }
 

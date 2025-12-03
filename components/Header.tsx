@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, users, o
             >
                 {users.map(user => (
                     <option key={user.id} value={user.id}>
-                        Simuler: {user.name} ({user.role})
+                        Simuler: {user.first_name} {user.last_name} ({user.role})
                     </option>
                 ))}
             </select>
@@ -56,7 +56,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, users, o
             {currentUser.avatar}
           </div>
           <div className="hidden lg:block">
-            <div className="font-semibold text-slate-800 text-sm">{currentUser.name}</div>
+            <div className="font-semibold text-slate-800 text-sm">{currentUser.first_name} {currentUser.last_name}</div>
             <div className="text-xs text-gray-500">{currentUser.role}</div>
           </div>
         </div>

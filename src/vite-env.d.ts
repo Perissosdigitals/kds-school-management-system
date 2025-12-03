@@ -1,0 +1,14 @@
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string;
+  readonly VITE_USE_MOCK_DATA: string;
+  readonly VITE_DEV_SERVER_PORT: string;
+  readonly VITE_DEV_SERVER_HOST: string;
+  readonly MODE: string;
+  readonly NODE_ENV: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

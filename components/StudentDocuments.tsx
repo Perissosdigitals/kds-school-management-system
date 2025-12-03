@@ -36,7 +36,7 @@ const StudentDocuments: React.FC<StudentDocumentsProps> = ({ student, currentUse
 
         const newHistoryEntry: DocumentHistoryLog = {
             timestamp: new Date().toISOString(),
-            user: currentUser.name,
+            user: `${currentUser.first_name} ${currentUser.last_name}`,
             action: `Statut changé de '${oldStatus}' à '${newStatus}'`,
         };
         

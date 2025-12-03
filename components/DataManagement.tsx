@@ -4,6 +4,7 @@ import { getImportBatches, submitImportBatch, approveImportBatch, rejectImportBa
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { ImportBatchModal } from './ui/ImportBatchModal';
 import { DataSourceSelector } from './DataSourceSelector';
+import SimpleDataSources from '../src/components/data-sources/SimpleDataSources';
 
 const getStatusChip = (status: ImportBatchStatus) => {
     switch(status) {
@@ -61,20 +62,25 @@ export const DataManagement: React.FC<{ currentUser: User }> = ({ currentUser })
 
   const handleSubmitImport = useCallback(async (dataType: ImportBatch['dataType'], file: File) => {
     const fileContent = await file.text();
-    await submitImportBatch(dataType, file.name, fileContent, currentUser.name);
+    const userName = `${currentUser.first_name} ${currentUser.last_name}`;
+    await submitImportBatch(dataType, file.name, fileContent, userName);
     fetchBatches(); // Refresh list
-  }, [currentUser.name, fetchBatches]);
+  }, [currentUser.first_name, currentUser.last_name, fetchBatches]);
   
   const handleApprove = useCallback(async (batchId: string) => {
-    await approveImportBatch(batchId, currentUser.name);
+    const userName = `${currentUser.first_name} ${currentUser.last_name}`;
+    await approveImportBatch(batchId, userName);
     fetchBatches();
     alert('Importation approuvée et appliquée !');
-  }, [currentUser.name, fetchBatches]);
+  }, [currentUser.first_name, currentUser.last_name, fetchBatches]);
   
   const handleReject = useCallback(async (batchId: string) => {
-    await rejectImportBatch(batchId, currentUser.name);
+    const userName = `${currentUser.first_name} ${currentUser.last_name}`;
+    await rejectImportBatch(batchId, userName);
     fetchBatches();
-  }, [currentUser.name, fetchBatches]);
+  }, [currentUser.first_name, currentUser.last_name, fetchBatches]);
+
+  const [activeTab, setActiveTab] = useState<'imports' | 'sources'>('sources');
 
   return (
     <div className="space-y-8">
@@ -83,7 +89,43 @@ export const DataManagement: React.FC<{ currentUser: User }> = ({ currentUser })
         <p className="text-gray-500">Pilotez les sources de données et gérez les mises à jour incrémentales.</p>
       </div>
 
-      {canReview && <DataSourceSelector />}
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('sources')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'sources'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <i className='bx bx-data mr-2'></i>
+            Sources de Données
+          </button>
+          <button
+            onClick={() => setActiveTab('imports')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'imports'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <i className='bx bx-upload mr-2'></i>
+            Gestion des Imports
+          </button>
+        </nav>
+      </div>
+
+      {/* Data Sources Tab */}
+      {activeTab === 'sources' && (
+        <SimpleDataSources />
+      )}
+
+      {/* Imports Management Tab */}
+      {activeTab === 'imports' && (
+        <>
+          {canReview && <DataSourceSelector />}
 
       <div className="bg-white p-6 rounded-xl shadow-lg">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
@@ -129,6 +171,8 @@ export const DataManagement: React.FC<{ currentUser: User }> = ({ currentUser })
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleSubmitImport}
       />
+        </>
+      )}
     </div>
   );
 };

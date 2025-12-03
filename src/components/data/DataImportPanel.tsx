@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { DataManagementService } from '../../services/api/data-management.service';
+import { IMPORT_TEMPLATES, DATA_TYPES } from '../../constants/import-templates';
 
 interface DataImportPanelProps {
   onImportSuccess?: () => void;
@@ -14,6 +15,25 @@ export const DataImportPanel: React.FC<DataImportPanelProps> = ({
   const [importing, setImporting] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
+
+  const handleDownloadTemplate = () => {
+    const columns = IMPORT_TEMPLATES[dataType as keyof typeof IMPORT_TEMPLATES];
+    if (!columns) {
+      alert('Modèle non disponible');
+      return;
+    }
+
+    // Create CSV content with BOM for Excel compatibility
+    const csvContent = '\uFEFF' + columns.join(';') + '\n'; // Using semicolon for Excel compatibility in FR regions
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `modele_import_${dataType}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -99,6 +119,7 @@ export const DataImportPanel: React.FC<DataImportPanelProps> = ({
 
     try {
       let result;
+      // Cast dataType to any to bypass strict type checking for now as we are expanding the types
       switch (dataType) {
         case 'grades':
           result = await DataManagementService.importGrades(file);
@@ -108,6 +129,23 @@ export const DataImportPanel: React.FC<DataImportPanelProps> = ({
           break;
         case 'students':
           result = await DataManagementService.importStudents(file);
+          break;
+        case 'teachers':
+        case 'classes':
+        case 'enrollments':
+          // For now, we'll use a generic import method if available, or throw not implemented
+          // Assuming the backend will handle these types via a generic endpoint or we need to add them to the service
+          // For this implementation, we will simulate success or use a generic handler if we add one.
+          // Let's assume we will add importGeneric to the service or reuse an existing one.
+          // Since I cannot easily change the backend, I will use the validate endpoint as a proxy for "import" 
+          // if the real import endpoint is missing, OR I will add these methods to the service 
+          // and let them fail if the backend is missing.
+          // Better approach: Add the methods to the service file (even if they fail on backend).
+          
+          // However, to make the UI work for the user "view", I will add the calls.
+          if (dataType === 'teachers') result = await DataManagementService.importTeachers(file);
+          else if (dataType === 'classes') result = await DataManagementService.importClasses(file);
+          else if (dataType === 'enrollments') result = await DataManagementService.importEnrollments(file);
           break;
         default:
           throw new Error(`Type de données non supporté: ${dataType}`);
@@ -199,10 +237,15 @@ export const DataImportPanel: React.FC<DataImportPanelProps> = ({
               }}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <option value="grades">Notes</option>
-              <option value="attendance">Présences</option>
-              <option value="students">Élèves</option>
+              {DATA_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.icon} {type.label}
+                </option>
+              ))}
             </select>
+            <p className="mt-1 text-sm text-gray-500">
+              {DATA_TYPES.find(t => t.value === dataType)?.desc}
+            </p>
           </div>
 
           {/* File Upload */}
@@ -262,15 +305,16 @@ export const DataImportPanel: React.FC<DataImportPanelProps> = ({
             </p>
             <div className="flex space-x-2">
               <button
-                onClick={() => {
-                  // TODO: Implement template download
-                  alert(`Téléchargement du modèle ${dataType} à venir`);
-                }}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                onClick={handleDownloadTemplate}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 flex items-center"
               >
-                Télécharger modèle {dataType}
+                <span className="mr-2">⬇️</span>
+                Télécharger modèle {DATA_TYPES.find(t => t.value === dataType)?.label}
               </button>
             </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Le fichier CSV généré contient les colonnes exactes requises pour l'import.
+            </p>
           </div>
 
           {/* Actions */}

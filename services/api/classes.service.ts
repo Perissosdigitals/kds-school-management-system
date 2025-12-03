@@ -363,8 +363,19 @@ export const ClassesService = {
    */
   async createClass(classData: Omit<SchoolClass, 'id'>): Promise<SchoolClass> {
     try {
-      console.log('ClassesService: Création d\'une nouvelle classe...');
-      const response = await httpClient.post<SchoolClass>('/classes', classData);
+      console.log('ClassesService: Création d\'une nouvelle classe...', classData);
+      
+      // Map frontend fields to backend DTO
+      const apiPayload = {
+        name: classData.name,
+        level: classData.level,
+        academicYear: classData.academicYear,
+        capacity: classData.capacity,
+        mainTeacherId: classData.teacherId || undefined, // Map teacherId to mainTeacherId
+        roomNumber: classData.room || undefined          // Map room to roomNumber
+      };
+
+      const response = await httpClient.post<SchoolClass>('/classes', apiPayload);
       return response.data;
     } catch (error) {
       console.error('ClassesService: Erreur lors de la création', error);
@@ -378,7 +389,30 @@ export const ClassesService = {
   async updateClass(id: string, classData: Partial<SchoolClass>): Promise<SchoolClass> {
     try {
       console.log(`ClassesService: Mise à jour de la classe ${id}...`);
-      const response = await httpClient.put<SchoolClass>(`/classes/${id}`, classData);
+      
+      // Map frontend fields to backend DTO
+      const apiPayload: any = {
+        ...classData,
+        mainTeacherId: classData.teacherId || undefined,
+        roomNumber: classData.room || undefined
+      };
+      
+      // Remove frontend-only fields if necessary, but spreading classData might include them.
+      // Ideally we construct the payload explicitly.
+      const cleanPayload = {
+        name: classData.name,
+        level: classData.level,
+        academicYear: classData.academicYear,
+        capacity: classData.capacity,
+        mainTeacherId: classData.teacherId || undefined,
+        roomNumber: classData.room || undefined,
+        status: classData.status // If status exists
+      };
+
+      // Remove undefined keys
+      Object.keys(cleanPayload).forEach(key => cleanPayload[key] === undefined && delete cleanPayload[key]);
+
+      const response = await httpClient.put<SchoolClass>(`/classes/${id}`, cleanPayload);
       return response.data;
     } catch (error) {
       console.error('ClassesService: Erreur lors de la mise à jour', error);

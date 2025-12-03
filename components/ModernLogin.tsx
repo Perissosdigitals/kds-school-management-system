@@ -205,7 +205,7 @@ export const ModernLogin: React.FC = () => {
                   <div className={`modern-role-icon ${user.id}`}>
                     <i className={user.icon}></i>
                   </div>
-                  <div className="modern-role-name">{user.name}</div>
+                  <div className="modern-role-name">{user.first_name} {user.last_name}</div>
                   <div className="modern-role-desc">{user.description}</div>
                   
                   {loading && selectedRole?.id === user.id && (

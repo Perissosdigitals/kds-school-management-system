@@ -10,7 +10,7 @@ import type {
   ImportValidationResult
 } from '../../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api/v1';
 
 class DataManagementServiceClass {
   private api: AxiosInstance;
@@ -69,6 +69,39 @@ class DataManagementServiceClass {
   }
 
   /**
+   * Export teachers list
+   */
+  async exportTeachers(filters?: Partial<ExportFilters>): Promise<Blob> {
+    const response = await this.api.get('/export/teachers', {
+      params: filters,
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  /**
+   * Export classes list
+   */
+  async exportClasses(filters?: Partial<ExportFilters>): Promise<Blob> {
+    const response = await this.api.get('/export/classes', {
+      params: filters,
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  /**
+   * Export enrollments list
+   */
+  async exportEnrollments(filters?: Partial<ExportFilters>): Promise<Blob> {
+    const response = await this.api.get('/export/enrollments', {
+      params: filters,
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  /**
    * Export all data (generates ZIP archive)
    */
   async exportAll(filters?: Partial<ExportFilters>): Promise<Blob> {
@@ -86,16 +119,18 @@ class DataManagementServiceClass {
    */
   async validateImport(
     file: File,
-    dataType: 'grades' | 'attendance' | 'students'
+    dataType: string
   ): Promise<ImportValidationResult> {
     const formData = new FormData();
     formData.append('file', file);
+    // Also append to body just in case, but controller expects query
     formData.append('dataType', dataType);
 
     const response = await this.api.post<ImportValidationResult>(
       '/validate-import',
       formData,
       {
+        params: { type: dataType },
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -151,6 +186,60 @@ class DataManagementServiceClass {
     }
 
     const response = await this.api.post('/import/students', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  /**
+   * Import teachers
+   */
+  async importTeachers(file: File, options?: any): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options) {
+      formData.append('options', JSON.stringify(options));
+    }
+
+    const response = await this.api.post('/import/teachers', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  /**
+   * Import classes
+   */
+  async importClasses(file: File, options?: any): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options) {
+      formData.append('options', JSON.stringify(options));
+    }
+
+    const response = await this.api.post('/import/classes', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  /**
+   * Import enrollments
+   */
+  async importEnrollments(file: File, options?: any): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options) {
+      formData.append('options', JSON.stringify(options));
+    }
+
+    const response = await this.api.post('/import/enrollments', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
