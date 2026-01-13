@@ -215,8 +215,25 @@ export const TeachersService = {
       
       console.log('TeachersService: Enseignant mis à jour et enrichi:', enrichedTeacher);
       return enrichedTeacher;
-    } catch (error) {
+    } catch (error: any) {
       console.error('TeachersService: Erreur lors de la mise à jour', error);
+      
+      // Fallback logic
+      const shouldFallback = 
+        !error.response || 
+        error.code === 'ECONNABORTED' || 
+        error.response?.status >= 500 || 
+        error.message?.toLowerCase().includes('network');
+
+      if (shouldFallback) {
+        console.warn('⚠️ TeachersService: API non disponible, mise à jour locale (mode fallback)');
+        const index = teacherDetails.findIndex(t => t.id === id);
+        if (index !== -1) {
+          const updatedLocalTeacher = { ...teacherDetails[index], ...teacherData };
+          teacherDetails[index] = updatedLocalTeacher;
+          return enrichTeacherWithRelations(updatedLocalTeacher);
+        }
+      }
       throw error;
     }
   },
@@ -228,8 +245,24 @@ export const TeachersService = {
     try {
       console.log(`TeachersService: Suppression de l'enseignant ${id}...`);
       await httpClient.delete(`/teachers/${id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('TeachersService: Erreur lors de la suppression', error);
+      
+      // Fallback logic
+      const shouldFallback = 
+        !error.response || 
+        error.code === 'ECONNABORTED' || 
+        error.response?.status >= 500 || 
+        error.message?.toLowerCase().includes('network');
+
+      if (shouldFallback) {
+        console.warn('⚠️ TeachersService: API non disponible, suppression locale (mode fallback)');
+        const index = teacherDetails.findIndex(t => t.id === id);
+        if (index !== -1) {
+          teacherDetails.splice(index, 1);
+          return;
+        }
+      }
       throw error;
     }
   }

@@ -1,7 +1,8 @@
 import axios, { AxiosInstance } from 'axios';
 import type { SchoolClass, Student } from '../../types';
+import { schoolClasses, allStudents } from '../../../data/mockData';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
 class ClassesServiceClass {
   private api: AxiosInstance;
@@ -24,18 +25,40 @@ class ClassesServiceClass {
   }
 
   async getAll(filters?: any): Promise<SchoolClass[]> {
-    const response = await this.api.get<SchoolClass[]>('/', { params: filters });
-    return response.data;
+    try {
+      const response = await this.api.get<SchoolClass[]>('/', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.warn('ClassesService: API error, using mock data', error);
+      return schoolClasses;
+    }
   }
 
   async getById(id: string): Promise<SchoolClass> {
-    const response = await this.api.get<SchoolClass>(`/${id}`);
-    return response.data;
+    try {
+      const response = await this.api.get<SchoolClass>(`/${id}`);
+      return response.data;
+    } catch (error) {
+      console.warn('ClassesService: API error, using mock data', error);
+      const schoolClass = schoolClasses.find(c => c.id === id);
+      if (!schoolClass) throw new Error('Class not found in mock data');
+      return schoolClass;
+    }
   }
 
   async getStudents(classId: string): Promise<Student[]> {
-    const response = await this.api.get<Student[]>(`/${classId}/students`);
-    return response.data;
+    try {
+      const response = await this.api.get<Student[]>(`/${classId}/students`);
+      return response.data;
+    } catch (error) {
+      console.warn('ClassesService: API error, using mock data', error);
+      // Try to find class to get its level
+      const schoolClass = schoolClasses.find(c => c.id === classId);
+      if (schoolClass) {
+         return allStudents.filter(s => s.gradeLevel === schoolClass.level);
+      }
+      return [];
+    }
   }
 }
 

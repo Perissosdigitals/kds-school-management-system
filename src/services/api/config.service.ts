@@ -38,7 +38,7 @@ class APIConfigServiceClass {
    * Get current API configuration
    */
   getConfiguration(): APIConfiguration {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002/api/v1';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
     const useMockData = import.meta.env.VITE_USE_MOCK_DATA === 'true';
     const mode = import.meta.env.MODE || 'development';
 
@@ -62,8 +62,8 @@ class APIConfigServiceClass {
         name: 'Cloudflare D1 (Production)',
         type: 'cloudflare-d1',
         url: apiUrl,
-        status: 'inactive',
-        description: 'Legacy Cloudflare D1 database (migrated to PostgreSQL)',
+        status: 'active',
+        description: 'Production Cloudflare D1 database (Tier 2)',
         environment: 'production',
       };
     }

@@ -2,55 +2,75 @@
 
 Système de gestion scolaire complet avec frontend React et backend NestJS.
 
-## 🌍 Environnements
+## 🌍 Modes de Fonctionnement
 
-Ce projet supporte **deux environnements distincts**:
+Ce projet est conçu pour être résilient et fonctionner dans plusieurs contextes :
 
-### 🔧 Local (Développement)
+### 1. 🔧 Mode Complet (Recommandé)
 - **Frontend**: Vite Dev Server (http://localhost:5173)
-- **Backend**: NestJS (http://localhost:3001)
-- **Database**: PostgreSQL (localhost:5432)
+- **Backend**: NestJS (http://localhost:3002)
+- **Database**: PostgreSQL (via Docker ou Local)
+- **Fonctionnalités**: Toutes les fonctionnalités actives, persistance des données.
 
-### 🚀 Cloudflare (Production/Test Client)
+### 2. 📡 Mode Simulation (Offline / Démo)
+- **Frontend**: Vite Dev Server (http://localhost:5173)
+- **Backend**: Déconnecté ou non requis
+- **Database**: Données simulées en mémoire (`mockData.ts`)
+- **Usage**: Idéal pour les démos, le développement UI, ou en cas de panne réseau/serveur.
+- **Activation**: Automatique si le backend est inaccessible.
+
+### 3. 🚀 Cloudflare (Production)
 - **Frontend**: Cloudflare Pages
 - **Backend**: Cloudflare Workers
 - **Database**: Cloudflare D1 + R2
 
 📖 **Documentation complète**: [ENVIRONMENT_SEPARATION_GUIDE.md](./ENVIRONMENT_SEPARATION_GUIDE.md)
+📖 **Guide de Cohérence des Données**: [DATA_CONSISTENCY.md](./DATA_CONSISTENCY.md)
 
 ---
 
-## 🚀 Démarrage Rapide (Local)
+## 🚀 Démarrage Rapide
 
 ### Prérequis
-
 - Node.js 18+
-- PostgreSQL 14+
-- npm ou yarn
+- Docker Desktop (pour le mode Complet avec Base de Données)
 
-### Installation
+### Installation Initiale
 
 ```bash
 # 1. Cloner le projet
 git clone <repo-url>
 cd kds-school-management-system
 
-# 2. Installer les dépendances
+# 2. Installer les dépendances (Frontend & Backend)
 npm install
 cd backend && npm install && cd ..
 
-# 3. Configurer l'environnement local
-./switch-to-local.sh
-
-# 4. Configurer PostgreSQL
-# Créer la base de données
-createdb kds_school
-
-# 5. Démarrer l'environnement complet
-./start-local.sh
+# 3. Installer les dépendances UI (Tailwind, Icons)
+npm install -D tailwindcss postcss autoprefixer
+npm install boxicons
+npx tailwindcss init -p
 ```
 
-L'application sera accessible sur **http://localhost:5173**
+### Lancement
+
+#### Option A : Mode Simulation (Rapide / Sans Docker)
+Lancez simplement le frontend. Il utilisera les données de simulation si le backend est éteint.
+```bash
+npm run dev
+```
+Accès : **http://localhost:5173**
+
+#### Option B : Mode Complet (Avec Base de Données)
+Assurez-vous que Docker est lancé, puis :
+```bash
+# 1. Démarrer la base de données
+cd backend && docker-compose up -d postgres redis && cd ..
+
+# 2. Lancer l'application complète
+./start-local.sh
+```
+Accès : **http://localhost:5173** (Frontend) et **http://localhost:3002** (API)
 
 ### Scripts Disponibles
 

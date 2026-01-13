@@ -1,57 +1,57 @@
-# 🚀 Quick Start - Frontend-Backend
+# 🚀 Quick Start - KDS School System
 
-## Démarrage Rapide (2 minutes)
+## ⏱️ Démarrage Rapide (2 minutes)
 
-### Terminal 1 - Backend
+### Option A : Mode Simulation (Sans Backend)
+*Idéal pour tester l'interface rapidement sans base de données.*
+
 ```bash
-cd /Users/apple/Desktop/kds-school-management-system/backend
-npm run dev:gateway
-```
-✅ Attendre: `🚀 KSP API Gateway running on http://localhost:3001`
-
-### Terminal 2 - Frontend
-```bash
-cd /Users/apple/Desktop/kds-school-management-system
+# Terminal 1 - Frontend
 npm run dev
 ```
-✅ Attendre: `➜  Local:   http://localhost:3000/`
+✅ Accès: `http://localhost:5173`
+(Les données seront simulées automatiquement)
 
-### Terminal 3 - Test
+---
+
+### Option B : Mode Complet (Avec Backend & DB)
+*Pour le développement complet avec persistance des données.*
+
+#### 1. Démarrer la Base de Données (Docker)
 ```bash
-./test-integration.sh
+cd backend
+docker-compose up -d postgres redis
 ```
-✅ Vérifier: `✓ Réussis: 10`
+
+#### 2. Démarrer le Backend
+```bash
+cd backend
+npm run dev
+```
+✅ Attendre: `🚀 Nest application successfully started` (Port 3002)
+
+#### 3. Démarrer le Frontend
+```bash
+# Dans un nouveau terminal, à la racine
+npm run dev
+```
+✅ Accès: `http://localhost:5173`
 
 ---
 
 ## 🧪 Vérifier que Tout Fonctionne
 
-### Health Check
+### Health Check (Backend)
 ```bash
-curl http://localhost:3001/api/v1/health
+curl http://localhost:3002/api/v1/health
 ```
-Résultat attendu:
-```json
-{"status":"ok","timestamp":"2025-11-19T01:34:13.613Z","service":"kds-api-gateway"}
-```
+Résultat attendu: `{"status":"ok", ...}`
 
 ### Login Test
 ```bash
-curl -X POST http://localhost:3001/api/v1/auth/login \
+curl -X POST http://localhost:3002/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@kds-school.com","password":"admin123"}'
-```
-Résultat attendu:
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {...}
-}
-```
-
-### Récupérer les Élèves
-```bash
-curl http://localhost:3001/api/v1/students | jq .
+  -d '{"email":"admin@kds.ci","password":"password123"}'
 ```
 
 ---
@@ -61,14 +61,15 @@ curl http://localhost:3001/api/v1/students | jq .
 ### Exemple 1: Récupérer les élèves
 ```tsx
 import { useEffect, useState } from 'react';
-import { StudentsService } from '@/services/api/students.service';
+import { StudentsService } from '../services/api/students.service';
 
 export function StudentList() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    StudentsService.getStudents()
+    // Fonctionne en mode connecté ET en mode simulation
+    StudentsService.getAllStudents()
       .then(setStudents)
       .finally(() => setLoading(false));
   }, []);
@@ -84,20 +85,6 @@ export function StudentList() {
   );
 }
 ```
-
-### Exemple 2: Formulaire de login
-```tsx
-import { AuthService } from '@/services/api/auth.service';
-import { useNavigate } from 'react-router-dom';
-
-export function LoginForm() {
-  const [email, setEmail] = useState('admin@kds-school.com');
-  const [password, setPassword] = useState('admin123');
-  const navigate = useNavigate();
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
       await AuthService.login({ email, password });
       navigate('/dashboard');
     } catch (error) {

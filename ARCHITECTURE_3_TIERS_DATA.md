@@ -11,6 +11,15 @@ Le système KDS utilise une **architecture 3-tiers** pour la gestion des donnée
 
 ```
 ┌─────────────────────────────────────────────┐
+│   Tier 0: Simulation Mode (Frontend Only)  │
+│   - Données Mock (src/data/mockData.ts)     │
+│   - Fallback automatique (Offline)          │
+│   - État: 6 Élèves, 3 Profs, 4 Classes      │
+└──────────────────┬──────────────────────────┘
+                   │
+                   │ (Si Backend connecté)
+                   ↓
+┌─────────────────────────────────────────────┐
 │   Tier 1: PostgreSQL Local (Development)   │
 │   - Données fonctionnelles                  │
 │   - Développement et tests                  │
@@ -37,6 +46,22 @@ Le système KDS utilise une **architecture 3-tiers** pour la gestion des donnée
 │   - Versioning des données                  │
 └─────────────────────────────────────────────┘
 ```
+
+---
+
+## 📊 Tier 0: Mode Simulation (Frontend Only)
+
+### Description
+Jeu de données statique intégré au Frontend pour le développement UI et le mode hors-ligne.
+
+### Caractéristiques
+- **Source**: `src/data/mockData.ts`
+- **Activation**: Automatique si le backend est inaccessible (Badge "Mode Simulation").
+- **Contenu**:
+  - **6 Élèves** (Jean, Aïcha, Moussa, Maria, Aminata, David)
+  - **3 Enseignants** (Traoré, Coulibaly, Koné)
+  - **4 Classes** (CM2 A, CM1 B, 6ème, CE2)
+  - **Données**: Notes, Présences, Finances simulées.
 
 ---
 

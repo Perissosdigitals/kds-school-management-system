@@ -1,5 +1,6 @@
 import React from 'react';
 import type { User } from '../types';
+import { useDataSourceStatus } from '../hooks/useDataSourceStatus';
 
 interface HeaderProps {
   currentUser: User;
@@ -10,6 +11,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, users, onUserChange, onLogout, onMenuToggle }) => {
+  const { isOffline } = useDataSourceStatus();
+
   return (
     <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-30">
       <div className="flex items-center gap-4">
@@ -32,6 +35,18 @@ export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, users, o
       </div>
       
       <div className="flex items-center gap-2 sm:gap-4">
+         {/* Data Source Indicator */}
+         <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+            isOffline 
+              ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+              : 'bg-green-100 text-green-800 border border-green-200'
+          }`} title={isOffline ? "Données simulées (Backend hors ligne)" : "Données réelles (Backend connecté)"}>
+            <i className={`bx ${isOffline ? 'bx-cloud-off' : 'bx-cloud'} text-sm`}></i>
+            <span className="hidden sm:inline">
+              {isOffline ? 'Mode Simulation' : 'Mode Connecté'}
+            </span>
+         </div>
+
          {/* User Switcher - Hidden on small mobile */}
          <div className="text-sm hidden sm:block">
             <label htmlFor="user-switcher" className="sr-only">Changer d'utilisateur</label>

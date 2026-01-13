@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { APIConfigService } from '../../services/api/config.service';
 import DataBrowser from './DataBrowser';
+import { allStudents, schoolClasses, teacherDetails } from '../../../data/mockData';
 
 interface DataSource {
   id: string;
@@ -36,18 +37,24 @@ export default function SimpleDataSources() {
       
       // Fetch actual counts from NestJS endpoints
       const [studentsRes, teachersRes, classesRes] = await Promise.all([
-        axios.get(`${apiUrl}/students/stats/count`).catch(() => ({ data: { count: 0 } })),
-        axios.get(`${apiUrl}/teachers/stats/count`).catch(() => ({ data: { count: 0 } })),
-        axios.get(`${apiUrl}/classes/stats/count`).catch(() => ({ data: { count: 0 } }))
+        axios.get(`${apiUrl}/students/stats/count`).catch(() => ({ data: { count: -1 } })),
+        axios.get(`${apiUrl}/teachers/stats/count`).catch(() => ({ data: { count: -1 } })),
+        axios.get(`${apiUrl}/classes/stats/count`).catch(() => ({ data: { count: -1 } }))
       ]);
 
       setStats({
-        students: studentsRes.data.count || 0,
-        teachers: teachersRes.data.count || 0,
-        classes: classesRes.data.count || 0
+        students: studentsRes.data.count !== -1 ? studentsRes.data.count : allStudents.length,
+        teachers: teachersRes.data.count !== -1 ? teachersRes.data.count : teacherDetails.length,
+        classes: classesRes.data.count !== -1 ? classesRes.data.count : schoolClasses.length
       });
     } catch (error) {
       console.error('Error loading data:', error);
+      // Fallback to mock data
+      setStats({
+        students: allStudents.length,
+        teachers: teacherDetails.length,
+        classes: schoolClasses.length
+      });
     } finally {
       setLoading(false);
     }
