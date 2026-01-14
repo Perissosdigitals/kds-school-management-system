@@ -1,8 +1,11 @@
--- Migration: Upgrade Finance Module (v1.2.0)
+-- Migration: Upgrade Finance Module (v1.2.0) - FIXED
 -- Description: Align D1 transactions table with Local PostgreSQL v1.2 schema
 -- Date: 2026-01-13
 
--- 1. Create new transactions table with full v1.2 schema
+-- 1. Clean up potential leftovers from failed runs
+DROP TABLE IF EXISTS transactions_new;
+
+-- 2. Create new transactions table with full v1.2 schema
 CREATE TABLE transactions_new (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
     type TEXT NOT NULL, -- Enum: 'Revenu', 'Dépense'
@@ -25,11 +28,7 @@ CREATE TABLE transactions_new (
     FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
--- 2. Migrate existing data (Best Effort specific to KSP v1.0 -> v1.2)
--- Mapping:
--- transaction_type 'fee', 'scholarship' -> 'Revenu' (assuming fee is income)
--- transaction_type 'payment' -> 'Revenu'
--- transaction_type 'refund' -> 'Dépense'
+-- 3. Migrate existing data (Best Effort specific to KSP v1.0 -> v1.2)
 INSERT INTO transactions_new (
     id, student_id, type, category, amount, amount_paid, amount_remaining,
     transaction_date, status, description, payment_method, reference_number,
@@ -43,10 +42,10 @@ SELECT
         WHEN transaction_type = 'refund' THEN 'Dépense'
         ELSE 'Revenu'
     END,
-    'Autre', -- Default category as v1.0 didn't have specific categories matching v1.2
+    'Autre',
     amount,
     amount, -- Assume fully paid if it exists in v1.0
-    0,      -- Remaining 0
+    0,
     COALESCE(transaction_date, created_at),
     CASE 
         WHEN status = 'completed' THEN 'Payé'
@@ -57,19 +56,19 @@ SELECT
     description,
     payment_method,
     reference_number,
-    processed_by, -- allocated to recorded_by
+    processed_by,
     created_at
 FROM transactions;
 
--- 3. Drop old table
-DROP TABLE transactions;
+-- 4. Drop old table
+DROP TABLE IF EXISTS transactions;
 
--- 4. Rename new table
+-- 5. Rename new table
 ALTER TABLE transactions_new RENAME TO transactions;
 
--- 5. Re-create indexes
-CREATE INDEX idx_transactions_type ON transactions(type);
-CREATE INDEX idx_transactions_category ON transactions(category);
-CREATE INDEX idx_transactions_status ON transactions(status);
-CREATE INDEX idx_transactions_student ON transactions(student_id);
-CREATE INDEX idx_transactions_date ON transactions(transaction_date);
+-- 6. Re-create indexes (Safely)
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_student ON transactions(student_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(transaction_date);

@@ -69,8 +69,8 @@ This hub indexes all project documentation, mapping each file to its relevant en
 
 | Document | Feature | Migration Priority |
 |----------|---------|--------------------|
-| **Finance Module** | Revenue/Expense tracking | HIGH |
-| [STATISTIQUES_TEMPS_REEL.md](./STATISTIQUES_TEMPS_REEL.md) | Real-time Dashboard Analytics | MEDIUM |
+| **Finance Module** | Revenue/Expense tracking | **READY TO DEPLOY** (Run `./scripts/deploy-finance-migration.sh`) |
+| [STATISTIQUES_TEMPS_REEL.md](./STATISTIQUES_TEMPS_REEL.md) | Real-time Dashboard Analytics | **READY TO DEPLOY** |
 | [DATA_MANAGEMENT_FINAL_REPORT.md](./DATA_MANAGEMENT_FINAL_REPORT.md) | Bulk data tools | LOW |
 
 ---
