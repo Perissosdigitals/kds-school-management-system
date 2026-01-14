@@ -81,7 +81,7 @@ app.get('/api/v1/data/preview/:table', async (c) => {
     // Build query based on table type
     let query = '';
     let countQuery = '';
-    
+
     switch (table) {
       case 'students':
         query = `
@@ -95,7 +95,7 @@ app.get('/api/v1/data/preview/:table', async (c) => {
         `;
         countQuery = `SELECT COUNT(*) as count FROM students WHERE status = 'active' ${search ? `AND (first_name LIKE ? OR last_name LIKE ? OR student_code LIKE ?)` : ''}`;
         break;
-        
+
       case 'grades':
         query = `
           SELECT g.*, s.first_name || ' ' || s.last_name as student_name, s.student_code,
@@ -116,7 +116,7 @@ app.get('/api/v1/data/preview/:table', async (c) => {
           ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ? OR sub.name LIKE ?)` : ''}
         `;
         break;
-        
+
       case 'attendance':
         query = `
           SELECT a.*, s.first_name || ' ' || s.last_name as student_name, s.student_code,
@@ -134,7 +134,7 @@ app.get('/api/v1/data/preview/:table', async (c) => {
           ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ?)` : ''}
         `;
         break;
-        
+
       default:
         query = `SELECT * FROM ${table} ${search ? `WHERE name LIKE ?` : ''} LIMIT ? OFFSET ?`;
         countQuery = `SELECT COUNT(*) as count FROM ${table} ${search ? `WHERE name LIKE ?` : ''}`;
@@ -143,7 +143,7 @@ app.get('/api/v1/data/preview/:table', async (c) => {
     // Execute queries with proper binding
     const searchPattern = search ? `%${search}%` : '';
     let results, totalCount;
-    
+
     if (search) {
       if (table === 'students' || table === 'grades') {
         results = await c.env.DB.prepare(query).bind(searchPattern, searchPattern, searchPattern, limit, offset).all();
@@ -204,7 +204,7 @@ app.get('/api/v1/data/search-student/:code', async (c) => {
 app.post('/api/v1/auth/login', async (c) => {
   try {
     const { email, password } = await c.req.json();
-    
+
     const user = await c.env.DB.prepare(
       'SELECT * FROM users WHERE email = ? AND is_active = 1'
     ).bind(email).first();
@@ -368,7 +368,7 @@ app.put('/api/v1/students/:id', async (c) => {
 app.delete('/api/v1/students/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    
+
     await c.env.DB.prepare(`
       UPDATE students SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(id).run();
@@ -501,7 +501,7 @@ app.put('/api/v1/teachers/:id', async (c) => {
 app.delete('/api/v1/teachers/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    
+
     await c.env.DB.prepare(`
       UPDATE teachers SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(id).run();
@@ -771,7 +771,7 @@ app.put('/api/v1/classes/:id', async (c) => {
 app.delete('/api/v1/classes/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    
+
     await c.env.DB.prepare(`
       UPDATE classes SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(id).run();
@@ -789,7 +789,7 @@ app.delete('/api/v1/classes/:id', async (c) => {
 app.get('/api/v1/grades', async (c) => {
   try {
     const { studentId, subjectId } = c.req.query();
-    
+
     let query = `
       SELECT g.*, u.first_name as student_first_name, u.last_name as student_last_name,
              s.name as subject_name
@@ -799,7 +799,7 @@ app.get('/api/v1/grades', async (c) => {
       LEFT JOIN subjects s ON g.subject_id = s.id
       WHERE 1=1
     `;
-    
+
     const params: any[] = [];
     if (studentId) {
       query += ' AND g.student_id = ?';
@@ -809,9 +809,9 @@ app.get('/api/v1/grades', async (c) => {
       query += ' AND g.subject_id = ?';
       params.push(subjectId);
     }
-    
+
     query += ' ORDER BY g.evaluation_date DESC';
-    
+
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json(results);
   } catch (error) {
@@ -881,7 +881,7 @@ app.put('/api/v1/grades/:id', async (c) => {
 app.delete('/api/v1/grades/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    
+
     await c.env.DB.prepare(`DELETE FROM grades WHERE id = ?`).bind(id).run();
 
     return c.json({ message: 'Grade deleted successfully' });
@@ -897,14 +897,14 @@ app.delete('/api/v1/grades/:id', async (c) => {
 app.get('/api/v1/attendance', async (c) => {
   try {
     const { studentId, date } = c.req.query();
-    
+
     let query = `
       SELECT a.*, s.first_name, s.last_name, s.student_code
       FROM attendance a
       LEFT JOIN students s ON a.student_id = s.id
       WHERE 1=1
     `;
-    
+
     const params: any[] = [];
     if (studentId) {
       query += ' AND a.student_id = ?';
@@ -914,9 +914,9 @@ app.get('/api/v1/attendance', async (c) => {
       query += ' AND a.date = ?';
       params.push(date);
     }
-    
+
     query += ' ORDER BY a.date DESC, s.last_name, s.first_name';
-    
+
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json(results);
   } catch (error) {
@@ -967,7 +967,7 @@ app.post('/api/v1/attendance/bulk', async (c) => {
       records.map(async (record: any) => {
         try {
           const attendanceId = crypto.randomUUID();
-          
+
           // Check if attendance already exists for this student/date
           const existing = await c.env.DB.prepare(`
             SELECT id FROM attendance 
@@ -1019,7 +1019,7 @@ app.post('/api/v1/attendance/bulk', async (c) => {
 
     console.log('Bulk attendance save complete:', summary);
 
-    return c.json({ 
+    return c.json({
       success: true,
       message: 'Attendance bulk save completed',
       summary,
@@ -1062,7 +1062,7 @@ app.put('/api/v1/attendance/:id', async (c) => {
 app.delete('/api/v1/attendance/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    
+
     await c.env.DB.prepare(`DELETE FROM attendance WHERE id = ?`).bind(id).run();
 
     return c.json({ message: 'Attendance deleted successfully' });
@@ -1105,30 +1105,30 @@ app.get('/api/v1/analytics/dashboard', async (c) => {
 app.get('/api/v1/finance/transactions', async (c) => {
   try {
     const { studentId, status, type } = c.req.query();
-    
+
     let query = `
-      SELECT ft.*, s.first_name, s.last_name, s.student_code
-      FROM financial_transactions ft
-      LEFT JOIN students s ON ft.student_id = s.id
+      SELECT t.*, s.first_name, s.last_name, s.student_code
+      FROM transactions t
+      LEFT JOIN students s ON t.student_id = s.id
       WHERE 1=1
     `;
-    
+
     const params: any[] = [];
     if (studentId) {
-      query += ' AND ft.student_id = ?';
+      query += ' AND t.student_id = ?';
       params.push(studentId);
     }
     if (status) {
-      query += ' AND ft.status = ?';
+      query += ' AND t.status = ?';
       params.push(status);
     }
     if (type) {
-      query += ' AND ft.type = ?';
+      query += ' AND t.type = ?';
       params.push(type);
     }
-    
-    query += ' ORDER BY ft.created_at DESC';
-    
+
+    query += ' ORDER BY t.transaction_date DESC, t.created_at DESC';
+
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json(results);
   } catch (error) {
@@ -1141,21 +1141,29 @@ app.post('/api/v1/finance/transactions', async (c) => {
     const body = await c.req.json();
     const transactionId = crypto.randomUUID();
 
+    // Default values for fields not in body
+    const amountPaid = body.amountPaid || 0;
+    const amountRemaining = (body.amount || 0) - amountPaid;
+
     await c.env.DB.prepare(`
-      INSERT INTO financial_transactions (id, student_id, type, amount, currency, status, 
-        due_date, description, reference, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, student_id, type, category, amount, amount_paid, amount_remaining,
+        status, transaction_date, due_date, description, reference_number, notes, recorded_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       transactionId,
       body.studentId,
-      body.type,
+      body.type, // 'Revenu' or 'Dépense'
+      body.category || 'Autre',
       body.amount,
-      body.currency || 'EUR',
-      body.status || 'pending',
+      amountPaid,
+      amountRemaining,
+      body.status || 'En attente',
+      body.transactionDate || new Date().toISOString().split('T')[0],
       body.dueDate || null,
       body.description || null,
-      body.reference || `TXN${Date.now()}`,
-      body.createdBy || null
+      body.referenceNumber || `TXN${Date.now()}`,
+      body.notes || null,
+      body.recordedBy || null
     ).run();
 
     return c.json({ id: transactionId, message: 'Transaction created successfully' }, 201);
@@ -1170,17 +1178,24 @@ app.put('/api/v1/finance/transactions/:id', async (c) => {
     const id = c.req.param('id');
     const body = await c.req.json();
 
+    // Note: If amount or amountPaid changes, logic to update amountRemaining should be here,
+    // but for simple update we rely on client sending correct data or simple field updates.
+
     await c.env.DB.prepare(`
-      UPDATE financial_transactions SET
+      UPDATE transactions SET
         status = COALESCE(?, status),
-        paid_date = COALESCE(?, paid_date),
+        amount_paid = COALESCE(?, amount_paid),
+        amount_remaining = COALESCE(?, amount_remaining),
         description = COALESCE(?, description),
+        notes = COALESCE(?, notes),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(
       body.status || null,
-      body.paidDate || null,
+      body.amountPaid || null,
+      body.amountRemaining || null,
       body.description || null,
+      body.notes || null,
       id
     ).run();
 
@@ -1194,7 +1209,7 @@ app.put('/api/v1/finance/transactions/:id', async (c) => {
 app.delete('/api/v1/finance/transactions/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    await c.env.DB.prepare(`DELETE FROM financial_transactions WHERE id = ?`).bind(id).run();
+    await c.env.DB.prepare(`DELETE FROM transactions WHERE id = ?`).bind(id).run();
     return c.json({ message: 'Transaction deleted successfully' });
   } catch (error) {
     return c.json({ error: 'Failed to delete transaction' }, 500);
@@ -1208,7 +1223,7 @@ app.delete('/api/v1/finance/transactions/:id', async (c) => {
 app.get('/api/v1/timetable', async (c) => {
   try {
     const { classId, teacherId, dayOfWeek } = c.req.query();
-    
+
     let query = `
       SELECT ts.*, c.name as class_name, s.name as subject_name, 
              u.first_name as teacher_first_name, u.last_name as teacher_last_name
@@ -1219,7 +1234,7 @@ app.get('/api/v1/timetable', async (c) => {
       LEFT JOIN users u ON t.user_id = u.id
       WHERE ts.is_active = 1
     `;
-    
+
     const params: any[] = [];
     if (classId) {
       query += ' AND ts.class_id = ?';
@@ -1233,9 +1248,9 @@ app.get('/api/v1/timetable', async (c) => {
       query += ' AND ts.day_of_week = ?';
       params.push(dayOfWeek);
     }
-    
+
     query += ' ORDER BY ts.day_of_week, ts.start_time';
-    
+
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json(results);
   } catch (error) {
@@ -1318,9 +1333,9 @@ app.delete('/api/v1/timetable/:id', async (c) => {
 app.get('/api/v1/users', async (c) => {
   try {
     const { role, isActive } = c.req.query();
-    
+
     let query = 'SELECT id, email, role, first_name, last_name, phone, is_active, last_login_at, created_at FROM users WHERE 1=1';
-    
+
     const params: any[] = [];
     if (role) {
       query += ' AND role = ?';
@@ -1330,9 +1345,9 @@ app.get('/api/v1/users', async (c) => {
       query += ' AND is_active = ?';
       params.push(isActive === 'true' ? 1 : 0);
     }
-    
+
     query += ' ORDER BY created_at DESC';
-    
+
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json(results);
   } catch (error) {
@@ -1416,9 +1431,9 @@ app.delete('/api/v1/users/:id', async (c) => {
 app.get('/api/v1/school-life/events', async (c) => {
   try {
     const { eventType, status, startDate, endDate } = c.req.query();
-    
+
     let query = 'SELECT * FROM school_events WHERE 1=1';
-    
+
     const params: any[] = [];
     if (eventType) {
       query += ' AND event_type = ?';
@@ -1436,9 +1451,9 @@ app.get('/api/v1/school-life/events', async (c) => {
       query += ' AND start_date <= ?';
       params.push(endDate);
     }
-    
+
     query += ' ORDER BY start_date DESC';
-    
+
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json(results);
   } catch (error) {
@@ -1526,9 +1541,9 @@ app.delete('/api/v1/school-life/events/:id', async (c) => {
 app.get('/api/v1/inventory', async (c) => {
   try {
     const { category, status } = c.req.query();
-    
+
     let query = 'SELECT * FROM inventory WHERE 1=1';
-    
+
     const params: any[] = [];
     if (category) {
       query += ' AND category = ?';
@@ -1538,9 +1553,9 @@ app.get('/api/v1/inventory', async (c) => {
       query += ' AND status = ?';
       params.push(status);
     }
-    
+
     query += ' ORDER BY name';
-    
+
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json(results);
   } catch (error) {
@@ -1669,7 +1684,7 @@ async function generateJWT(user: any, secret: string): Promise<string> {
     'SHA-256',
     new TextEncoder().encode(`${header}.${body}.${secret}`)
   );
-  
+
   return `${header}.${body}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
 }
 
