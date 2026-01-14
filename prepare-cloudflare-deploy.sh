@@ -118,9 +118,38 @@ fi
 
 echo ""
 
-# 6. Déploiement
-echo "6️⃣  Déploiement:"
-read -p "   Voulez-vous déployer sur Cloudflare Pages maintenant? (y/n) " -n 1 -r
+# 6. Déploiement Backend
+echo "6️⃣  Déploiement Backend (Worker):"
+read -p "   Voulez-vous déployer le Backend API sur Cloudflare Workers? (y/n) " -n 1 -r
+echo ""
+
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "   🚀 Déploiement du Backend..."
+    
+    cd backend
+    npx wrangler deploy
+    BACKEND_STATUS=$?
+    cd ..
+    
+    if [ $BACKEND_STATUS -eq 0 ]; then
+        echo "   ✅ Backend déployé avec succès"
+    else
+        echo "   ❌ Échec du déploiement Backend"
+        echo "   Vérifiez les erreurs ci-dessus."
+        read -p "   Continuer avec le Frontend malgré l'erreur? (y/n) " -n 1 -r
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+             exit 1
+        fi
+    fi
+else
+    echo "   ⏩ Backend ignoré"
+fi
+
+echo ""
+
+# 7. Déploiement Frontend
+echo "7️⃣  Déploiement Frontend:"
+read -p "   Voulez-vous déployer le Frontend sur Cloudflare Pages maintenant? (y/n) " -n 1 -r
 echo ""
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
