@@ -13,10 +13,10 @@ import { SchoolClass } from '../../classes/entities/class.entity';
 import { TimetableSlot } from '../../timetable/entities/timetable-slot.entity';
 
 export enum AttendanceStatus {
-  PRESENT = 'Présent',
-  ABSENT = 'Absent',
-  LATE = 'Retard',
-  EXCUSED = 'Absent excusé',
+  PRESENT = 'present',
+  ABSENT = 'absent',
+  LATE = 'late',
+  EXCUSED = 'excused',
 }
 
 @Entity('attendance')
@@ -40,6 +40,10 @@ export class Attendance {
   @ApiProperty({ description: 'Attendance date', example: '2024-11-18' })
   @Column({ type: 'date' })
   date: Date;
+
+  @ApiPropertyOptional({ description: 'Session period', example: 'morning' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  period?: string;
 
   @ApiProperty({ description: 'Attendance status', enum: AttendanceStatus, example: AttendanceStatus.PRESENT })
   @Column({ type: 'varchar', length: 20 })

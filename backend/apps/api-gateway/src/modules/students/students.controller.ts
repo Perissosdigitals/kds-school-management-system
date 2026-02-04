@@ -12,7 +12,22 @@ import {
   HttpStatus,
   ParseUUIDPipe,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Res,
+  BadRequestException
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join, resolve } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { Response } from 'express';
+
+// Ensure upload directories exist
+const photoDir = './uploads/students/photos';
+if (!existsSync(photoDir)) {
+  mkdirSync(photoDir, { recursive: true });
+}
 import {
   ApiTags,
   ApiOperation,
@@ -43,6 +58,11 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: 'Liste des élèves récupérée avec succès', type: [Student] })
   @ApiQuery({ name: 'gradeLevel', required: false, description: 'Filtrer par niveau (CM2, CM1, etc.)' })
   @ApiQuery({ name: 'status', required: false, enum: ['Actif', 'Inactif', 'En attente'] })
+  @ApiQuery({ name: 'classId', required: false, description: 'Filtrer par ID de classe (UUID)' })
+  @ApiQuery({ name: 'gender', required: false, enum: ['Masculin', 'Féminin'] })
+  @ApiQuery({ name: 'startDate', required: false, description: 'Date de début (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'Date de fin (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'teacherId', required: false, description: 'Filtrer par ID d\'enseignant' })
   @ApiQuery({ name: 'search', required: false, description: 'Recherche dans nom, prénom, numéro inscription' })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 100 })
   @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
@@ -109,6 +129,35 @@ export class StudentsController {
   })
   async getStatsByStatus(): Promise<Array<{ status: string; count: number }>> {
     return this.studentsService.getStatsByStatus();
+  }
+
+  @Get('stats/pending-docs')
+  @ApiOperation({
+    summary: 'Compter les documents en attente',
+    description: 'Retourne le nombre d\'élèves ayant au moins un document en attente de validation'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Nombre de documents en attente',
+    schema: { type: 'object', properties: { count: { type: 'number' } } }
+  })
+  async getPendingDocsCount(): Promise<{ count: number }> {
+    const count = await this.studentsService.countPendingDocuments();
+    return { count };
+  }
+
+  @Get('stats/missing-docs')
+  @ApiOperation({ summary: 'Compter les documents manquants' })
+  async getMissingDocsCount(): Promise<{ count: number }> {
+    const count = await this.studentsService.countMissingDocuments();
+    return { count };
+  }
+
+  @Get('stats/rejected-docs')
+  @ApiOperation({ summary: 'Compter les documents rejetés' })
+  async getRejectedDocsCount(): Promise<{ count: number }> {
+    const count = await this.studentsService.countRejectedDocuments();
+    return { count };
   }
 
   @Get('registration/:registrationNumber')
@@ -222,5 +271,56 @@ export class StudentsController {
   @ApiResponse({ status: 404, description: 'Élève non trouvé' })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.studentsService.remove(id);
+  }
+
+  @Post(':id/photo')
+  @ApiOperation({ summary: 'Uploader la photo d\'un élève' })
+  @UseInterceptors(FileInterceptor('photo', {
+    fileFilter: (req, file, cb) => {
+      if (!file.originalname.match(/\.(jpg|jpeg|png|webp)$/i)) {
+        return cb(new BadRequestException('Seules les images (JPG, PNG, WEBP) sont autorisées !'), false);
+      }
+      cb(null, true);
+    },
+  }))
+  async uploadPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('La photo est requise');
+    }
+    return this.studentsService.handlePhotoUpload(id, file);
+  }
+
+  @Public()
+  @Get('photo/:id')
+  @ApiOperation({ summary: 'Servir la photo d\'un élève' })
+  async getPhoto(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const student = await this.studentsService.findOne(id);
+      if (!student.photoUrl) {
+        return res.status(404).json({ message: 'Photo non configurée pour cet élève' });
+      }
+
+      // If photoUrl is an external link, we might redirect or stream
+      // But based on our new logic, photoUrl will be a proxy URL like /api/v1/storage/photos/...
+      // Actually, let's make the photo endpoint serve it directly from storage if it's a key
+
+      const storageKey = student.photoUrl.startsWith('/')
+        ? student.photoUrl.split('/storage/')[1]
+        : student.photoUrl;
+
+      if (!storageKey) {
+        return res.status(404).json({ message: 'Format de photo invalide' });
+      }
+
+      const { data, contentType } = await (this.studentsService as any).getPhotoFile(storageKey);
+
+      res.setHeader('Content-Type', contentType);
+      return res.send(data);
+    } catch (error) {
+      return res.status(404).json({ message: 'Photo non trouvée' });
+    }
   }
 }

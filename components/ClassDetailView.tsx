@@ -1,20 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { SchoolClass, Student, Teacher, TimetableSession } from '../types';
+import type { SchoolClass, Student, Teacher, TimetableSession, User } from '../types';
 import { ClassesService } from '../services/api/classes.service';
+import { TimetableService } from '../services/api/timetable.service';
+import { AttendanceService } from '../services/api/attendance.service';
+import { AuthService } from '../services/api/auth.service';
+import { SubjectsService } from '../services/api/subjects.service';
+import { httpClient } from '../services/httpClient';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { StudentRegistrationForm } from './StudentRegistrationForm';
+import { ActivityService } from '../services/api/activity.service';
 import { StudentDetail } from './StudentDetail';
 import { ClassEditForm } from './ClassEditForm';
 import { IMPORT_TEMPLATES } from '../src/constants/import-templates';
+import { LocalErrorBoundary } from './ui/LocalErrorBoundary';
 
 interface ClassDetailViewProps {
     classId: string;
     onBack: () => void;
+    currentUser?: User;
 }
 
 type TabType = 'overview' | 'students' | 'attendance' | 'timetable' | 'statistics' | 'grades';
 
-export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBack }) => {
+export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBack, currentUser }) => {
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [classData, setClassData] = useState<SchoolClass | null>(null);
     const [students, setStudents] = useState<Student[]>([]);
@@ -38,7 +46,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
 
             // Charger les détails complets de la classe
             const fullClassData = await ClassesService.getClassById(classId);
-            
+
             if (!fullClassData) {
                 setError('Classe introuvable');
                 return;
@@ -49,7 +57,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
             setStudents(fullClassData.students || []);
             setTeacher(fullClassData.teacher || null);
             setTimetable(fullClassData.timetable || []);
-            
+
             console.log('📅 EMPLOI DU TEMPS chargé:', fullClassData.timetable?.length || 0, 'sessions');
             if (fullClassData.timetable && fullClassData.timetable.length > 0) {
                 console.log('📚 Exemple session:', fullClassData.timetable[0]);
@@ -86,281 +94,292 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
         );
     }
 
-    const occupancyPercentage = classData.capacity 
-        ? Math.round((classData.currentOccupancy / classData.capacity) * 100)
-        : 0;
-
+    const getOccupancyPercentage = () => {
+        if (!classData?.capacity || classData.capacity === 0) return 0;
+        return Math.round(((classData.currentOccupancy || 0) / classData.capacity) * 100);
+    };
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <button
-                        onClick={onBack}
-                        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                        <i className='bx bx-arrow-back text-xl'></i>
-                        <span>Retour</span>
-                    </button>
-                    <button 
-                        onClick={() => setShowEditForm(true)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors"
-                    >
-                        <i className='bx bx-edit'></i>
-                        Modifier
-                    </button>
-                </div>
-
-                <div className="flex items-start gap-6">
-                    <div className="flex-shrink-0 w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                        <i className='bx bxs-school text-4xl text-white'></i>
-                    </div>
-                    
-                    <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                            <h1 className="text-3xl font-bold text-gray-900">{classData.name}</h1>
-                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                                {classData.level}
-                            </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <i className='bx bxs-user text-green-600 text-xl'></i>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-gray-500">Enseignant principal</p>
-                                    <p className="font-semibold text-gray-900">
-                                        {classData.teacherName || 'Non assigné'}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                    <i className='bx bxs-group text-purple-600 text-xl'></i>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-gray-500">Effectif</p>
-                                    <p className="font-semibold text-gray-900">
-                                        {classData.currentOccupancy}/{classData.capacity} élèves
-                                        <span className="text-xs text-gray-500 ml-2">({occupancyPercentage}%)</span>
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                                    <i className='bx bxs-door-open text-orange-600 text-xl'></i>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-gray-500">Salle</p>
-                                    <p className="font-semibold text-gray-900">
-                                        {classData.room || 'Non définie'}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
-                            <span className="flex items-center gap-1">
-                                <i className='bx bx-calendar'></i>
-                                Année académique: <strong>{classData.academicYear}</strong>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div className="border-b border-gray-200">
-                    <nav className="flex -mb-px">
+        <LocalErrorBoundary componentName="ClassDetailView Content">
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-4">
                         <button
-                            onClick={() => setActiveTab('overview')}
-                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                                activeTab === 'overview'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
+                            onClick={onBack}
+                            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
                         >
-                            <i className='bx bx-info-circle mr-2'></i>
-                            Vue d'ensemble
+                            <i className='bx bx-arrow-back text-xl'></i>
+                            <span>Retour</span>
                         </button>
-                        <button
-                            onClick={() => setActiveTab('students')}
-                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                                activeTab === 'students'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                        >
-                            <i className='bx bx-group mr-2'></i>
-                            Élèves ({students.length})
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('attendance')}
-                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                                activeTab === 'attendance'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                        >
-                            <i className='bx bx-calendar-check mr-2'></i>
-                            Présences
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('timetable')}
-                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                                activeTab === 'timetable'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                        >
-                            <i className='bx bx-time-five mr-2'></i>
-                            Emploi du temps
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('statistics')}
-                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                                activeTab === 'statistics'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                        >
-                            <i className='bx bx-bar-chart mr-2'></i>
-                            Statistiques
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('grades')}
-                            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                                activeTab === 'grades'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                        >
-                            <i className='bx bx-trophy mr-2'></i>
-                            Notes
-                        </button>
-                    </nav>
-                </div>
-
-                <div className="p-6">
-                    {activeTab === 'overview' && <OverviewTab classData={classData} teacher={teacher} students={students} />}
-                    {activeTab === 'students' && (
-                        <StudentsTab 
-                            students={students} 
-                            classData={classData}
-                            onAddStudent={() => setShowStudentForm(true)}
-                            onStudentAdded={loadClassDetails}
-                            onStudentClick={(student) => setSelectedStudent(student)}
-                        />
-                    )}
-                    {activeTab === 'attendance' && (
-                        <AttendanceTab 
-                            students={students}
-                            classData={classData}
-                            selectedDate={selectedDate}
-                            onDateChange={setSelectedDate}
-                            onStudentClick={(student) => setSelectedStudent(student)}
-                        />
-                    )}
-                    {activeTab === 'timetable' && <TimetableTab timetable={timetable} />}
-                    {activeTab === 'statistics' && <StatisticsTab students={students} classData={classData} />}
-                    {activeTab === 'grades' && <GradesTab students={students} classData={classData} timetable={timetable} />}
-                </div>
-            </div>
-
-            {/* Modal pour ajouter un élève */}
-            {showStudentForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-gray-900">
-                                <i className='bx bx-user-plus mr-2'></i>
-                                Ajouter un élève à {classData?.name}
-                            </h2>
+                        {(['fondatrice', 'directrice', 'agent_admin'].includes(currentUser?.role || '')) && (
                             <button
-                                onClick={() => setShowStudentForm(false)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                                onClick={() => setShowEditForm(true)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors"
                             >
-                                <i className='bx bx-x text-2xl'></i>
+                                <i className='bx bx-edit'></i>
+                                Modifier
                             </button>
+                        )}
+                    </div>
+
+                    <div className="flex items-start gap-6">
+                        <div className="flex-shrink-0 w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                            <i className='bx bxs-school text-4xl text-white'></i>
                         </div>
-                        <div className="p-6">
-                            <StudentRegistrationForm
-                                onSuccess={(newStudent) => {
-                                    setShowStudentForm(false);
-                                    loadClassDetails(); // Recharger les données
-                                }}
-                                onCancel={() => setShowStudentForm(false)}
-                                prefilledClassId={classId}
-                                prefilledGradeLevel={classData?.level}
-                            />
+
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                                <h1 className="text-3xl font-bold text-gray-900">{classData.name}</h1>
+                                {classData.registrationNumber && (
+                                    <span className="font-mono text-sm px-2 py-1 bg-blue-50 text-blue-700 rounded border border-blue-200">
+                                        {classData.registrationNumber}
+                                    </span>
+                                )}
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                                    {classData.level}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                        <i className='bx bxs-user text-green-600 text-xl'></i>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500">Enseignant principal</p>
+                                        <p className="font-semibold text-gray-900">
+                                            {classData.teacherName || 'Non assigné'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                        <i className='bx bxs-group text-purple-600 text-xl'></i>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500">Effectif</p>
+                                        <p className="font-semibold text-gray-900">
+                                            {classData.currentOccupancy}/{classData.capacity} élèves
+                                            <span className="text-xs text-gray-500 ml-2">({getOccupancyPercentage()}%)</span>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                                        <i className='bx bxs-door-open text-orange-600 text-xl'></i>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500">Salle</p>
+                                        <p className="font-semibold text-gray-900">
+                                            {classData.room || 'Non définie'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
+                                <span className="flex items-center gap-1">
+                                    <i className='bx bx-calendar'></i>
+                                    Année académique: <strong>{classData.academicYear}</strong>
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                </div >
 
-            {/* Modal pour afficher la fiche élève */}
-            {selectedStudent && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                                    {selectedStudent.firstName?.[0]}{selectedStudent.lastName?.[0]}
-                                </div>
-                                <div>
+                {/* Tabs */}
+                < div className="bg-white rounded-xl shadow-sm overflow-hidden" >
+                    <div className="border-b border-gray-200">
+                        <nav className="flex -mb-px">
+                            <button
+                                onClick={() => setActiveTab('overview')}
+                                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'overview'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                <i className='bx bx-info-circle mr-2'></i>
+                                Vue d'ensemble
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('students')}
+                                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'students'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                <i className='bx bx-group mr-2'></i>
+                                Élèves ({students.length})
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('attendance')}
+                                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'attendance'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                <i className='bx bx-calendar-check mr-2'></i>
+                                Présences
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('timetable')}
+                                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'timetable'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                <i className='bx bx-time-five mr-2'></i>
+                                Emploi du temps
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('statistics')}
+                                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'statistics'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                <i className='bx bx-bar-chart mr-2'></i>
+                                Statistiques
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('grades')}
+                                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'grades'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                <i className='bx bx-trophy mr-2'></i>
+                                Notes
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div className="p-6">
+                        {activeTab === 'overview' && <OverviewTab classData={classData} teacher={teacher} students={students} />}
+                        {activeTab === 'students' && (
+                            <StudentsTab
+                                students={students}
+                                classData={classData}
+                                onAddStudent={() => setShowStudentForm(true)}
+                                onStudentAdded={loadClassDetails}
+                                onStudentClick={(student) => setSelectedStudent(student)}
+                                currentUser={currentUser}
+                            />
+                        )}
+                        {activeTab === 'attendance' && (
+                            <AttendanceTab
+                                students={students}
+                                classData={classData}
+                                selectedDate={selectedDate}
+                                onDateChange={setSelectedDate}
+                                onStudentClick={(student) => setSelectedStudent(student)}
+                                currentUser={currentUser}
+                            />
+                        )}
+                        {activeTab === 'timetable' && <TimetableTab timetable={timetable} classId={classId} classData={classData} />}
+                        {activeTab === 'statistics' && <StatisticsTab students={students} classData={classData} />}
+                        {activeTab === 'grades' && <GradesTab students={students} classData={classData} timetable={timetable} currentUser={currentUser} />}
+                    </div>
+                </div >
+
+                {/* Modal pour ajouter un élève */}
+                {
+                    showStudentForm && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                                     <h2 className="text-xl font-bold text-gray-900">
-                                        {selectedStudent.firstName} {selectedStudent.lastName}
+                                        <i className='bx bx-user-plus mr-2'></i>
+                                        Ajouter un élève à {classData?.name}
                                     </h2>
-                                    <p className="text-sm text-gray-500">
-                                        {selectedStudent.studentCode} • {classData?.name}
-                                    </p>
+                                    <button
+                                        onClick={() => setShowStudentForm(false)}
+                                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        <i className='bx bx-x text-2xl'></i>
+                                    </button>
+                                </div>
+                                <div className="p-6">
+                                    <StudentRegistrationForm
+                                        onSuccess={(newStudent) => {
+                                            setShowStudentForm(false);
+                                            loadClassDetails(); // Recharger les données
+                                        }}
+                                        onCancel={() => setShowStudentForm(false)}
+                                        prefilledClassId={classId}
+                                        prefilledGradeLevel={classData?.level}
+                                    />
                                 </div>
                             </div>
-                            <button
-                                onClick={() => setSelectedStudent(null)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                <i className='bx bx-x text-2xl'></i>
-                            </button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-6">
-                            <StudentDetail 
-                                student={selectedStudent} 
-                                onClose={() => setSelectedStudent(null)}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
+                    )
+                }
 
-            {/* Modal pour éditer la classe */}
-            {showEditForm && classData && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <ClassEditForm
-                            schoolClass={classData}
-                            onSave={() => {
-                                setShowEditForm(false);
-                                loadClassDetails();
-                            }}
-                            onCancel={() => setShowEditForm(false)}
-                        />
-                    </div>
-                </div>
-            )}
-        </div>
+                {/* Modal pour afficher la fiche élève */}
+                {
+                    selectedStudent && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                                            {selectedStudent.firstName?.[0]}{selectedStudent.lastName?.[0]}
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-900">
+                                                {selectedStudent.firstName} {selectedStudent.lastName}
+                                            </h2>
+                                            <p className="text-sm text-gray-500">
+                                                {selectedStudent.registrationNumber || selectedStudent.studentCode || 'ID non attribué'} • {classData?.name}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedStudent(null)}
+                                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        <i className='bx bx-x text-2xl'></i>
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    <StudentDetail
+                                        student={selectedStudent}
+                                        onClose={() => setSelectedStudent(null)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* Modal pour éditer la classe */}
+                {
+                    showEditForm && classData && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                                <ClassEditForm
+                                    schoolClass={classData}
+                                    onSave={() => {
+                                        setShowEditForm(false);
+                                        loadClassDetails();
+                                    }}
+                                    onCancel={() => setShowEditForm(false)}
+                                />
+                            </div>
+                        </div>
+                    )
+                }
+            </div >
+        </LocalErrorBoundary >
     );
 };
 
 // --- Tab Components ---
 
-const OverviewTab: React.FC<{ 
-    classData: SchoolClass; 
+const OverviewTab: React.FC<{
+    classData: SchoolClass;
     teacher: Teacher | null;
     students: Student[];
 }> = ({ classData, teacher, students }) => {
@@ -428,11 +447,10 @@ const OverviewTab: React.FC<{
                                 <div>
                                     <dt className="text-sm text-gray-500">Statut</dt>
                                     <dd>
-                                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                            teacher.status === 'Actif' 
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-gray-100 text-gray-700'
-                                        }`}>
+                                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${teacher.status === 'Actif'
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-gray-100 text-gray-700'
+                                            }`}>
                                             {teacher.status}
                                         </span>
                                     </dd>
@@ -462,13 +480,13 @@ const OverviewTab: React.FC<{
                                 </div>
                                 <div className="text-right">
                                     <span className="text-xs font-semibold inline-block text-blue-600">
-                                        {Math.round((classData.currentOccupancy / classData.capacity) * 100)}%
+                                        {classData.capacity > 0 ? Math.round((classData.currentOccupancy / classData.capacity) * 100) : 0}%
                                     </span>
                                 </div>
                             </div>
                             <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
                                 <div
-                                    style={{ width: `${(classData.currentOccupancy / classData.capacity) * 100}%` }}
+                                    style={{ width: `${classData.capacity > 0 ? (classData.currentOccupancy / classData.capacity) * 100 : 0}%` }}
                                     className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600"
                                 ></div>
                             </div>
@@ -490,13 +508,14 @@ const OverviewTab: React.FC<{
     );
 };
 
-const StudentsTab: React.FC<{ 
-    students: Student[]; 
+const StudentsTab: React.FC<{
+    students: Student[];
     classData: SchoolClass;
     onAddStudent: () => void;
     onStudentAdded: () => void;
     onStudentClick: (student: Student) => void;
-}> = ({ students, classData, onAddStudent, onStudentClick }) => {
+    currentUser?: User;
+}> = ({ students, classData, onAddStudent, onStudentClick, currentUser }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState<'name' | 'code' | 'enrollment'>('name');
     const [viewMode, setViewMode] = useState<'list' | 'seating'>('list');
@@ -523,12 +542,12 @@ const StudentsTab: React.FC<{
                 s.status || 'Actif'
             ];
         });
-        
+
         const csvContent = [
             headers.join(','),
             ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
         ].join('\n');
-        
+
         return csvContent;
     };
 
@@ -570,7 +589,7 @@ const StudentsTab: React.FC<{
             const rows = 5;
             const cols = 6;
             const arrangement: (Student | null)[][] = [];
-            
+
             for (let i = 0; i < rows; i++) {
                 const row: (Student | null)[] = [];
                 for (let j = 0; j < cols; j++) {
@@ -579,7 +598,7 @@ const StudentsTab: React.FC<{
                 }
                 arrangement.push(row);
             }
-            
+
             setSeatingArrangement(arrangement);
         }
     }, [students]);
@@ -597,11 +616,11 @@ const StudentsTab: React.FC<{
         if (!draggedStudent) return;
 
         const newArrangement = seatingArrangement.map(row => [...row]);
-        
+
         // Trouver la position actuelle de l'élève
         let currentRow = -1;
         let currentCol = -1;
-        
+
         for (let i = 0; i < newArrangement.length; i++) {
             for (let j = 0; j < newArrangement[i].length; j++) {
                 if (newArrangement[i][j]?.id === draggedStudent.id) {
@@ -632,10 +651,10 @@ const StudentsTab: React.FC<{
     };
 
     const filteredAndSortedStudents = useMemo(() => {
-        let filtered = students.filter(student => 
+        let filtered = students.filter(student =>
             student.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             student.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            student.studentCode?.toLowerCase().includes(searchTerm.toLowerCase())
+            student.registrationNumber?.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
         return filtered.sort((a, b) => {
@@ -643,7 +662,7 @@ const StudentsTab: React.FC<{
                 case 'name':
                     return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
                 case 'code':
-                    return (a.studentCode || '').localeCompare(b.studentCode || '');
+                    return (a.registrationNumber || '').localeCompare(b.registrationNumber || '');
                 case 'enrollment':
                     return new Date(b.enrollmentDate || 0).getTime() - new Date(a.enrollmentDate || 0).getTime();
                 default:
@@ -657,7 +676,7 @@ const StudentsTab: React.FC<{
             <div className="text-center py-12">
                 <i className='bx bx-user-x text-6xl text-gray-300 mb-4'></i>
                 <p className="text-gray-500 mb-4">Aucun élève inscrit dans cette classe</p>
-                <button 
+                <button
                     onClick={onAddStudent}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
@@ -729,13 +748,15 @@ const StudentsTab: React.FC<{
                         <i className='bx bx-export'></i>
                         Tout exporter
                     </button>
-                    <button
-                        onClick={onAddStudent}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm"
-                    >
-                        <i className='bx bx-user-plus'></i>
-                        Ajouter un élève
-                    </button>
+                    {(['fondatrice', 'directrice', 'agent_admin'].includes(currentUser?.role || '')) && (
+                        <button
+                            onClick={onAddStudent}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm"
+                        >
+                            <i className='bx bx-user-plus'></i>
+                            Ajouter un élève
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -744,28 +765,26 @@ const StudentsTab: React.FC<{
                 <div className="flex gap-2">
                     <button
                         onClick={() => setViewMode('list')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            viewMode === 'list'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'list'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
                     >
                         <i className='bx bx-list-ul mr-2'></i>
                         Liste
                     </button>
                     <button
                         onClick={() => setViewMode('seating')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            viewMode === 'seating'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'seating'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
                     >
                         <i className='bx bx-grid-alt mr-2'></i>
                         Plan de classe
                     </button>
                 </div>
-                
+
                 {viewMode === 'seating' && (
                     <button
                         onClick={resetSeating}
@@ -820,13 +839,12 @@ const StudentsTab: React.FC<{
                         {filteredAndSortedStudents.map((student) => {
                             const isSelected = selectedStudents.has(student.id);
                             const studentAge = student.dob ? new Date().getFullYear() - new Date(student.dob).getFullYear() : null;
-                            
+
                             return (
-                                <div 
-                                    key={student.id} 
-                                    className={`bg-white border-2 rounded-lg p-4 hover:shadow-md transition-all ${
-                                        isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
-                                    }`}
+                                <div
+                                    key={student.id}
+                                    className={`bg-white border-2 rounded-lg p-4 hover:shadow-md transition-all ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                                        }`}
                                 >
                                     <div className="flex items-start gap-3">
                                         <input
@@ -839,7 +857,7 @@ const StudentsTab: React.FC<{
                                             className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1 flex-shrink-0"
                                             title="Sélectionner cet élève"
                                         />
-                                        <div 
+                                        <div
                                             className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 cursor-pointer"
                                             onClick={() => onStudentClick(student)}
                                         >
@@ -852,13 +870,18 @@ const StudentsTab: React.FC<{
                                                 </p>
                                                 <i className='bx bx-link-external text-blue-500 text-sm'></i>
                                             </div>
-                                            <p className="text-xs text-gray-500">{student.id.substring(0, 8)}...</p>
+                                            <p className="text-xs text-gray-500">
+                                                {student.registrationNumber ? (
+                                                    <span className="font-mono text-blue-600 bg-blue-50 px-1 rounded">{student.registrationNumber}</span>
+                                                ) : (
+                                                    student.id.substring(0, 8) + '...'
+                                                )}
+                                            </p>
                                             <div className="mt-2 flex items-center gap-2">
-                                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                                    student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male'
-                                                        ? 'bg-blue-100 text-blue-700'
-                                                        : 'bg-pink-100 text-pink-700'
-                                                }`}>
+                                                <span className={`text-xs px-2 py-1 rounded-full ${student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male'
+                                                    ? 'bg-blue-100 text-blue-700'
+                                                    : 'bg-pink-100 text-pink-700'
+                                                    }`}>
                                                     {student.gender === 'M' || student.gender === 'Masculin' || student.gender === 'male' ? 'Garçon' : 'Fille'}
                                                 </span>
                                                 {studentAge && (
@@ -916,8 +939,8 @@ const StudentsTab: React.FC<{
                                             w-32 h-32 rounded-lg border-2 border-dashed
                                             flex flex-col items-center justify-center
                                             transition-all duration-200
-                                            ${student 
-                                                ? 'bg-white border-blue-300 shadow-sm hover:shadow-md cursor-move' 
+                                            ${student
+                                                ? 'bg-white border-blue-300 shadow-sm hover:shadow-md cursor-move'
                                                 : 'bg-gray-50 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
                                             }
                                         `}
@@ -986,77 +1009,212 @@ const StudentsTab: React.FC<{
     );
 };
 
-const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }) => {
+const TimetableTab: React.FC<{ timetable: TimetableSession[]; classId: string; classData: SchoolClass }> = ({ timetable, classId, classData }) => {
     const daysOfWeek = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingSession, setEditingSession] = useState<TimetableSession | null>(null);
-    const [localTimetable, setLocalTimetable] = useState<TimetableSession[]>(timetable);
+    // Initialize with empty array if timetable is undefined/null
+    const [localTimetable, setLocalTimetable] = useState<TimetableSession[]>(timetable || []);
+    const [subjects, setSubjects] = useState<any[]>([]);
 
     React.useEffect(() => {
-        setLocalTimetable(timetable);
+        console.log('TimetableTab Rendered. localTimetable:', localTimetable, 'Length:', (localTimetable || []).length);
+        const loadSubjects = async () => {
+            try {
+                const data = await SubjectsService.getAll();
+                setSubjects(data || []);
+            } catch (error) {
+                console.error('Error loading subjects:', error);
+                setSubjects([]);
+            }
+        };
+        loadSubjects();
+    }, []);
+
+    React.useEffect(() => {
+        // Ensure we always set an array, never undefined/null
+        setLocalTimetable(timetable || []);
     }, [timetable]);
-    
+
     const groupedByDay = useMemo(() => {
         const grouped: Record<string, TimetableSession[]> = {};
         daysOfWeek.forEach(day => {
-            grouped[day] = localTimetable
-                .filter(session => session.day === day)
+            // Add defensive check to ensure localTimetable is an array
+            const sessions = Array.isArray(localTimetable) ? localTimetable : [];
+            grouped[day] = sessions
+                .filter(session => session && session.day === day)
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
         });
         return grouped;
     }, [localTimetable]);
 
-    const handleDeleteSession = (sessionId: string) => {
+    const handleDeleteSession = async (sessionId: string) => {
         if (confirm('Êtes-vous sûr de vouloir supprimer ce cours ?')) {
-            setLocalTimetable(prev => prev.filter(s => s.id !== sessionId));
-            console.log('Session supprimée:', sessionId);
-            // TODO: API call to delete
+            try {
+                await TimetableService.deleteSession(sessionId);
+                setLocalTimetable(prev => prev.filter(s => s.id !== sessionId));
+                console.log('Session supprimée:', sessionId);
+            } catch (error) {
+                console.error('Error deleting session:', error);
+                alert('Erreur lors de la suppression');
+            }
         }
     };
 
-    const handleSaveSession = (session: Partial<TimetableSession>) => {
-        if (editingSession) {
-            // Edit existing
-            setLocalTimetable(prev => prev.map(s => 
-                s.id === editingSession.id ? { ...s, ...session } : s
-            ));
-            console.log('Session modifiée:', session);
-        } else {
-            // Add new
-            const newSession: TimetableSession = {
-                id: `tt-${Date.now()}`,
-                day: session.day || 'Lundi',
-                startTime: session.startTime || '08:00',
-                endTime: session.endTime || '09:00',
-                subject: session.subject || '',
-                classId: session.classId || '',
-                teacherId: session.teacherId,
-                room: session.room
-            };
-            setLocalTimetable(prev => [...prev, newSession]);
-            console.log('Nouvelle session ajoutée:', newSession);
+    const handleSaveSession = async (session: Partial<TimetableSession>) => {
+        try {
+            // Validate required fields
+            if (!session.day || !session.startTime || !session.endTime || !session.subject) {
+                alert('Veuillez remplir tous les champs obligatoires (Jour, Matière, Heures)');
+                return;
+            }
+
+            if (editingSession) {
+                // Edit existing session
+                try {
+                    await TimetableService.updateSession(editingSession.id, {
+                        dayOfWeek: session.day,
+                        startTime: session.startTime,
+                        endTime: session.endTime,
+                        room: session.room || undefined,
+                    } as any);
+
+                    setLocalTimetable(prev => prev.map(s =>
+                        s.id === editingSession.id ? { ...s, ...session } : s
+                    ));
+                    console.log('✅ Session modifiée:', session);
+                    alert('Cours modifié avec succès!');
+                } catch (error: any) {
+                    console.error('❌ Erreur lors de la modification:', error);
+                    throw new Error(error.response?.data?.message || 'Erreur lors de la modification du cours');
+                }
+            } else {
+                // Add new session
+                // 1. Find or create subject
+                let subjectId = session.subjectId;
+                if (!subjectId && session.subject) {
+                    const foundSubject = subjects.find(s => s.name === session.subject);
+                    if (foundSubject) {
+                        subjectId = foundSubject.id;
+                    } else {
+                        // Subject doesn't exist - create it
+                        console.warn('⚠️ Matière non trouvée, création automatique:', session.subject);
+                        try {
+                            const newSubject = await httpClient.post('/subjects', {
+                                name: session.subject,
+                                code: session.subject.substring(0, 3).toUpperCase(),
+                                gradeLevel: classData.level,
+                                weeklyHours: 2,
+                                coefficient: 1
+                            });
+                            subjectId = newSubject.data.id;
+                            console.log('✅ Matière créée:', subjectId);
+                        } catch (subjectError) {
+                            console.error('❌ Erreur création matière:', subjectError);
+                            alert('Erreur: Impossible de créer la matière. Veuillez contacter l\'administrateur.');
+                            return;
+                        }
+                    }
+                }
+
+                if (!subjectId) {
+                    alert('Erreur: Matière non trouvée. Veuillez réessayer.');
+                    return;
+                }
+
+                // 2. Get teacherId - use class teacher if not specified
+                let teacherId = session.teacherId;
+                if (!teacherId || teacherId.trim() === '') {
+                    teacherId = classData.teacherId || '';
+                    if (!teacherId) {
+                        alert('Erreur: Aucun enseignant assigné à cette classe. Veuillez d\'abord assigner un enseignant principal à la classe.');
+                        return;
+                    }
+                }
+
+                // 3. Create the timetable slot
+                try {
+                    const payload = {
+                        classId: classId,
+                        teacherId: teacherId,
+                        subjectId: subjectId,
+                        dayOfWeek: session.day,
+                        startTime: session.startTime,
+                        endTime: session.endTime,
+                        room: session.room || undefined,
+                        academicYear: classData.academicYear || '2024-2025'
+                    };
+
+                    console.log('📤 Envoi de la requête de création:', payload);
+
+                    const newSlot: any = await TimetableService.createSession(payload as any);
+
+                    console.log('📥 Réponse de l\'API:', newSlot);
+
+                    if (!newSlot || !newSlot.id) {
+                        console.error('❌ Réponse invalide de l\'API - pas d\'ID:', newSlot);
+                        throw new Error('La réponse de l\'API ne contient pas d\'ID valide');
+                    }
+
+                    // Map result back to TimetableSession
+                    const newSession: TimetableSession = {
+                        id: newSlot.id,
+                        day: (newSlot.dayOfWeek || session.day) as any,
+                        startTime: newSlot.startTime,
+                        endTime: newSlot.endTime,
+                        subject: session.subject || '',
+                        subjectId: subjectId,
+                        classId: newSlot.classId,
+                        teacherId: newSlot.teacherId,
+                        room: newSlot.room || session.room || ''
+                    };
+
+                    console.log('✅ Session créée et mappée:', newSession);
+                    setLocalTimetable(prev => [...prev, newSession]);
+                    console.log('✅ Cours ajouté avec succès à l\'état local');
+                    alert('Cours ajouté avec succès!');
+
+                    // Reload class details to get fresh data from backend
+                    console.log('🔄 Rechargement des données de la classe...');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } catch (apiError: any) {
+                    console.error('❌ Erreur API lors de la création:', apiError);
+                    console.error('❌ Détails de l\'erreur:', {
+                        message: apiError.message,
+                        response: apiError.response?.data,
+                        status: apiError.response?.status
+                    });
+                    const errorMessage = apiError.response?.data?.message || apiError.message || 'Erreur inconnue';
+                    throw new Error(`Erreur lors de la création: ${errorMessage}`);
+                }
+            }
+            setShowAddForm(false);
+            setEditingSession(null);
+        } catch (error: any) {
+            console.error('❌ Failed to save session:', error);
+            alert(error.message || 'Erreur lors de la sauvegarde du cours. Vérifiez la console pour plus de détails.');
         }
-        setShowAddForm(false);
-        setEditingSession(null);
-        // TODO: API call to save
     };
 
-    if (localTimetable.length === 0) {
+    if ((localTimetable || []).length === 0) {
         return (
             <div className="text-center py-12">
                 <i className='bx bx-calendar-x text-6xl text-gray-300 mb-4'></i>
                 <p className="text-gray-500 mb-4">Aucun emploi du temps configuré</p>
-                <button 
+                <button
                     onClick={() => setShowAddForm(true)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                     <i className='bx bx-plus mr-2'></i>
                     Créer l'emploi du temps
                 </button>
-                
+
                 {showAddForm && (
                     <TimetableSessionForm
                         session={null}
+                        subjects={subjects}
                         onSave={handleSaveSession}
                         onCancel={() => setShowAddForm(false)}
                     />
@@ -1070,7 +1228,7 @@ const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }
             {/* Header with Add button */}
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">
-                    Emploi du temps ({localTimetable.length} cours)
+                    Emploi du temps ({(localTimetable || []).length} cours)
                 </h3>
                 <button
                     onClick={() => {
@@ -1084,94 +1242,113 @@ const TimetableTab: React.FC<{ timetable: TimetableSession[] }> = ({ timetable }
                 </button>
             </div>
 
-            {daysOfWeek.map(day => (
-                <div key={day} className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <i className='bx bx-calendar text-blue-600'></i>
-                        {day}
-                    </h4>
-                    {groupedByDay[day]?.length > 0 ? (
-                        <div className="space-y-2">
-                            {groupedByDay[day].map((session) => (
-                                <div key={session.id} className="bg-white rounded-lg p-3 border border-gray-200 flex items-center gap-4 hover:border-blue-300 transition-colors group">
-                                    <div className="flex-shrink-0 text-center">
-                                        <p className="text-sm font-semibold text-gray-900">{session.startTime}</p>
-                                        <p className="text-xs text-gray-500">{session.endTime}</p>
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-medium text-gray-900">{session.subject}</p>
-                                        {session.teacherId && (
-                                            <p className="text-sm text-gray-500">Prof. {session.teacherId}</p>
-                                        )}
-                                    </div>
-                                    {session.room && (
-                                        <div className="flex-shrink-0 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                                            Salle {session.room}
+            {
+                daysOfWeek.map(day => (
+                    <div key={day} className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <i className='bx bx-calendar text-blue-600'></i>
+                            {day}
+                        </h4>
+                        {groupedByDay[day]?.length > 0 ? (
+                            <div className="space-y-2">
+                                {groupedByDay[day].map((session) => (
+                                    <div key={session.id} className="bg-white rounded-lg p-3 border border-gray-200 flex items-center gap-4 hover:border-blue-300 transition-colors group">
+                                        <div className="flex-shrink-0 text-center">
+                                            <p className="text-sm font-semibold text-gray-900">{session.startTime}</p>
+                                            <p className="text-xs text-gray-500">{session.endTime}</p>
                                         </div>
-                                    )}
-                                    <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={() => {
-                                                setEditingSession(session);
-                                                setShowAddForm(true);
-                                            }}
-                                            className="p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                                            title="Modifier"
-                                        >
-                                            <i className='bx bx-edit text-lg'></i>
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteSession(session.id)}
-                                            className="p-2 text-red-600 hover:bg-red-100 rounded transition-colors"
-                                            title="Supprimer"
-                                        >
-                                            <i className='bx bx-trash text-lg'></i>
-                                        </button>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-medium text-gray-900">{session.subject}</p>
+                                                {session.registrationNumber && (
+                                                    <span className="text-[10px] font-mono px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded border border-gray-200">
+                                                        {session.registrationNumber}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {session.teacherId && (
+                                                <p className="text-sm text-gray-500">Prof. {session.teacherId}</p>
+                                            )}
+                                        </div>
+                                        {session.room && (
+                                            <div className="flex-shrink-0 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                                Salle {session.room}
+                                            </div>
+                                        )}
+                                        <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => {
+                                                    setEditingSession(session);
+                                                    setShowAddForm(true);
+                                                }}
+                                                className="p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                                title="Modifier"
+                                            >
+                                                <i className='bx bx-edit text-lg'></i>
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteSession(session.id)}
+                                                className="p-2 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                                title="Supprimer"
+                                            >
+                                                <i className='bx bx-trash text-lg'></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-gray-500 italic">Aucun cours ce jour</p>
-                    )}
-                </div>
-            ))}
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500 italic">Aucun cours ce jour</p>
+                        )}
+                    </div>
+                ))
+            }
 
             {/* Modal for add/edit session */}
-            {showAddForm && (
-                <TimetableSessionForm
-                    session={editingSession}
-                    onSave={handleSaveSession}
-                    onCancel={() => {
-                        setShowAddForm(false);
-                        setEditingSession(null);
-                    }}
-                />
-            )}
-        </div>
+            {
+                showAddForm && (
+                    <TimetableSessionForm
+                        session={editingSession}
+                        subjects={subjects}
+                        onSave={handleSaveSession}
+                        onCancel={() => {
+                            setShowAddForm(false);
+                            setEditingSession(null);
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 };
 
 // Timetable Session Form Component
 const TimetableSessionForm: React.FC<{
     session: TimetableSession | null;
+    subjects: any[];
     onSave: (session: Partial<TimetableSession>) => void;
     onCancel: () => void;
-}> = ({ session, onSave, onCancel }) => {
+}> = ({ session, subjects, onSave, onCancel }) => {
     const [formData, setFormData] = useState({
         day: session?.day || 'Lundi',
         startTime: session?.startTime || '08:00',
         endTime: session?.endTime || '09:00',
         subject: session?.subject || '',
+        subjectId: session?.subjectId || '',
         teacherId: session?.teacherId || '',
         room: session?.room || ''
     });
 
     const daysOfWeek = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
-    const subjects = [
+
+
+    // Default subjects fallbacks if API fails
+    const defaultSubjects = [
         'Français', 'Mathématiques', 'Sciences', 'Histoire-Géographie',
         'Anglais', 'Sport', 'Arts', 'Musique', 'Informatique', 'Éducation civique'
     ];
+
+    const availableSubjects = subjects.length > 0 ? subjects : defaultSubjects.map(s => ({ id: '', name: s }));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -1222,13 +1399,22 @@ const TimetableSessionForm: React.FC<{
                             </label>
                             <select
                                 value={formData.subject}
-                                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                                onChange={(e) => {
+                                    const selectedSubject = availableSubjects.find(s => s.name === e.target.value);
+                                    setFormData({
+                                        ...formData,
+                                        subject: e.target.value,
+                                        subjectId: selectedSubject?.id
+                                    } as any);
+                                }}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 required
                             >
                                 <option value="">Sélectionner...</option>
-                                {subjects.map(subject => (
-                                    <option key={subject} value={subject}>{subject}</option>
+                                {availableSubjects.map((subject: any) => (
+                                    <option key={subject.id || subject.name} value={subject.name}>
+                                        {subject.name} {subject.registrationNumber ? `(${subject.registrationNumber})` : ''}
+                                    </option>
                                 ))}
                             </select>
                         </div>
@@ -1318,12 +1504,110 @@ const AttendanceTab: React.FC<{
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onStudentClick: (student: Student) => void;
-}> = ({ students, classData, selectedDate, onDateChange, onStudentClick }) => {
+    currentUser?: User;
+}> = ({ students, classData, selectedDate, onDateChange, onStudentClick, currentUser }) => {
     const [attendanceData, setAttendanceData] = useState<Record<string, 'present' | 'absent' | 'late' | 'excused'>>({});
     const [notes, setNotes] = useState<Record<string, string>>({});
     const [showHistory, setShowHistory] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [selectedPeriod, setSelectedPeriod] = useState<'morning' | 'afternoon'>('morning');
+    const [debugInfo, setDebugInfo] = useState<any>(null);
+
+    // Helper to format date as YYYY-MM-DD in LOCAL time to avoid timezone issues
+    const formatDateForApi = (date: Date): string => {
+        const d = new Date(date);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().split('T')[0];
+    };
+
+    // Charger les données de présence
+    useEffect(() => {
+        const loadAttendance = async () => {
+            if (!classData?.id) return;
+
+            // Reset states - COMMENTED OUT to prevent flashing/data loss perception
+            // setAttendanceData({});
+            // setNotes({});
+
+            try {
+                // BUG FIX: Format date to YYYY-MM-DD string before sending to API
+                // BUG FIX: Use local date to avoid timezone shift
+                const formattedDate = formatDateForApi(selectedDate);
+                console.log(`🔄 Loading attendance for ${formattedDate} (${selectedPeriod})...`);
+
+                // BROAD FETCH: Get all records for the day (undefined period)
+                const allRecords = await AttendanceService.getDailyAttendance(classData.id, formattedDate, undefined);
+
+                // Client-side filter: Match selected period OR null (legacy/default)
+                // Also be robust against case sensitivity if needed (though backend seems strictly lowercase)
+                const records = allRecords.filter(r => r.period === selectedPeriod || !r.period);
+
+                setDebugInfo({
+                    date: formattedDate,
+                    period: selectedPeriod,
+                    count: records.length,
+                    totalFound: allRecords.length,
+                    firstRaw: allRecords[0] ? JSON.stringify(allRecords[0]) : 'None',
+                    timestamp: new Date().toLocaleTimeString()
+                });
+
+                const newAttendance: Record<string, 'present' | 'absent' | 'late' | 'excused'> = {};
+                const newNotes: Record<string, string> = {};
+
+                // Map standard status strings back to component state keys
+                // Enhanced map to handle uppercase Enum values
+                const reverseStatusMap: Record<string, 'present' | 'absent' | 'late' | 'excused'> = {
+                    'Présent': 'present',
+                    'Absent': 'absent',
+                    'Retard': 'late',
+                    'Absent excusé': 'excused',
+                    'Excusé': 'excused',
+                    'present': 'present',
+                    'absent': 'absent',
+                    'late': 'late',
+                    'excused': 'excused',
+                    'PRESENT': 'present',
+                    'ABSENT': 'absent',
+                    'LATE': 'late',
+                    'EXCUSED': 'excused'
+                };
+
+                let matchCount = 0;
+                records.forEach(record => {
+                    if (record.studentId) {
+                        // Default to present if status unknown, but try to map
+                        const statusKey = reverseStatusMap[record.status] || 'present';
+                        newAttendance[record.studentId] = statusKey;
+                        if (record.notes) {
+                            newNotes[record.studentId] = record.notes;
+                        }
+                        matchCount++;
+                    }
+                });
+
+                if (allRecords && allRecords.length > 0) {
+                    setAttendanceData(newAttendance);
+                    setNotes(newNotes);
+                    console.log(`✅ Appel chargé pour ${formattedDate}: ${matchCount} enregistrements appliqués.`);
+                    if (matchCount < allRecords.length) {
+                        console.warn(`⚠️ Only ${matchCount} out of ${allRecords.length} records matched the selected period (${selectedPeriod}).`);
+                    }
+                } else {
+                    console.log(`ℹ️ Aucune donnée de présence pour ${formattedDate}, affichage par défaut.`);
+                    // Only reset if we are sure there's NO data at all for this date
+                    if (allRecords.length === 0) {
+                        setAttendanceData({});
+                        setNotes({});
+                    }
+                }
+            } catch (err) {
+                console.error('❌ Erreur chargement appel:', err);
+            }
+        };
+
+        loadAttendance();
+    }, [classData.id, selectedDate, selectedPeriod]);
 
     // Format de la date pour l'affichage
     const formatDate = (date: Date) => {
@@ -1356,19 +1640,37 @@ const AttendanceTab: React.FC<{
         setSaveMessage(null);
 
         try {
-            // Préparer les données pour l'API
+            // Map frontend status to backend enum values
+            const statusMap: Record<string, string> = {
+                'present': 'Présent',
+                'absent': 'Absent',
+                'late': 'Retard',
+                'excused': 'Absent excusé'
+            };
+
+
+            // Get current user ID from auth service
+            const currentUser = AuthService.getCurrentUser();
+            const userId = currentUser?.id || '00000000-0000-0000-0000-000000000000'; // Fallback to nil UUID if no user
+
+            // Préparer les données pour l'API - array of CreateAttendanceDto
+            const saveDate = formatDateForApi(selectedDate);
+            setDebugInfo((prev: any) => ({ ...prev, lastSaveAttempt: { date: saveDate, period: selectedPeriod, count: students.length, time: new Date().toLocaleTimeString() } }));
+
             const attendanceRecords = students.map(student => ({
                 studentId: student.id,
                 classId: classData.id,
-                date: selectedDate.toISOString().split('T')[0], // Format YYYY-MM-DD
-                status: attendanceData[student.id] || 'present',
-                note: notes[student.id] || '',
-                recordedBy: 'current-user', // À remplacer par l'utilisateur connecté
-                recordedAt: new Date().toISOString()
+                date: formatDateForApi(selectedDate),
+                period: selectedPeriod,
+                status: statusMap[attendanceData[student.id] || 'present'],
+                reason: notes[student.id] || undefined,
+                comments: notes[student.id] || undefined,
+                isJustified: (attendanceData[student.id] === 'excused'),
+                recordedBy: userId
             }));
 
             console.log('📝 Sauvegarde de la fiche d\'appel:', {
-                date: selectedDate.toISOString().split('T')[0],
+                date: formatDateForApi(selectedDate),
                 classe: classData.name,
                 totalEleves: students.length,
                 presents: Object.values(attendanceData).filter(s => s === 'present').length,
@@ -1380,37 +1682,28 @@ const AttendanceTab: React.FC<{
 
             // Tentative de sauvegarde via l'API
             try {
-                const response = await fetch('http://localhost:3001/api/v1/attendance/bulk', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        date: selectedDate.toISOString().split('T')[0],
-                        classId: classData.id,
-                        records: attendanceRecords
-                    })
-                });
+                await AttendanceService.saveBulkAttendance(attendanceRecords);
 
-                if (response.ok) {
-                    setSaveMessage({ 
-                        type: 'success', 
-                        text: `✅ Fiche d'appel enregistrée avec succès pour le ${formatDate(selectedDate)}` 
-                    });
-                    console.log('✅ Fiche d\'appel sauvegardée avec succès');
-                } else {
-                    throw new Error('Erreur API: ' + response.statusText);
+                // Log activity
+                if (currentUser) {
+                    ActivityService.logActivity(
+                        currentUser,
+                        `Enregistrement présences: ${classData.name}`,
+                        'attendance',
+                        `Date: ${formatDateForApi(selectedDate)} - ${attendanceRecords.length} élèves. Présents: ${Object.values(attendanceData).filter(s => s === 'present').length}`,
+                        classData.id
+                    );
                 }
             } catch (apiError) {
-                console.warn('⚠️ API non disponible, sauvegarde locale:', apiError);
-                
+                console.warn('⚠️ API non disponible, tentative de sauvegarde locale:', apiError);
+
                 // Fallback: Sauvegarde locale dans localStorage
-                const localStorageKey = `attendance_${classData.id}_${selectedDate.toISOString().split('T')[0]}`;
+                const localStorageKey = `attendance_${classData.id}_${formatDateForApi(selectedDate)}`;
                 localStorage.setItem(localStorageKey, JSON.stringify(attendanceRecords));
-                
-                setSaveMessage({ 
-                    type: 'success', 
-                    text: `✅ Fiche d'appel sauvegardée localement (${attendanceRecords.length} élèves marqués)` 
+
+                setSaveMessage({
+                    type: 'success',
+                    text: `✅ Fiche d'appel sauvegardée localement (${attendanceRecords.length} élèves marqués)`
                 });
                 console.log('💾 Sauvegarde locale effectuée');
             }
@@ -1420,11 +1713,11 @@ const AttendanceTab: React.FC<{
 
         } catch (error) {
             console.error('❌ Erreur lors de la sauvegarde:', error);
-            setSaveMessage({ 
-                type: 'error', 
-                text: '❌ Erreur lors de l\'enregistrement. Veuillez réessayer.' 
+            setSaveMessage({
+                type: 'error',
+                text: '❌ Erreur lors de l\'enregistrement. Veuillez réessayer.'
             });
-            
+
             // Masquer le message d'erreur après 7 secondes
             setTimeout(() => setSaveMessage(null), 7000);
         } finally {
@@ -1440,7 +1733,7 @@ const AttendanceTab: React.FC<{
         const excused = Object.values(attendanceData).filter(s => s === 'excused').length;
         const total = students.length;
         const marked = present + absent + late + excused;
-        
+
         return { present, absent, late, excused, total, marked };
     }, [attendanceData, students.length]);
 
@@ -1448,16 +1741,14 @@ const AttendanceTab: React.FC<{
         <div className="space-y-6">
             {/* Message de sauvegarde */}
             {saveMessage && (
-                <div className={`rounded-lg p-4 flex items-center gap-3 ${
-                    saveMessage.type === 'success' 
-                        ? 'bg-green-50 border border-green-200 text-green-800' 
-                        : 'bg-red-50 border border-red-200 text-red-800'
-                }`}>
-                    <i className={`bx text-2xl ${
-                        saveMessage.type === 'success' ? 'bx-check-circle' : 'bx-error-circle'
-                    }`}></i>
+                <div className={`rounded-lg p-4 flex items-center gap-3 ${saveMessage.type === 'success'
+                    ? 'bg-green-50 border border-green-200 text-green-800'
+                    : 'bg-red-50 border border-red-200 text-red-800'
+                    }`}>
+                    <i className={`bx text-2xl ${saveMessage.type === 'success' ? 'bx-check-circle' : 'bx-error-circle'
+                        }`}></i>
                     <p className="flex-1 font-medium">{saveMessage.text}</p>
-                    <button 
+                    <button
                         onClick={() => setSaveMessage(null)}
                         className="text-gray-500 hover:text-gray-700"
                     >
@@ -1510,6 +1801,22 @@ const AttendanceTab: React.FC<{
                     >
                         Aujourd'hui
                     </button>
+
+                    <div className="h-8 w-px bg-gray-300 mx-2"></div>
+
+                    <select
+                        value={selectedPeriod}
+                        onChange={(e) => setSelectedPeriod(e.target.value as 'morning' | 'afternoon')}
+                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none cursor-pointer hover:bg-gray-50 transition-colors bg-no-repeat pr-10"
+                        style={{
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                            backgroundPosition: 'right 0.5rem center',
+                            backgroundSize: '1.5em 1.5em'
+                        }}
+                    >
+                        <option value="morning">🌅 Matin</option>
+                        <option value="afternoon">🌇 Après-midi</option>
+                    </select>
                 </div>
 
                 {/* Statistiques rapides */}
@@ -1557,11 +1864,10 @@ const AttendanceTab: React.FC<{
                                 <button
                                     onClick={saveAttendance}
                                     disabled={isSaving}
-                                    className={`px-4 py-1 text-xs rounded flex items-center gap-1 transition-all ${
-                                        isSaving 
-                                            ? 'bg-gray-400 text-white cursor-not-allowed' 
-                                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                                    }`}
+                                    className={`px-4 py-1 text-xs rounded flex items-center gap-1 transition-all ${isSaving
+                                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                        }`}
                                 >
                                     <i className={`bx ${isSaving ? 'bx-loader-alt animate-spin' : 'bx-save'}`}></i>
                                     {isSaving ? 'Enregistrement...' : 'Enregistrer'}
@@ -1576,7 +1882,7 @@ const AttendanceTab: React.FC<{
                                     <div key={student.id} className="p-4 hover:bg-gray-50 transition-colors">
                                         <div className="flex items-center gap-4">
                                             {/* Avatar */}
-                                            <div 
+                                            <div
                                                 className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold cursor-pointer"
                                                 onClick={() => onStudentClick(student)}
                                                 title="Voir la fiche élève"
@@ -1586,7 +1892,7 @@ const AttendanceTab: React.FC<{
 
                                             {/* Info élève */}
                                             <div className="flex-1">
-                                                <p 
+                                                <p
                                                     className="font-medium text-gray-900 cursor-pointer hover:text-blue-600"
                                                     onClick={() => onStudentClick(student)}
                                                 >
@@ -1599,44 +1905,40 @@ const AttendanceTab: React.FC<{
                                             <div className="flex gap-2">
                                                 <button
                                                     onClick={() => toggleAttendance(student.id, 'present')}
-                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                                                        status === 'present'
-                                                            ? 'bg-green-600 text-white'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-green-100'
-                                                    }`}
+                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${status === 'present'
+                                                        ? 'bg-green-600 text-white'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-green-100'
+                                                        }`}
                                                 >
                                                     <i className='bx bx-check-circle mr-1'></i>
                                                     Présent
                                                 </button>
                                                 <button
                                                     onClick={() => toggleAttendance(student.id, 'absent')}
-                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                                                        status === 'absent'
-                                                            ? 'bg-red-600 text-white'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-red-100'
-                                                    }`}
+                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${status === 'absent'
+                                                        ? 'bg-red-600 text-white'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-red-100'
+                                                        }`}
                                                 >
                                                     <i className='bx bx-x-circle mr-1'></i>
                                                     Absent
                                                 </button>
                                                 <button
                                                     onClick={() => toggleAttendance(student.id, 'late')}
-                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                                                        status === 'late'
-                                                            ? 'bg-orange-600 text-white'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-orange-100'
-                                                    }`}
+                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${status === 'late'
+                                                        ? 'bg-orange-600 text-white'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-orange-100'
+                                                        }`}
                                                 >
                                                     <i className='bx bx-time mr-1'></i>
                                                     Retard
                                                 </button>
                                                 <button
                                                     onClick={() => toggleAttendance(student.id, 'excused')}
-                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                                                        status === 'excused'
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-blue-100'
-                                                    }`}
+                                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${status === 'excused'
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-blue-100'
+                                                        }`}
                                                 >
                                                     <i className='bx bx-file mr-1'></i>
                                                     Justifié
@@ -1673,6 +1975,46 @@ const AttendanceTab: React.FC<{
                     </div>
                 </div>
             )}
+
+            {/* DEBUG PANEL */}
+            <div className="bg-gray-900 text-white p-4 rounded-lg text-xs font-mono mt-8 border border-gray-700 shadow-lg">
+                <h5 className="font-bold border-b border-gray-700 pb-2 mb-2 flex items-center gap-2">
+                    <i className='bx bx-bug text-yellow-500'></i>
+                    Diagnostic Technique (Visible temporairement)
+                </h5>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <p className="text-gray-400">Date API (YYYY-MM-DD):</p>
+                        <p className="text-yellow-300 font-bold text-base">{formatDateForApi(selectedDate)}</p>
+                        <p className="text-gray-600 text-[10px] mt-1">Class ID: {classData?.id?.substring(0, 8)}...</p>
+                    </div>
+                    <div>
+                        <p className="text-gray-400">Période:</p>
+                        <p className="text-yellow-300 font-bold capitalize">{selectedPeriod}</p>
+                    </div>
+                    <div>
+                        <p className="text-gray-400">Dernière MàJ:</p>
+                        <p className="text-blue-300">{debugInfo?.timestamp || 'En attente...'}</p>
+                    </div>
+                    <div>
+                        <p className="text-gray-400">Dernier Save:</p>
+                        <p className={debugInfo?.lastSaveAttempt ? "text-green-300" : "text-gray-600"}>{debugInfo?.lastSaveAttempt ? `${debugInfo.lastSaveAttempt.time} (${debugInfo.lastSaveAttempt.date})` : 'Aucun'}</p>
+                    </div>
+                    <div>
+                        <p className="text-gray-400">Records (Filtrés/Total):</p>
+                        <p className="font-bold text-lg">
+                            <span className={debugInfo?.count > 0 ? 'text-green-400' : 'text-red-400'}>{debugInfo?.count ?? 0}</span>
+                            <span className="text-gray-500"> / {debugInfo?.totalFound ?? 0}</span>
+                        </p>
+                    </div>
+                </div>
+                {debugInfo?.firstRaw && (
+                    <div className="mt-3 pt-3 border-t border-gray-700">
+                        <p className="text-gray-400 mb-1">Premier record brut (tout confondu):</p>
+                        <code className="block bg-black p-2 rounded text-gray-500 break-all text-[10px]">{debugInfo.firstRaw}</code>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -1690,8 +2032,8 @@ const StatisticsTab: React.FC<{ students: Student[]; classData: SchoolClass }> =
         const ageGroups = students.reduce((acc, student) => {
             if (!student.age) return acc;
             const group = student.age < 8 ? '< 8 ans' :
-                         student.age < 12 ? '8-11 ans' :
-                         student.age < 15 ? '12-14 ans' : '15+ ans';
+                student.age < 12 ? '8-11 ans' :
+                    student.age < 15 ? '12-14 ans' : '15+ ans';
             acc[group] = (acc[group] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
@@ -1754,7 +2096,7 @@ const StatisticsTab: React.FC<{ students: Student[]; classData: SchoolClass }> =
                             const isMale = gender === 'M' || gender === 'Masculin' || gender === 'male';
                             const isFemale = gender === 'F' || gender === 'Féminin' || gender === 'female';
                             const displayLabel = isMale ? 'Garçons' : isFemale ? 'Filles' : gender;
-                            
+
                             return (
                                 <div key={gender}>
                                     <div className="flex justify-between text-sm mb-1">
@@ -1765,9 +2107,8 @@ const StatisticsTab: React.FC<{ students: Student[]; classData: SchoolClass }> =
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2">
                                         <div
-                                            className={`h-2 rounded-full ${
-                                                isMale ? 'bg-blue-500' : 'bg-pink-500'
-                                            }`}
+                                            className={`h-2 rounded-full ${isMale ? 'bg-blue-500' : 'bg-pink-500'
+                                                }`}
                                             style={{ width: `${percentage}%` }}
                                         ></div>
                                     </div>
@@ -1809,11 +2150,12 @@ const StatisticsTab: React.FC<{ students: Student[]; classData: SchoolClass }> =
     );
 };
 
-const GradesTab: React.FC<{ 
-    students: Student[]; 
+const GradesTab: React.FC<{
+    students: Student[];
     classData: SchoolClass;
     timetable: TimetableSession[];
-}> = ({ students, classData, timetable }) => {
+    currentUser?: User;
+}> = ({ students, classData, timetable, currentUser }) => {
     const [selectedSubject, setSelectedSubject] = useState<string>('all');
     const [selectedPeriod, setSelectedPeriod] = useState<string>('T1');
     const [gradesData, setGradesData] = useState<Record<string, Record<string, number>>>({});
@@ -1825,8 +2167,10 @@ const GradesTab: React.FC<{
     // Extract unique subjects from timetable
     const subjects = useMemo(() => {
         const uniqueSubjects = new Set<string>();
-        timetable.forEach(session => {
-            if (session.subject) uniqueSubjects.add(session.subject);
+        // Add defensive check to ensure timetable is an array
+        const timetableArray = Array.isArray(timetable) ? timetable : [];
+        timetableArray.forEach(session => {
+            if (session && session.subject) uniqueSubjects.add(session.subject);
         });
         return Array.from(uniqueSubjects);
     }, [timetable]);
@@ -1840,7 +2184,7 @@ const GradesTab: React.FC<{
                 setLoading(true);
                 // Import du service dynamiquement pour éviter les erreurs de SSR
                 const { GradesService } = await import('../services/api/grades.service');
-                
+
                 const trimesterMap: Record<string, string> = {
                     'T1': 'Premier trimestre',
                     'T2': 'Deuxième trimestre',
@@ -1904,8 +2248,19 @@ const GradesTab: React.FC<{
         }));
         setShowAddGradeForm(false);
         setSelectedStudentForGrade(null);
-        console.log('Note ajoutée:', { studentId, subject, grade, period: selectedPeriod });
         // TODO: API call to save grade
+
+        // Log activity
+        if (currentUser) {
+            ActivityService.logActivity(
+                currentUser,
+                `Saisie de note: ${subject} (${grade}/20)`,
+                'grades',
+                `Élève ID: ${studentId} - Trimestre: ${selectedPeriod}`,
+                classData.id,
+                studentId
+            );
+        }
     };
 
     const exportGrades = () => {
@@ -1914,10 +2269,10 @@ const GradesTab: React.FC<{
             const studentGrades = gradesData[student.id] || {};
             const gradeValues = subjects.map(subject => studentGrades[subject] || '-');
             const validGrades = gradeValues.filter(g => g !== '-').map(Number);
-            const average = validGrades.length > 0 
+            const average = validGrades.length > 0
                 ? (validGrades.reduce((a, b) => a + b, 0) / validGrades.length).toFixed(2)
                 : '-';
-            
+
             return [
                 `${student.firstName} ${student.lastName}`,
                 ...gradeValues,
@@ -2133,9 +2488,9 @@ const GradesTab: React.FC<{
                                             const grade = studentGrades[subject];
                                             const gradeColor = grade !== undefined
                                                 ? grade >= 16 ? 'text-green-700 bg-green-100'
-                                                : grade >= 14 ? 'text-blue-700 bg-blue-100'
-                                                : grade >= 10 ? 'text-orange-700 bg-orange-100'
-                                                : 'text-red-700 bg-red-100'
+                                                    : grade >= 14 ? 'text-blue-700 bg-blue-100'
+                                                        : grade >= 10 ? 'text-orange-700 bg-orange-100'
+                                                            : 'text-red-700 bg-red-100'
                                                 : 'text-gray-500';
 
                                             return (
@@ -2206,12 +2561,12 @@ const GradesTab: React.FC<{
                                 const formData = new FormData(e.currentTarget);
                                 const subject = formData.get('subject') as string;
                                 const grade = parseFloat(formData.get('grade') as string);
-                                
+
                                 if (grade < 0 || grade > 20) {
                                     alert('La note doit être entre 0 et 20');
                                     return;
                                 }
-                                
+
                                 handleAddGrade(selectedStudentForGrade.id, subject, grade);
                             }}
                             className="p-6 space-y-4"

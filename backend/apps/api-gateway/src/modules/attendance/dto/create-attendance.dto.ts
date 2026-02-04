@@ -20,15 +20,25 @@ export class CreateAttendanceDto {
   timetableSlotId?: string;
 
   @ApiProperty({ description: 'Attendance date (YYYY-MM-DD)', example: '2024-11-18' })
-  @Type(() => Date)
-  @IsDate()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in format YYYY-MM-DD' })
   @IsNotEmpty()
-  date: Date;
+  date: string;
 
   @ApiProperty({ description: 'Attendance status', enum: AttendanceStatus, example: AttendanceStatus.PRESENT })
   @IsEnum(AttendanceStatus)
   @IsNotEmpty()
   status: AttendanceStatus;
+
+  @ApiPropertyOptional({ description: 'Session period (morning/afternoon)', example: 'morning' })
+  @IsOptional()
+  @IsString()
+  period?: string;
+
+  @ApiPropertyOptional({ description: 'Session alias (legacy support)', example: 'morning' })
+  @IsOptional()
+  @IsString()
+  session?: string;
 
   @ApiPropertyOptional({ description: 'Time student arrived (HH:MM format)', example: '08:35' })
   @IsOptional()

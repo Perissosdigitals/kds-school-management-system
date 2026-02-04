@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { User, Activity, Event, Meeting, Incident, Association, Announcement, Teacher, Student } from '../types';
 import { ActivityForm, EventForm, MeetingForm, IncidentForm, AssociationForm, AnnouncementForm } from './forms';
-import { Modal } from './Modal';
+import { Modal } from './ui/Modal';
 import { SchoolLifeService } from '../services/api/school-life.service';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 
@@ -13,18 +13,16 @@ const TabButton = React.memo<{ active: boolean; onClick: () => void; icon: strin
     ({ active, onClick, icon, label, count }) => (
         <button
             onClick={onClick}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all ${
-                active
+            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all ${active
                     ? 'text-blue-600 border-blue-600 bg-blue-50'
                     : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
-            }`}
+                }`}
         >
             <i className={`bx ${icon} text-xl`}></i>
             <span>{label}</span>
             {count !== undefined && (
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-                }`}>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                    }`}>
                     {count}
                 </span>
             )}
@@ -32,7 +30,7 @@ const TabButton = React.memo<{ active: boolean; onClick: () => void; icon: strin
     )
 );
 
-const StatCard: React.FC<{ icon: string; label: string; value: string | number; color: string; trend?: string }> = 
+const StatCard: React.FC<{ icon: string; label: string; value: string | number; color: string; trend?: string }> =
     ({ icon, label, value, color, trend }) => (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
@@ -54,7 +52,7 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
     const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // Data states
     const [activities, setActivities] = useState<Activity[]>([]);
     const [events, setEvents] = useState<Event[]>([]);
@@ -186,7 +184,7 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                             <i className='bx bx-calendar-star mr-2 text-purple-600'></i>
                             Prochains Événements
                         </h3>
-                        <button 
+                        <button
                             onClick={() => setActiveTab('events')}
                             className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                         >
@@ -221,7 +219,7 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                             <i className='bx bx-bell mr-2 text-orange-600'></i>
                             Annonces Importantes
                         </h3>
-                        <button 
+                        <button
                             onClick={() => setShowAnnouncementModal(true)}
                             className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                         >
@@ -258,7 +256,7 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                     <h3 className="text-2xl font-bold text-gray-900">Activités Extrascolaires</h3>
                     <p className="text-gray-600">Clubs, ateliers et sorties pédagogiques</p>
                 </div>
-                <button 
+                <button
                     onClick={() => setShowActivityModal(true)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
                 >
@@ -286,19 +284,16 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                 {activities.map(activity => (
                     <div key={activity.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
-                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                                activity.type === 'club' ? 'bg-blue-100' :
-                                activity.type === 'atelier' ? 'bg-purple-100' : 'bg-green-100'
-                            }`}>
-                                <i className={`bx text-2xl ${
-                                    activity.type === 'club' ? 'bx-trophy text-blue-600' :
-                                    activity.type === 'atelier' ? 'bx-palette text-purple-600' : 'bx-trip text-green-600'
-                                }`}></i>
+                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${activity.type === 'club' ? 'bg-blue-100' :
+                                    activity.type === 'atelier' ? 'bg-purple-100' : 'bg-green-100'
+                                }`}>
+                                <i className={`bx text-2xl ${activity.type === 'club' ? 'bx-trophy text-blue-600' :
+                                        activity.type === 'atelier' ? 'bx-palette text-purple-600' : 'bx-trip text-green-600'
+                                    }`}></i>
                             </div>
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                activity.status === 'En cours' ? 'bg-green-100 text-green-700' :
-                                activity.status === 'Planifiée' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'
-                            }`}>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${activity.status === 'En cours' ? 'bg-green-100 text-green-700' :
+                                    activity.status === 'Planifiée' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'
+                                }`}>
                                 {activity.status}
                             </span>
                         </div>
@@ -336,7 +331,7 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                     <h3 className="text-2xl font-bold text-gray-900">Événements</h3>
                     <p className="text-gray-600">Cérémonies, journées thématiques et compétitions</p>
                 </div>
-                <button 
+                <button
                     onClick={() => setShowEventModal(true)}
                     className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
                 >
@@ -360,10 +355,9 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                             <div className="flex-1">
                                 <div className="flex items-start justify-between mb-2">
                                     <h4 className="font-bold text-gray-900 text-lg">{event.title}</h4>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                        event.status === 'Planifié' ? 'bg-blue-100 text-blue-700' :
-                                        event.status === 'En cours' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                                    }`}>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${event.status === 'Planifié' ? 'bg-blue-100 text-blue-700' :
+                                            event.status === 'En cours' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                        }`}>
                                         {event.status}
                                     </span>
                                 </div>
@@ -408,7 +402,7 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                     <h3 className="text-2xl font-bold text-gray-900">Réunions</h3>
                     <p className="text-gray-600">Parents-professeurs, conseils et assemblées</p>
                 </div>
-                <button 
+                <button
                     onClick={() => setShowMeetingModal(true)}
                     className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2"
                 >
@@ -475,7 +469,7 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                     <h3 className="text-2xl font-bold text-gray-900">Suivi Comportemental</h3>
                     <p className="text-gray-600">Incidents, sanctions et encouragements</p>
                 </div>
-                <button 
+                <button
                     onClick={() => setShowIncidentModal(true)}
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
                 >
@@ -504,23 +498,23 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                     <div key={record.id} className={`bg-white rounded-xl border-2 p-6 ${
                         // @ts-ignore - type might be different from backend
                         record.type === 'incident' ? 'border-red-200' :
-                        // @ts-ignore
-                        record.type === 'sanction' ? 'border-orange-200' : 'border-green-200'
-                    }`}>
+                            // @ts-ignore
+                            record.type === 'sanction' ? 'border-orange-200' : 'border-green-200'
+                        }`}>
                         <div className="flex items-start justify-between mb-4">
                             <div className="flex items-start gap-4">
                                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
                                     // @ts-ignore
                                     record.type === 'incident' ? 'bg-red-100' :
-                                    // @ts-ignore
-                                    record.type === 'sanction' ? 'bg-orange-100' : 'bg-green-100'
-                                }`}>
+                                        // @ts-ignore
+                                        record.type === 'sanction' ? 'bg-orange-100' : 'bg-green-100'
+                                    }`}>
                                     <i className={`text-2xl ${
                                         // @ts-ignore
                                         record.type === 'incident' ? 'bx bx-error text-red-600' :
-                                        // @ts-ignore
-                                        record.type === 'sanction' ? 'bx bx-shield-x text-orange-600' : 'bx bx-trophy text-green-600'
-                                    }`}></i>
+                                            // @ts-ignore
+                                            record.type === 'sanction' ? 'bx bx-shield-x text-orange-600' : 'bx bx-trophy text-green-600'
+                                        }`}></i>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-gray-900 mb-1">{record.studentName || 'Élève inconnu'}</h4>
@@ -530,10 +524,9 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                             <div className="text-right">
                                 <p className="text-sm text-gray-600">{new Date(record.date).toLocaleDateString('fr-FR')}</p>
                                 {record.severity && (
-                                    <span className={`inline-block mt-1 px-2 py-1 rounded text-xs font-medium ${
-                                        record.severity === 'Grave' || record.severity === 'Très grave' ? 'bg-red-100 text-red-700' :
-                                        record.severity === 'Modéré' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'
-                                    }`}>
+                                    <span className={`inline-block mt-1 px-2 py-1 rounded text-xs font-medium ${record.severity === 'Grave' || record.severity === 'Très grave' ? 'bg-red-100 text-red-700' :
+                                            record.severity === 'Modéré' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'
+                                        }`}>
                                         {record.severity}
                                     </span>
                                 )}
@@ -572,7 +565,7 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                     <h3 className="text-2xl font-bold text-gray-900">Associations & Projets</h3>
                     <p className="text-gray-600">Associations étudiantes et projets solidaires</p>
                 </div>
-                <button 
+                <button
                     onClick={() => setShowAssociationModal(true)}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
                 >
@@ -585,18 +578,15 @@ export const SchoolLife: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                 {associations.map(association => (
                     <div key={association.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
-                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
-                                association.type === 'Club étudiant' ? 'bg-blue-100' :
-                                association.type === 'Partenariat ONG' ? 'bg-green-100' : 'bg-purple-100'
-                            }`}>
-                                <i className={`text-3xl ${
-                                    association.type === 'Club étudiant' ? 'bx bx-group text-blue-600' :
-                                    association.type === 'Partenariat ONG' ? 'bx bx-heart text-green-600' : 'bx bx-world text-purple-600'
-                                }`}></i>
+                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${association.type === 'Club étudiant' ? 'bg-blue-100' :
+                                    association.type === 'Partenariat ONG' ? 'bg-green-100' : 'bg-purple-100'
+                                }`}>
+                                <i className={`text-3xl ${association.type === 'Club étudiant' ? 'bx bx-group text-blue-600' :
+                                        association.type === 'Partenariat ONG' ? 'bx bx-heart text-green-600' : 'bx bx-world text-purple-600'
+                                    }`}></i>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                association.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                            }`}>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${association.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                }`}>
                                 {association.status}
                             </span>
                         </div>

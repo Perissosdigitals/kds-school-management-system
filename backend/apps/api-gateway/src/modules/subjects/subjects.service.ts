@@ -5,13 +5,14 @@ import { Subject } from './entities/subject.entity';
 import { CreateSubjectDto } from './dto/create-subject.dto';
 import { UpdateSubjectDto } from './dto/update-subject.dto';
 import { QuerySubjectsDto } from './dto/query-subjects.dto';
+import { IdGenerator, EntityCode } from '../../common/utils/id-generator.util';
 
 @Injectable()
 export class SubjectsService {
   constructor(
     @InjectRepository(Subject)
     private subjectsRepository: Repository<Subject>,
-  ) {}
+  ) { }
 
   async findAll(queryDto: QuerySubjectsDto) {
     const { gradeLevel, isActive, search, page = 1, limit = 100 } = queryDto;
@@ -53,11 +54,11 @@ export class SubjectsService {
 
   async findOne(id: string): Promise<Subject> {
     const subject = await this.subjectsRepository.findOne({ where: { id } });
-    
+
     if (!subject) {
       throw new NotFoundException(`Subject with ID ${id} not found`);
     }
-    
+
     return subject;
   }
 
@@ -73,7 +74,21 @@ export class SubjectsService {
     }
 
     const subject = this.subjectsRepository.create(createSubjectDto);
+
+    // Generate Registration Number (SUB-XXX)
+    subject.registrationNumber = await this.generateRegistrationNumber();
+
     return this.subjectsRepository.save(subject);
+  }
+
+  private async generateRegistrationNumber(): Promise<string> {
+    const yearCode = IdGenerator.getAcademicYearCode();
+
+    return IdGenerator.generateNextId(
+      this.subjectsRepository,
+      EntityCode.SUBJECT,
+      yearCode
+    );
   }
 
   async update(id: string, updateSubjectDto: UpdateSubjectDto): Promise<Subject> {

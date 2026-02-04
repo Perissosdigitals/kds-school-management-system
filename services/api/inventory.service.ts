@@ -1,5 +1,4 @@
 import { httpClient } from '../httpClient';
-import { mockInventory } from '../../data/mockData';
 import type { InventoryItem } from '../../types';
 
 export const InventoryService = {
@@ -12,8 +11,8 @@ export const InventoryService = {
       const response = await httpClient.get<InventoryItem[]>('/inventory', { params });
       return response.data;
     } catch (error) {
-      console.warn('InventoryService: Erreur API, utilisation des données mock', error);
-      return mockInventory;
+      console.error('InventoryService: Erreur API lors du chargement de l\'inventaire', error);
+      throw error;
     }
   },
 
@@ -26,8 +25,8 @@ export const InventoryService = {
       const response = await httpClient.get<InventoryItem>(`/inventory/${id}`);
       return response.data;
     } catch (error) {
-      console.warn(`InventoryService: Erreur lors de la récupération`, error);
-      return mockInventory.find(i => i.id === id) || null;
+      console.error(`InventoryService: Erreur lors de la récupération de l'article ${id}`, error);
+      throw error;
     }
   },
 
@@ -61,6 +60,5 @@ export const InventoryService = {
 };
 
 export const getInventoryItems = async (): Promise<InventoryItem[]> => {
-  console.log('Fetching inventory items from API...');
   return InventoryService.getInventoryItems();
 };

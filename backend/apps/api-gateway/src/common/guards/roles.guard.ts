@@ -4,7 +4,7 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
     // Vérifier si la route est publique
@@ -31,6 +31,7 @@ export class RolesGuard implements CanActivate {
     const hasRole = () => requiredRoles.some((role) => user.role === role);
 
     if (!hasRole()) {
+      console.warn(`[RolesGuard] Forbidden: User role "${user.role}" not in required roles [${requiredRoles.join(', ')}]`);
       throw new ForbiddenException(
         `User role "${user.role}" does not have required roles: ${requiredRoles.join(', ')}`
       );

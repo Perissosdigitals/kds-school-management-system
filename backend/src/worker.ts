@@ -4,7 +4,7 @@
  */
 
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './apps/api-gateway/src/app.module';
+import { AppModule } from '../apps/api-gateway/src/app.module';
 
 export interface Env {
   DB: D1Database;
@@ -36,7 +36,7 @@ async function initializeApp(env: Env) {
     });
 
     app.setGlobalPrefix(env.API_PREFIX);
-    
+
     await app.init();
   }
   return app;
@@ -46,11 +46,11 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
       const nestApp = await initializeApp(env);
-      
+
       // Convert Cloudflare Request to Node.js compatible request
       const url = new URL(request.url);
       const path = url.pathname + url.search;
-      
+
       // Get the Express adapter
       const httpAdapter = nestApp.getHttpAdapter();
       const instance = httpAdapter.getInstance();

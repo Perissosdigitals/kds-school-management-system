@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AttendanceService } from '../../services/api/attendance.service';
+import { AttendanceStatus } from '../../types';
 
 interface AttendanceStudentViewProps {
   studentId: string;
@@ -23,7 +24,7 @@ export const AttendanceStudentView: React.FC<AttendanceStudentViewProps> = ({
       try {
         const data = await AttendanceService.getStudentPattern(studentId, days);
         setPattern(data);
-        
+
         // Set current month as default
         const now = new Date();
         setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
@@ -43,44 +44,46 @@ export const AttendanceStudentView: React.FC<AttendanceStudentViewProps> = ({
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case 'present': return 'bg-green-500';
-      case 'absent': return 'bg-red-500';
-      case 'late': return 'bg-yellow-500';
+      case AttendanceStatus.PRESENT: return 'bg-green-500';
+      case AttendanceStatus.ABSENT: return 'bg-red-500';
+      case AttendanceStatus.LATE: return 'bg-yellow-500';
+      case AttendanceStatus.EXCUSED: return 'bg-blue-500';
       default: return 'bg-gray-300';
     }
   };
 
   const getStatusEmoji = (status: string): string => {
     switch (status) {
-      case 'present': return '✅';
-      case 'absent': return '❌';
-      case 'late': return '⏰';
+      case AttendanceStatus.PRESENT: return '✅';
+      case AttendanceStatus.ABSENT: return '❌';
+      case AttendanceStatus.LATE: return '⏰';
+      case AttendanceStatus.EXCUSED: return '📝';
       default: return '❓';
     }
   };
 
   const filterRecordsByMonth = () => {
     if (!pattern?.records || !selectedMonth) return [];
-    
+
     const [year, month] = selectedMonth.split('-');
     return pattern.records.filter((record: any) => {
       const recordDate = new Date(record.date);
-      return recordDate.getFullYear() === parseInt(year) && 
-             recordDate.getMonth() + 1 === parseInt(month);
+      return recordDate.getFullYear() === parseInt(year) &&
+        recordDate.getMonth() + 1 === parseInt(month);
     });
   };
 
   const generateMonthOptions = () => {
     const options = [];
     const now = new Date();
-    
+
     for (let i = 0; i < 6; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const label = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
       options.push({ value, label });
     }
-    
+
     return options;
   };
 
@@ -127,8 +130,8 @@ export const AttendanceStudentView: React.FC<AttendanceStudentViewProps> = ({
             <div>
               <p className="text-sm text-gray-600 mb-1">Taux de Présence</p>
               <p className="text-3xl font-bold text-green-600">
-                {pattern.statistics?.presenceRate 
-                  ? `${pattern.statistics.presenceRate.toFixed(1)}%` 
+                {pattern.statistics?.presenceRate
+                  ? `${pattern.statistics.presenceRate.toFixed(1)}%`
                   : '-'}
               </p>
             </div>
@@ -227,22 +230,20 @@ export const AttendanceStudentView: React.FC<AttendanceStudentViewProps> = ({
                   ${isWeekend ? 'opacity-50' : ''}
                   hover:shadow-lg transition-shadow cursor-pointer
                 `}
-                title={`${date.toLocaleDateString('fr-FR')} - ${record.status} ${
-                  record.status === 'late' && record.arrivalTime 
-                    ? `à ${record.arrivalTime}` 
+                title={`${date.toLocaleDateString('fr-FR')} - ${record.status} ${record.status === AttendanceStatus.LATE && record.arrivalTime
+                    ? `à ${record.arrivalTime}`
                     : ''
-                }${
-                  record.status === 'absent' && record.isJustified 
-                    ? ' (justifiée)' 
+                  }${record.status === AttendanceStatus.ABSENT && record.isJustified
+                    ? ' (justifiée)'
                     : ''
-                }`}
+                  }`}
               >
                 <div className="text-xs font-semibold">{date.getDate()}</div>
                 <div className="text-2xl mt-1">{getStatusEmoji(record.status)}</div>
-                {record.status === 'late' && record.arrivalTime && (
+                {record.status === AttendanceStatus.LATE && record.arrivalTime && (
                   <div className="text-xs mt-1">{record.arrivalTime}</div>
                 )}
-                {record.status === 'absent' && record.isJustified && (
+                {record.status === AttendanceStatus.ABSENT && record.isJustified && (
                   <div className="text-xs mt-1">✓</div>
                 )}
               </div>

@@ -50,10 +50,17 @@ export class SeedService {
 
     // Seed in order of dependencies
     const adminUser = await this.seedUsers();
-    const teachers = await this.seedTeachers(adminUser);
-    const classes = await this.seedClasses(teachers);
+
+    // Check if we already have students (audit/restoration mode)
+    const existingStudentsCount = await this.studentRepository.count();
+    const students = existingStudentsCount > 0
+      ? await this.studentRepository.find({ relations: ['class'] })
+      : await this.seedStudents(await this.seedClasses(await this.seedTeachers(adminUser)), adminUser);
+
     const subjects = await this.seedSubjects();
-    const students = await this.seedStudents(classes, adminUser);
+    const teachers = await this.teacherRepository.find();
+    const classes = await this.classRepository.find();
+
     const timetableSlots = await this.seedTimetable(classes, teachers, subjects);
     await this.seedGrades(students, subjects, teachers);
     await this.seedAttendance(students, classes, timetableSlots, adminUser);
@@ -63,11 +70,11 @@ export class SeedService {
     console.log('✅ Database seeding completed successfully!');
     return {
       users: 1,
-      teachers: teachers.length,
-      classes: classes.length,
-      subjects: subjects.length,
-      students: students.length,
-      timetableSlots: timetableSlots.length,
+      // teachers: teachers.length,
+      // classes: classes.length,
+      // subjects: subjects.length,
+      // students: students.length,
+      // timetableSlots: timetableSlots.length,
       grades: await this.gradeRepository.count(),
       attendance: await this.attendanceRepository.count(),
       transactions: await this.transactionRepository.count(),
@@ -76,19 +83,16 @@ export class SeedService {
   }
 
   private async clearDatabase() {
-    console.log('🗑️  Clearing existing data...');
-    // Use CASCADE to handle foreign key constraints
+    console.log('🗑️  Skipping full clear to preserve existing students for audit.');
+    // Only clear dependent data that we want to refresh
     await this.documentRepository.query('TRUNCATE TABLE documents CASCADE');
     await this.transactionRepository.query('TRUNCATE TABLE transactions CASCADE');
     await this.attendanceRepository.query('TRUNCATE TABLE attendance CASCADE');
     await this.gradeRepository.query('TRUNCATE TABLE grades CASCADE');
     await this.timetableRepository.query('TRUNCATE TABLE timetable_slots CASCADE');
-    await this.studentRepository.query('TRUNCATE TABLE students CASCADE');
     await this.subjectRepository.query('TRUNCATE TABLE subjects CASCADE');
-    await this.classRepository.query('TRUNCATE TABLE classes CASCADE');
-    await this.teacherRepository.query('TRUNCATE TABLE teachers CASCADE');
-    await this.userRepository.query('TRUNCATE TABLE users CASCADE');
-    console.log('✅ Database cleared');
+    // We keep students, classes, teachers, and users to preserve context
+    console.log('✅ Dependent tables cleared');
   }
 
   private async seedUsers() {
@@ -109,10 +113,27 @@ export class SeedService {
       { email: 'acoulibaly@ksp-school.ci', role: 'teacher', firstName: 'Awa', lastName: 'Coulibaly', password: 'teacher123' },
       { email: 'mkone@ksp-school.ci', role: 'teacher', firstName: 'Moussa', lastName: 'Kone', password: 'teacher123' },
       { email: 'parent1@example.ci', role: 'parent', firstName: 'Parent', lastName: 'Test', password: 'parent123' },
+
+      // Perissos Digital Super Admin
+      {
+        email: 'supporteam@perissosdigital.com',
+        role: 'admin',
+        firstName: 'Perissos',
+        lastName: 'Digital',
+        password: 'chr1$$t0u$$1s0'
+      },
     ];
 
     const users = [];
     for (const data of usersData) {
+      // Check if user already exists
+      const existingUser = await this.userRepository.findOne({ where: { email: data.email } });
+      if (existingUser) {
+        users.push(existingUser);
+        console.log(`  ℹ️ User already exists: ${data.email}`);
+        continue;
+      }
+
       let passwordHash = defaultPasswordHash;
       if (data.password) {
         passwordHash = await bcrypt.hash(data.password, 10);
@@ -152,6 +173,7 @@ export class SeedService {
     for (const data of teachersData) {
       const teacher = this.teacherRepository.create({
         ...data,
+        status: 'Actif', // Ensure all seeded teachers are active
         userId: adminUser.id,
       });
       teachers.push(await this.teacherRepository.save(teacher));
@@ -165,12 +187,14 @@ export class SeedService {
     console.log('🏫 Seeding classes...');
 
     const classesData = [
-      { name: 'CP-A', level: 'CP', academicYear: '2024-2025', classTeacher: teachers[0].id, capacity: 25 },
-      { name: 'CE1-A', level: 'CE1', academicYear: '2024-2025', classTeacher: teachers[1].id, capacity: 28 },
-      { name: 'CE2-A', level: 'CE2', academicYear: '2024-2025', classTeacher: teachers[2].id, capacity: 30 },
-      { name: 'CM1-A', level: 'CM1', academicYear: '2024-2025', classTeacher: teachers[3].id, capacity: 30 },
-      { name: 'CM2-A', level: 'CM2', academicYear: '2024-2025', classTeacher: teachers[4].id, capacity: 32 },
-      { name: '6ème-A', level: '6ème', academicYear: '2024-2025', classTeacher: teachers[5].id, capacity: 30 },
+      { name: 'CP-A', level: 'CP', academicYear: '2024-2025', mainTeacherId: teachers[0].id, capacity: 25 },
+      { name: 'CE1-A', level: 'CE1', academicYear: '2024-2025', mainTeacherId: teachers[1].id, capacity: 28 },
+      { name: 'CE2-A', level: 'CE2', academicYear: '2024-2025', mainTeacherId: teachers[2].id, capacity: 30 },
+      { name: 'CM1-A', level: 'CM1', academicYear: '2024-2025', mainTeacherId: teachers[3].id, capacity: 30 },
+      { name: 'CM2-A', level: 'CM2', academicYear: '2024-2025', mainTeacherId: teachers[4].id, capacity: 32 },
+      { name: '6ème-A', level: '6ème', academicYear: '2024-2025', mainTeacherId: teachers[5].id, capacity: 30 },
+      { name: '5ème-A', level: '5ème', academicYear: '2024-2025', mainTeacherId: teachers[6].id, capacity: 30 },
+      { name: '4ème-A', level: '4ème', academicYear: '2024-2025', mainTeacherId: teachers[7].id, capacity: 30 },
     ];
 
     const classes = [];
@@ -224,6 +248,26 @@ export class SeedService {
         const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
         const gender = Math.random() > 0.5 ? 'Masculin' : 'Féminin';
 
+        const documents: any[] = [];
+        if (i < 5) { // Add documents for first 5 students in each class
+          documents.push({
+            type: 'Extrait de naissance',
+            status: i % 2 === 0 ? 'Validé' : 'En attente',
+            fileName: 'extrait.pdf',
+            updatedAt: new Date().toLocaleDateString('fr-FR'),
+            history: []
+          });
+          if (i === 1) { // Student 1 has another pending doc
+            documents.push({
+              type: 'Carnet de vaccination',
+              status: 'En attente',
+              fileName: 'vaccin.jpg',
+              updatedAt: new Date().toLocaleDateString('fr-FR'),
+              history: []
+            });
+          }
+        }
+
         const student = this.studentRepository.create({
           firstName,
           lastName,
@@ -242,6 +286,7 @@ export class SeedService {
           medicalInfo: Math.random() > 0.8 ? 'Allergie aux arachides' : undefined,
           status: 'Actif' as const,
           userId: adminUser.id,
+          documents,
         });
 
         students.push(await this.studentRepository.save(student));

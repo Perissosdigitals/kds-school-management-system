@@ -134,13 +134,22 @@ export interface ClassAverage {
 }
 
 // ===== ATTENDANCE =====
+export enum AttendanceStatus {
+  PRESENT = 'present',
+  ABSENT = 'absent',
+  LATE = 'late',
+  EXCUSED = 'excused',
+  JUSTIFIED = 'excused' // Alias for robustness
+}
+
 export interface AttendanceRecord {
   id: string;
   studentId: string;
   classId: string;
-  date: string;
-  session: 'morning' | 'afternoon';
-  status: 'present' | 'absent' | 'late';
+  date: string; // YYYY-MM-DD
+  session: 'morning' | 'afternoon'; // Legacy/UI field
+  period?: string; // Backend field
+  status: AttendanceStatus;
   arrivalTime?: string;
   isJustified: boolean;
   justificationReason?: string;

@@ -15,8 +15,8 @@ export const FilterGuide: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setIsOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-xl">
               <div className="flex items-center justify-between">
@@ -53,7 +53,7 @@ export const FilterGuide: React.FC = () => {
                   </p>
                   <div className="bg-white p-2 rounded border border-gray-200 mt-2">
                     <p className="text-xs text-gray-500 mb-1">Exemples:</p>
-                    <code className="text-xs text-blue-600">sanogo</code> → Trouve "Sanogo Adamo"<br/>
+                    <code className="text-xs text-blue-600">sanogo</code> → Trouve "Sanogo Adamo"<br />
                     <code className="text-xs text-blue-600">adam</code> → Trouve "Adamo", "Adam", etc.
                   </div>
                 </div>

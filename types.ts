@@ -1,19 +1,24 @@
-export type Page = 
-  | 'dashboard' 
-  | 'student-registration' 
-  | 'student-management' 
+export type Page =
+  | 'dashboard'
+  | 'student-registration'
+  | 'student-management'
   | 'teacher-management'
-  | 'finances' 
-  | 'inventory' 
+  | 'finances'
+  | 'inventory'
   | 'reports'
   | 'documentation'
   | 'user-management'
   | 'school-life'
   | 'grades-management'
   | 'class-management'
-  | 'data-management';
+  | 'data-management'
+  | 'activity-log'
+  | 'user-profile'
+  | 'module-management';
 
-export type UserRole = 'director' | 'admin' | 'teacher' | 'accountant' | 'manager' | 'agent' | 'student' | 'parent';
+export type UserRole =
+  | 'director' | 'admin' | 'teacher' | 'accountant' | 'manager' | 'agent' | 'student' | 'parent'
+  | 'fondatrice' | 'directrice' | 'agent_admin';
 
 export interface User {
   id: string;
@@ -21,14 +26,17 @@ export interface User {
   role: UserRole;
   first_name: string;
   last_name: string;
+  name?: string;
+  avatar_url?: string;
   phone: string | null;
   is_active: boolean;
   last_login_at: string | null;
   created_at: string;
+  custom_permissions?: Record<string, boolean>;
 }
 
-export type DocumentType = 'Extrait de naissance' | 'Carnet de vaccination' | 'Autorisation parentale' | 'Fiche scolaire';
-export type DocumentStatus = 'Manquant' | 'En attente' | 'Validé' | 'Rejeté';
+export type DocumentType = 'Extrait de naissance' | 'Carnet de vaccination' | 'Autorisation parentale' | 'Fiche scolaire' | 'report_card' | 'general';
+export type DocumentStatus = 'Manquant' | 'En attente' | 'Validé' | 'Rejeté' | 'pending' | 'approved' | 'rejected' | 'missing';
 
 export interface DocumentHistoryLog {
   timestamp: string;
@@ -37,16 +45,20 @@ export interface DocumentHistoryLog {
 }
 
 export interface StudentDocument {
+  id?: string;
+  registrationNumber?: string;
   type: DocumentType;
   status: DocumentStatus;
   fileData?: string; // Base64 data URL
   fileName?: string;
   updatedAt?: string;
+  rejectionReason?: string;
   history?: DocumentHistoryLog[];
 }
 
 export interface Student {
   id: string;
+  registrationNumber?: string;
   registrationDate: string;
   lastName: string;
   firstName: string;
@@ -64,6 +76,7 @@ export interface Student {
   medicalInfo: string;
   status: 'Actif' | 'Inactif' | 'En attente';
   documents: StudentDocument[];
+  photoUrl?: string;
   // Relational data
   classId?: string;
   class?: SchoolClass;
@@ -75,6 +88,7 @@ export interface Student {
 
 export interface Teacher {
   id: string;
+  registrationNumber?: string;
   lastName: string;
   firstName: string;
   subject: string;
@@ -99,7 +113,7 @@ export interface Statistics {
   inventoryAlerts: number;
 }
 
-export interface Activity {
+export interface RecentActivity {
   type: 'inscription' | 'systeme' | 'paiement';
   icon: string;
   title: string;
@@ -127,15 +141,38 @@ export interface InventoryItem {
   lastUpdated: string;
 }
 
-export type AttendanceStatus = 'Présent' | 'Absent' | 'En retard';
+// Backend uses these exact values - DO NOT CHANGE without updating backend
+export enum AttendanceStatus {
+  PRESENT = 'Présent',
+  ABSENT = 'Absent',
+  LATE = 'Retard',
+  EXCUSED = 'Excusé'
+}
+
+// Legacy type for backward compatibility
+export type AttendanceStatusString = 'Présent' | 'Absent' | 'Retard' | 'Excusé' | 'En retard';
 
 export interface AttendanceRecord {
+  id?: string;
   studentId: string;
-  status: AttendanceStatus;
+  classId?: string;
+  date?: string;
+  period?: string;
+  status: AttendanceStatus | AttendanceStatusString;
+  arrivalTime?: string;
+  reason?: string;
+  isJustified?: boolean;
+  comments?: string;
+  recordedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  student?: Student;
+  class?: SchoolClass;
 }
 
 export interface SchoolClass {
   id: string;
+  registrationNumber?: string;
   name: string;
   level: string;
   teacherId?: string;
@@ -150,12 +187,26 @@ export interface SchoolClass {
   teacher?: Teacher;
 }
 
+export interface Subject {
+  id: string;
+  registrationNumber?: string;
+  name: string;
+  code: string;
+  color?: string;
+  description?: string;
+  gradeLevel?: string;
+  weeklyHours?: number;
+  coefficient?: number;
+}
+
 export interface TimetableSession {
   id: string;
+  registrationNumber?: string;
   day: 'Lundi' | 'Mardi' | 'Mercredi' | 'Jeudi' | 'Vendredi';
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM"
   subject: string;
+  subjectId?: string; // Added for backend linking
   classId: string;
   teacherId: string;
   room: string;
@@ -210,15 +261,15 @@ export interface PedagogicalNote {
 }
 
 export interface AttendanceLog {
-    id: string;
-    studentId: string;
-    date: string;
-    status: 'Absent' | 'En retard';
+  id: string;
+  studentId: string;
+  date: string;
+  status: 'Absent' | 'En retard';
 }
 
 export type ImportBatchStatus = 'pending' | 'approved' | 'rejected' | 'applied';
 
-export type ImportDataType = 
+export type ImportDataType =
   | 'Liste des Classes'
   | 'Transactions Financières'
   | 'Liste des Élèves'
@@ -421,4 +472,16 @@ export interface Announcement {
   acknowledged: string[]; // User IDs who acknowledged
   createdAt: string;
   updatedAt: string;
+}
+export interface SystemActivity {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  userRole: UserRole;
+  action: string;
+  category: 'attendance' | 'grades' | 'documents' | 'auth' | 'system' | 'pedagogical';
+  details?: string;
+  classId?: string;
+  studentId?: string;
 }

@@ -36,7 +36,7 @@ export const ExportCSVModal: React.FC<ExportCSVModalProps> = React.memo(({ isOpe
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg m-4 transform transition-all" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-800">{title}</h2>
@@ -44,7 +44,7 @@ export const ExportCSVModal: React.FC<ExportCSVModalProps> = React.memo(({ isOpe
             <i className="bx bx-x text-3xl"></i>
           </button>
         </div>
-        
+
         <p className="text-gray-600 mb-4">
           Sélectionnez les colonnes que vous souhaitez inclure dans votre exportation CSV.
           {recordCount !== undefined && (
@@ -53,7 +53,7 @@ export const ExportCSVModal: React.FC<ExportCSVModalProps> = React.memo(({ isOpe
             </span>
           )}
         </p>
-        
+
         <div className="flex gap-2 mb-4">
           <button onClick={handleSelectAll} className="text-sm bg-blue-100 text-blue-700 font-semibold px-3 py-1 rounded-full hover:bg-blue-200">
             Tout sélectionner
@@ -62,7 +62,7 @@ export const ExportCSVModal: React.FC<ExportCSVModalProps> = React.memo(({ isOpe
             Tout désélectionner
           </button>
         </div>
-        
+
         <div className="max-h-60 overflow-y-auto grid grid-cols-2 gap-x-6 gap-y-2 border p-4 rounded-lg bg-slate-50">
           {allHeaders.map(header => (
             <div key={header} className="flex items-center">

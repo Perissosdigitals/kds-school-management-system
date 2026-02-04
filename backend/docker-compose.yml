@@ -15,7 +15,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./shared/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kds_admin -d kds_school_db"]
+      test: [ "CMD-SHELL", "pg_isready -U kds_admin -d kds_school_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,7 +32,7 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -69,6 +69,7 @@ services:
       - ./apps/api-gateway:/app/apps/api-gateway
       - ./packages:/app/packages
       - ./shared:/app/shared
+      - ./uploads:/app/uploads
       - /app/node_modules
     networks:
       - kds-network

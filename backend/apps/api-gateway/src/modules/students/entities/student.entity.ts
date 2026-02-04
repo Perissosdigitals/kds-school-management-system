@@ -29,6 +29,7 @@ export interface StudentDocument {
   fileData?: string;
   fileName?: string;
   updatedAt?: string;
+  rejectionReason?: string;
   history?: DocumentHistoryLog[];
 }
 
@@ -109,6 +110,30 @@ export class Student {
   @ApiProperty({ type: 'array', items: { type: 'object' } })
   @Column({ type: 'jsonb', default: [] })
   documents: StudentDocument[];
+
+  @ApiProperty({ example: '/api/v1/students/photo/KSP24001.jpg', required: false })
+  @Column({ name: 'photo_url', type: 'text', nullable: true })
+  photoUrl?: string;
+
+  @ApiProperty({ enum: ['synced', 'pending', 'error'], default: 'synced' })
+  @Column({ name: 'sync_status', type: 'varchar', length: 20, default: 'synced' })
+  syncStatus: string;
+
+  @ApiProperty({ enum: ['valid', 'pending', 'invalid'], default: 'valid' })
+  @Column({ name: 'validation_state', type: 'varchar', length: 20, default: 'valid' })
+  validationState: string;
+
+  @ApiProperty({ description: 'Nombre total de documents' })
+  @Column({ name: 'document_count', type: 'integer', default: 0 })
+  documentCount: number;
+
+  @ApiProperty({ description: 'Nombre de documents en attente' })
+  @Column({ name: 'pending_docs', type: 'integer', default: 0 })
+  pendingDocs: number;
+
+  @ApiProperty({ description: 'Date de dernière synchronisation' })
+  @Column({ name: 'last_synced_at', type: 'timestamp', nullable: true })
+  lastSyncedAt: Date;
 
   // Relations optionnelles (maintenues pour compatibilité)
   @Column({ name: 'user_id', type: 'uuid', nullable: true })

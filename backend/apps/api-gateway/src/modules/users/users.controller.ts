@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -10,7 +11,24 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Res,
+  BadRequestException
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join, resolve } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { Response } from 'express';
+
+// Ensure upload directories exist
+const avatarDir = './uploads/users/avatars';
+if (!existsSync(avatarDir)) {
+  mkdirSync(avatarDir, { recursive: true });
+}
+
 import {
   ApiTags,
   ApiOperation,
@@ -20,15 +38,65 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { JwtAuthGuard, RolesGuard } from '../../common/guards';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
+
+  @Post(':id/avatar')
+  @ApiOperation({ summary: 'Uploader l\'avatar d\'un utilisateur' })
+  @UseInterceptors(FileInterceptor('avatar', {
+    storage: diskStorage({
+      destination: './uploads/users/avatars',
+      filename: (req, file, cb) => {
+        const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
+        return cb(null, `${randomName}${extname(file.originalname)}`);
+      },
+    }),
+    fileFilter: (req, file, cb) => {
+      if (!file.originalname.match(/\.(jpg|jpeg|png|webp)$/i)) {
+        return cb(new BadRequestException('Seules les images (JPG, PNG, WEBP) sont autorisées !'), false);
+      }
+      cb(null, true);
+    },
+  }))
+  async uploadAvatar(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('L\'avatar est requis');
+    }
+    const avatarUrl = `/api/v1/users/avatar/${file.filename}`;
+    return this.usersService.updateAvatar(id, avatarUrl);
+  }
+
+  @Public()
+  @Get('avatar/:filename')
+  @ApiOperation({ summary: 'Servir l\'avatar d\'un utilisateur' })
+  async getAvatar(@Param('filename') filename: string, @Res() res: Response) {
+    const rawPath = join('uploads', 'users', 'avatars', filename);
+    let filePath = resolve(process.cwd(), rawPath);
+
+    if (!existsSync(filePath)) {
+      // Fallback
+      filePath = resolve(process.cwd(), '..', '..', rawPath);
+    }
+
+    if (!existsSync(filePath)) {
+      return res.status(404).json({ message: 'Avatar non trouvé' });
+    }
+
+    return res.sendFile(filePath);
+  }
 
   @Get()
   @ApiOperation({ summary: 'Récupérer tous les utilisateurs' })
@@ -46,6 +114,17 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
     return this.usersService.findOne(id);
+  }
+
+  @Patch(':id/permissions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('fondatrice', 'admin', 'directrice', 'director', 'enseignant', 'comptable', 'agent', 'manager', 'accountant', 'agent_admin')
+  @ApiOperation({ summary: 'Mettre à jour les permissions d\'un utilisateur' })
+  async updatePermissions(
+    @Param('id') id: string,
+    @Body('permissions') permissions: any
+  ) {
+    return this.usersService.updatePermissions(id, permissions);
   }
 
   @Post()

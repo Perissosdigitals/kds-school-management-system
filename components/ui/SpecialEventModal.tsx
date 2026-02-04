@@ -10,11 +10,11 @@ interface SpecialEventModalProps {
 }
 
 const eventColors = {
-    blue: { bg: 'bg-blue-100', text: 'text-blue-800', ring: 'ring-blue-500' },
-    green: { bg: 'bg-green-100', text: 'text-green-800', ring: 'ring-green-500' },
-    yellow: { bg: 'bg-yellow-100', text: 'text-yellow-800', ring: 'ring-yellow-500' },
-    purple: { bg: 'bg-purple-100', text: 'text-purple-800', ring: 'ring-purple-500' },
-    gray: { bg: 'bg-gray-100', text: 'text-gray-800', ring: 'ring-gray-500' },
+  blue: { bg: 'bg-blue-100', text: 'text-blue-800', ring: 'ring-blue-500' },
+  green: { bg: 'bg-green-100', text: 'text-green-800', ring: 'ring-green-500' },
+  yellow: { bg: 'bg-yellow-100', text: 'text-yellow-800', ring: 'ring-yellow-500' },
+  purple: { bg: 'bg-purple-100', text: 'text-purple-800', ring: 'ring-purple-500' },
+  gray: { bg: 'bg-gray-100', text: 'text-gray-800', ring: 'ring-gray-500' },
 };
 
 export const SpecialEventModal: React.FC<SpecialEventModalProps> = ({ isOpen, onClose, onSave, timeSlots, daysOfWeek }) => {
@@ -56,7 +56,7 @@ export const SpecialEventModal: React.FC<SpecialEventModalProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleClose}>
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50" onClick={handleClose}>
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-800">Ajouter un Événement Spécial</h2>
@@ -64,7 +64,7 @@ export const SpecialEventModal: React.FC<SpecialEventModalProps> = ({ isOpen, on
             <i className="bx bx-x text-3xl"></i>
           </button>
         </div>
-        
+
         <div className="space-y-4">
           <div>
             <label htmlFor="event-title" className="block text-sm font-medium text-slate-700">Titre de l'événement</label>
@@ -95,9 +95,9 @@ export const SpecialEventModal: React.FC<SpecialEventModalProps> = ({ isOpen, on
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Couleur</label>
             <div className="flex gap-3">
-                {Object.entries(eventColors).map(([key, { bg, ring }]) => (
-                    <button key={key} onClick={() => setColor(key as SpecialEvent['color'])} className={`w-8 h-8 rounded-full ${bg} transition-transform transform hover:scale-110 ${color === key ? `ring-2 ring-offset-2 ${ring}` : ''}`}></button>
-                ))}
+              {Object.entries(eventColors).map(([key, { bg, ring }]) => (
+                <button key={key} onClick={() => setColor(key as SpecialEvent['color'])} className={`w-8 h-8 rounded-full ${bg} transition-transform transform hover:scale-110 ${color === key ? `ring-2 ring-offset-2 ${ring}` : ''}`}></button>
+              ))}
             </div>
           </div>
         </div>

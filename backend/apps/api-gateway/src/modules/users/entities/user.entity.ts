@@ -7,6 +7,15 @@ export enum UserRole {
   STUDENT = 'student',
   PARENT = 'parent',
   STAFF = 'staff',
+  FONDATRICE = 'fondatrice',
+  DIRECTRICE = 'directrice',
+  DIRECTOR = 'director',
+  AGENT_ADMIN = 'agent_admin',
+  AGENT = 'agent',
+  ACCOUNTANT = 'accountant',
+  MANAGER = 'manager',
+  ENSEIGNANT = 'enseignant',
+  COMPTABLE = 'comptable',
 }
 
 @Entity('users')
@@ -26,6 +35,10 @@ export class User {
   @ApiProperty({ description: 'Rôle de l\'utilisateur', enum: UserRole })
   @Column({ type: 'varchar' })
   role: UserRole;
+
+  @ApiProperty({ description: 'Permissions personnalisées (JSON)', required: false })
+  @Column({ type: 'jsonb', nullable: true })
+  custom_permissions?: any;
 
   @ApiProperty({ description: 'Prénom de l\'utilisateur' })
   @Column()

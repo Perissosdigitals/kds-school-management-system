@@ -5,13 +5,14 @@ import { SchoolClass } from './entities/class.entity';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
 import { QueryClassesDto } from './dto/query-classes.dto';
+import { IdGenerator, EntityCode } from '../../common/utils/id-generator.util';
 
 @Injectable()
 export class ClassesService {
   constructor(
     @InjectRepository(SchoolClass)
     private classesRepository: Repository<SchoolClass>,
-  ) {}
+  ) { }
 
   async findAll(queryDto: QueryClassesDto): Promise<{ data: SchoolClass[]; total: number; page: number; limit: number }> {
     const { level, academicYear, mainTeacherId, isActive, search, page = 1, limit = 10 } = queryDto;
@@ -70,8 +71,22 @@ export class ClassesService {
   }
 
   async create(createClassDto: CreateClassDto): Promise<SchoolClass> {
-    const schoolClass = this.classesRepository.create(createClassDto);
+    const registrationNumber = await this.generateRegistrationNumber();
+    const schoolClass = this.classesRepository.create({
+      ...createClassDto,
+      registrationNumber,
+    });
     return this.classesRepository.save(schoolClass);
+  }
+
+  private async generateRegistrationNumber(): Promise<string> {
+    const yearCode = IdGenerator.getAcademicYearCode();
+
+    return IdGenerator.generateNextId(
+      this.classesRepository,
+      EntityCode.CLASS,
+      yearCode
+    );
   }
 
   async update(id: string, updateClassDto: UpdateClassDto): Promise<SchoolClass> {
@@ -145,5 +160,18 @@ export class ClassesService {
       .getCount();
 
     return { class: schoolClass, studentCount };
+  }
+
+  async getStudents(id: string): Promise<any[]> {
+    const schoolClass = await this.classesRepository.findOne({
+      where: { id },
+      relations: ['students'],
+    });
+
+    if (!schoolClass) {
+      throw new NotFoundException(`Classe avec l'ID ${id} non trouvée`);
+    }
+
+    return schoolClass.students || [];
   }
 }

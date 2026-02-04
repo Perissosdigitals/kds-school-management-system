@@ -26,7 +26,7 @@ const ImportCSVModalComponent = <T extends Record<string, any>>({ isOpen, onClos
     setFile(null);
     setError('');
     setIsLoading(false);
-    if(fileInputRef.current) fileInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
     onClose();
   }, [onClose]);
 
@@ -43,15 +43,15 @@ const ImportCSVModalComponent = <T extends Record<string, any>>({ isOpen, onClos
       try {
         const text = event.target?.result as string;
         const data = parseCSV<T>(text);
-        
+
         if (data.length > 0) {
-            const actualHeaders = Object.keys(data[0]);
-            const missingHeaders = expectedHeaders.filter(h => !actualHeaders.includes(h));
-            if (missingHeaders.length > 0) {
-                throw new Error(`En-têtes manquants ou incorrects. Requis : ${missingHeaders.join(', ')}`);
-            }
+          const actualHeaders = Object.keys(data[0]);
+          const missingHeaders = expectedHeaders.filter(h => !actualHeaders.includes(h));
+          if (missingHeaders.length > 0) {
+            throw new Error(`En-têtes manquants ou incorrects. Requis : ${missingHeaders.join(', ')}`);
+          }
         } else {
-             throw new Error("Le fichier CSV ne contient aucune donnée à importer.");
+          throw new Error("Le fichier CSV ne contient aucune donnée à importer.");
         }
 
         onImport(data);
@@ -72,7 +72,7 @@ const ImportCSVModalComponent = <T extends Record<string, any>>({ isOpen, onClos
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity" onClick={handleClose}>
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity" onClick={handleClose}>
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg m-4 transform transition-all" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-800">{title}</h2>
@@ -80,12 +80,12 @@ const ImportCSVModalComponent = <T extends Record<string, any>>({ isOpen, onClos
             <i className="bx bx-x text-3xl"></i>
           </button>
         </div>
-        
+
         <p className="text-gray-600 mb-4">
           Sélectionnez un fichier CSV à importer. Assurez-vous que les en-têtes de colonnes correspondent exactement au format attendu.
         </p>
         <div className="font-mono text-xs bg-slate-100 p-3 rounded mb-4 text-slate-600 overflow-x-auto">
-            <strong className="block mb-1">En-têtes attendus :</strong> {expectedHeaders.join(', ')}
+          <strong className="block mb-1">En-têtes attendus :</strong> {expectedHeaders.join(', ')}
         </div>
 
         <div>
@@ -99,7 +99,7 @@ const ImportCSVModalComponent = <T extends Record<string, any>>({ isOpen, onClos
             className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           />
         </div>
-        
+
         {error && <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-lg text-sm">{error}</div>}
 
         <div className="mt-8 flex justify-end gap-4">

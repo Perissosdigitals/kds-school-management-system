@@ -18,24 +18,20 @@ npm run dev
 *Pour le développement complet avec persistance des données.*
 
 #### 1. Démarrer la Base de Données (Docker)
+Assurez-vous que Docker Desktop est lancé.
+
 ```bash
+# 1. Start DB containers
 cd backend
 docker-compose up -d postgres redis
+
+# 2. Start Backend & Frontend using our helper script
+cd ..
+./start-local.sh
 ```
 
-#### 2. Démarrer le Backend
-```bash
-cd backend
-npm run dev
-```
-✅ Attendre: `🚀 Nest application successfully started` (Port 3002)
-
-#### 3. Démarrer le Frontend
-```bash
-# Dans un nouveau terminal, à la racine
-npm run dev
-```
-✅ Accès: `http://localhost:5173`
+✅ Accès Frontend: `http://localhost:5173`
+✅ Accès Backend: `http://localhost:3002`
 
 ---
 
@@ -68,7 +64,7 @@ export function StudentList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fonctionne en mode connecté ET en mode simulation
+    // Fonctionne en mode connecté ET en mode simulation à l'aide des adaptateurs
     StudentsService.getAllStudents()
       .then(setStudents)
       .finally(() => setLoading(false));
@@ -85,30 +81,6 @@ export function StudentList() {
   );
 }
 ```
-      await AuthService.login({ email, password });
-      navigate('/dashboard');
-    } catch (error) {
-      alert('Erreur: ' + error.message);
-    }
-  };
-
-  return (
-    <form onSubmit={handleLogin}>
-      <input 
-        type="email" 
-        value={email} 
-        onChange={e => setEmail(e.target.value)} 
-      />
-      <input 
-        type="password" 
-        value={password} 
-        onChange={e => setPassword(e.target.value)} 
-      />
-      <button>Se connecter</button>
-    </form>
-  );
-}
-```
 
 ---
 
@@ -118,15 +90,15 @@ export function StudentList() {
 |----------|---------|
 | **INTEGRATION_GUIDE.md** | Guide complet avec tous les exemples |
 | **INTEGRATION_STATUS.md** | État détaillé du système |
-| **INTEGRATION_COMPLETE.md** | Résumé final et checklist |
-| **API Docs** | http://localhost:3001/api/docs |
+| **QUICK_START.md** | Ce fichier |
+| **API Docs** | http://localhost:3002/api/docs |
 
 ---
 
 ## 🔗 Endpoints Principaux
 
 ```
-Base URL: http://localhost:3001/api/v1
+Base URL: http://localhost:3002/api/v1
 
 Auth:
   POST   /auth/login                    # Se connecter
@@ -141,8 +113,7 @@ Students:
 Teachers:
   GET    /teachers                      # Récupérer tous les enseignants
   POST   /teachers                      # Créer un enseignant
-  GET    /teachers/:id                  # Récupérer un enseignant
-  PUT    /teachers/:id                  # Mettre à jour un enseignant
+...
 
 Classes:
   GET    /classes                       # Récupérer toutes les classes
@@ -164,8 +135,6 @@ Attendance:
 Finance:
   GET    /finance                       # Récupérer les transactions
   POST   /finance                       # Créer une transaction
-
-Et plus...
 ```
 
 ---
@@ -174,14 +143,14 @@ Et plus...
 
 ### .env.local (Frontend)
 ```env
-VITE_API_URL=http://localhost:3001/api/v1
+VITE_API_URL=http://localhost:3002/api/v1
 VITE_USE_MOCK_DATA=false
 ```
 
 ### Credentials de Test
 ```
-Email: admin@kds-school.com
-Password: admin123
+Email: admin@kds.ci (ou admin@kds-school.com selon seed)
+Password: password123
 ```
 
 ---
@@ -191,8 +160,9 @@ Password: admin123
 | Problème | Solution |
 |----------|----------|
 | Backend ne démarre pas | Vérifier: `npm install` dans backend/ |
+| Docker error | `open -a Docker` sur Mac ou lancer Docker Desktop |
 | Frontend ne démarre pas | Vérifier: `npm install` dans racine |
-| Erreur CORS | Vérifier que le backend tourne sur 3001 |
+| Erreur CORS | Vérifier que le backend tourne sur 3002 |
 | Erreur 401 | Vérifier le token dans localStorage |
 | Données mock au lieu de l'API | Vérifier VITE_API_URL et les logs |
 
@@ -201,7 +171,7 @@ Password: admin123
 ## 📊 Architecture
 
 ```
-localhost:3000 (Frontend)
+localhost:5173 (Frontend)
         ↓
     React App
         ↓
@@ -209,19 +179,19 @@ Services (AuthService, StudentsService, etc.)
         ↓
 HttpClient + Intercepteurs
         ↓
-localhost:3001 (Backend)
+localhost:3002 (Backend)
         ↓
 NestJS API
         ↓
-Database
+Database (Postgres :5432)
 ```
 
 ---
 
 ## ✅ Checklist
 
-- [x] Backend tourne sur http://localhost:3001
-- [x] Frontend tourne sur http://localhost:3000
+- [x] Backend tourne sur http://localhost:3002
+- [x] Frontend tourne sur http://localhost:5173
 - [x] Services API créés et fonctionnels
 - [x] HttpClient configuré
 - [x] Intercepteurs JWT en place
@@ -234,11 +204,9 @@ Database
 
 ## 🎯 Prochaines Étapes
 
-1. Adapter les composants React pour utiliser les services API
-2. Ajouter la gestion des erreurs dans les composants
-3. Tester chaque module complètement
-4. Optimiser les performances
-5. Préparer la production
+1. Utiliser le frontend pour naviguer dans l'application
+2. Vérifier les logs dans `/tmp/ksp-backend.log` en cas de problème
+3. Consulter `INTEGRATION_GUIDE.md` pour des détails avancés
 
 ---
 
@@ -246,7 +214,7 @@ Database
 
 Pour plus d'aide, consulter:
 - `INTEGRATION_GUIDE.md` - Guide détaillé
-- `http://localhost:3001/api/docs` - Documentation API
+- `http://localhost:3002/api/docs` - Documentation API
 - Les logs du terminal du backend/frontend
 
 ---

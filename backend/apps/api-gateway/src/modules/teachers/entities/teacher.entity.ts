@@ -8,8 +8,9 @@ import {
   JoinColumn,
   OneToMany,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { User } from '../../users/entities/user.entity';
+import { SchoolClass } from '../../classes/entities/class.entity';
 
 export type TeacherStatus = 'Actif' | 'Inactif';
 
@@ -18,6 +19,10 @@ export class Teacher {
   @ApiProperty()
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @ApiProperty({ example: 'ENS24001' })
+  @Column({ name: 'registration_number', type: 'varchar', length: 20, unique: true, nullable: true })
+  registrationNumber: string;
 
   @ApiProperty({ example: 'TRAORÉ' })
   @Column({ name: 'last_name', type: 'varchar', length: 100 })
@@ -63,6 +68,14 @@ export class Teacher {
   @Column({ type: 'enum', enum: ['Actif', 'Inactif'], default: 'Actif' })
   status: TeacherStatus;
 
+  @ApiProperty({ enum: ['synced', 'pending', 'error'], default: 'synced' })
+  @Column({ name: 'sync_status', type: 'varchar', length: 20, default: 'synced' })
+  syncStatus: string;
+
+  @ApiProperty({ enum: ['valid', 'pending', 'invalid'], default: 'valid' })
+  @Column({ name: 'validation_state', type: 'varchar', length: 20, default: 'valid' })
+  validationState: string;
+
   // Relation optionnelle vers User pour authentification
   @Column({ name: 'user_id', type: 'uuid', nullable: true })
   userId?: string;
@@ -70,6 +83,10 @@ export class Teacher {
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'user_id' })
   user?: User;
+
+  @ApiPropertyOptional({ type: () => [SchoolClass] })
+  @OneToMany(() => SchoolClass, schoolClass => schoolClass.mainTeacher)
+  classes?: SchoolClass[];
 
   @ApiProperty()
   @CreateDateColumn({ name: 'created_at' })

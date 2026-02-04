@@ -7,27 +7,36 @@ export interface SchoolEventEntity {
   title: string;
   description?: string;
   event_type: 'open_house' | 'sports' | 'cultural' | 'academic' | 'meeting' | 'ceremony' | 'other';
+  eventType?: 'open_house' | 'sports' | 'cultural' | 'academic' | 'meeting' | 'ceremony' | 'other';
   start_date: string;
+  startDate?: string;
   end_date?: string;
+  endDate?: string;
   location?: string;
-  participants?: string; // JSON string
-  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+  participants?: string | any[]; // Backend might send it as string or array
+  status: string; // Keep it flexible for localized values
   created_by?: string;
+  responsibleTeacherId?: string;
 }
 
 export interface IncidentEntity {
   id: string;
   student_id: string;
+  studentId?: string;
   type: 'incident' | 'sanction' | 'encouragement';
   severity: 'minor' | 'moderate' | 'serious' | 'very_serious';
   description: string;
   date: string;
   location?: string;
   reported_by?: string;
-  status: 'reported' | 'investigating' | 'resolved' | 'closed';
+  reportedBy?: string;
+  status: string;
   actions_taken?: string;
+  actionsTaken?: string;
   created_at: string;
+  createdAt?: string;
   updated_at: string;
+  updatedAt?: string;
 }
 
 export interface AssociationEntity {
@@ -49,7 +58,11 @@ const mapToActivity = (entity: SchoolEventEntity): Activity => {
   let participantsList: string[] = [];
   try {
     if (entity.participants) {
-      participantsList = JSON.parse(entity.participants);
+      if (typeof entity.participants === 'string') {
+        participantsList = JSON.parse(entity.participants);
+      } else if (Array.isArray(entity.participants)) {
+        participantsList = entity.participants;
+      }
     }
   } catch (e) {
     console.warn('Failed to parse participants', e);
@@ -58,29 +71,30 @@ const mapToActivity = (entity: SchoolEventEntity): Activity => {
   return {
     id: entity.id,
     name: entity.title,
-    category: entity.event_type === 'sports' ? 'Sport' : entity.event_type === 'cultural' ? 'Culturel' : 'Autre',
+    category: entity.eventType === 'sports' || entity.event_type === 'sports' ? 'Sport' :
+      entity.eventType === 'cultural' || entity.event_type === 'cultural' ? 'Arts' : 'Autre',
     description: entity.description || '',
-    responsibleTeacherId: entity.created_by, // Mapping created_by to responsibleTeacherId
-    schedule: new Date(entity.start_date).toLocaleString('fr-FR'),
+    responsibleTeacherId: entity.responsibleTeacherId || entity.created_by, // Mapping created_by to responsibleTeacherId
+    schedule: new Date(entity.startDate || entity.start_date).toLocaleString('fr-FR'),
     location: entity.location || '',
     currentParticipants: participantsList.length,
     maxParticipants: 0, // Not supported by backend yet
-    startDate: entity.start_date,
-    endDate: entity.end_date,
-    status: entity.status === 'scheduled' ? 'Planifiée' : 
-            entity.status === 'ongoing' ? 'En cours' : 
-            entity.status === 'completed' ? 'Terminée' : 'Annulée',
+    startDate: entity.startDate || entity.start_date,
+    endDate: entity.endDate || entity.end_date,
+    status: (entity.status === 'scheduled' || entity.status === 'Planifié') ? 'Planifiée' :
+      (entity.status === 'ongoing' || entity.status === 'En cours') ? 'En cours' :
+        (entity.status === 'completed' || entity.status === 'Terminé') ? 'Terminée' : 'Annulée',
     participants: participantsList,
     createdAt: new Date().toISOString(), // Missing in entity interface but required by type
     updatedAt: new Date().toISOString()
   };
 };
 
-const mapToEvent = (entity: SchoolEventEntity): Event => {
+const mapToEvent = (entity: any): Event => {
   let participantsList: string[] = [];
   try {
     if (entity.participants) {
-      participantsList = JSON.parse(entity.participants);
+      participantsList = typeof entity.participants === 'string' ? JSON.parse(entity.participants) : entity.participants;
     }
   } catch (e) {
     console.warn('Failed to parse participants', e);
@@ -91,17 +105,17 @@ const mapToEvent = (entity: SchoolEventEntity): Event => {
     title: entity.title,
     type: 'Autre', // Default
     description: entity.description || '',
-    date: new Date(entity.start_date).toISOString().split('T')[0],
-    startTime: new Date(entity.start_date).toTimeString().slice(0, 5),
-    endTime: entity.end_date ? new Date(entity.end_date).toTimeString().slice(0, 5) : '',
+    date: new Date(entity.startDate || entity.start_date).toISOString().split('T')[0],
+    startTime: new Date(entity.startDate || entity.start_date).toTimeString().slice(0, 5),
+    endTime: (entity.endDate || entity.end_date) ? new Date(entity.endDate || entity.end_date).toTimeString().slice(0, 5) : '',
     location: entity.location || '',
-    organizers: entity.created_by ? [entity.created_by] : [],
+    organizers: (entity.responsibleTeacherId || entity.created_by) ? [entity.responsibleTeacherId || entity.created_by] : [],
     targetAudience: "Toute l'école",
     participants: participantsList,
-    status: entity.status === 'scheduled' ? 'Planifié' : 
-            entity.status === 'ongoing' ? 'En cours' : 
-            entity.status === 'completed' ? 'Terminé' : 'Annulé',
-    createdBy: entity.created_by || '',
+    status: (entity.status === 'scheduled' || entity.status === 'Planifié') ? 'Planifié' :
+      (entity.status === 'ongoing' || entity.status === 'En cours') ? 'En cours' :
+        (entity.status === 'completed' || entity.status === 'Terminé') ? 'Terminé' : 'Annulé',
+    createdBy: entity.responsibleTeacherId || entity.created_by || '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -119,9 +133,9 @@ const mapToMeeting = (entity: SchoolEventEntity): Meeting => ({
   organizer: entity.created_by || '',
   invitees: [],
   attendees: [],
-  status: entity.status === 'scheduled' ? 'Planifiée' : 
-          entity.status === 'ongoing' ? 'En cours' : 
-          entity.status === 'completed' ? 'Terminée' : 'Annulée',
+  status: entity.status === 'scheduled' ? 'Planifiée' :
+    entity.status === 'ongoing' ? 'En cours' :
+      entity.status === 'completed' ? 'Terminée' : 'Annulée',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString()
 });
@@ -142,7 +156,7 @@ const mapToIncident = (entity: IncidentEntity): Incident => {
 
   return {
     id: entity.id,
-    studentId: entity.student_id,
+    studentId: entity.studentId || entity.student_id,
     date: new Date(entity.date).toISOString().split('T')[0],
     time: new Date(entity.date).toTimeString().slice(0, 5),
     location: entity.location || '',
@@ -202,7 +216,7 @@ export const SchoolLifeService = {
     try {
       const response = await httpClient.get<SchoolEventEntity[]>('/school-life/events');
       // Filter for activity-like events
-      const activities = response.data.filter(e => 
+      const activities = response.data.filter(e =>
         ['sports', 'cultural', 'academic'].includes(e.event_type)
       );
       return activities.map(mapToActivity);
@@ -239,7 +253,7 @@ export const SchoolLifeService = {
   async getEvents(): Promise<Event[]> {
     try {
       const response = await httpClient.get<SchoolEventEntity[]>('/school-life/events');
-      const events = response.data.filter(e => 
+      const events = response.data.filter(e =>
         ['open_house', 'ceremony', 'other'].includes(e.event_type)
       );
       return events.map(mapToEvent);

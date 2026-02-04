@@ -19,6 +19,10 @@ export class TimetableSlot {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @ApiProperty({ description: 'Registration number', example: 'TMS-2025-001' })
+  @Column({ name: 'registration_number', type: 'varchar', length: 20, unique: true, nullable: true })
+  registrationNumber: string;
+
   @ApiProperty({ description: 'Class ID', example: 'uuid-v4' })
   @Column({ name: 'class_id', type: 'uuid' })
   classId: string;

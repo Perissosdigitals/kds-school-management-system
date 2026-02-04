@@ -1,11 +1,12 @@
 import { httpClient } from '../httpClient';
-import { mockSchedule, schoolClasses, teacherDetails } from '../../data/mockData';
 import type { TimetableSession, SchoolClass, Teacher } from '../../types';
+import { ClassesService } from './classes.service';
+import { TeachersService } from './teachers.service';
 
 export interface TimetableData {
-    schedule: TimetableSession[];
-    classes: SchoolClass[];
-    teachers: Teacher[];
+  schedule: TimetableSession[];
+  classes: SchoolClass[];
+  teachers: Teacher[];
 }
 
 export const TimetableService = {
@@ -18,8 +19,8 @@ export const TimetableService = {
       const response = await httpClient.get<TimetableSession[]>('/timetable', { params });
       return response.data;
     } catch (error) {
-      console.warn('TimetableService: Erreur API, utilisation des données mock', error);
-      return mockSchedule;
+      console.error('TimetableService: Erreur API lors du chargement de l\'emploi du temps', error);
+      throw error;
     }
   },
 
@@ -66,20 +67,23 @@ export const TimetableService = {
 };
 
 export const getTimetableData = async (): Promise<TimetableData> => {
-  console.log('Fetching timetable data from API...');
   try {
-    const schedule = await TimetableService.getSchedule();
+    const [schedule, classesResult, teachers] = await Promise.all([
+      TimetableService.getSchedule(),
+      ClassesService.getClasses({ limit: 1000 }),
+      TeachersService.getTeachers()
+    ]);
     return {
       schedule,
-      classes: schoolClasses,
-      teachers: teacherDetails,
+      classes: classesResult.data,
+      teachers,
     };
   } catch (error) {
-    console.warn('TimetableService: Erreur', error);
+    console.error('TimetableService: Erreur globale lors de la récupération des données', error);
     return {
-      schedule: mockSchedule,
-      classes: schoolClasses,
-      teachers: teacherDetails,
+      schedule: [],
+      classes: [],
+      teachers: [],
     };
   }
 };

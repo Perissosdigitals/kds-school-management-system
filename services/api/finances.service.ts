@@ -1,5 +1,4 @@
 import { httpClient } from '../httpClient';
-import { mockTransactions } from '../../data/mockData';
 import type { FinancialTransaction } from '../../types';
 
 export const FinancesService = {
@@ -12,8 +11,8 @@ export const FinancesService = {
       const response = await httpClient.get<FinancialTransaction[]>('/finance/transactions', { params });
       return response.data;
     } catch (error) {
-      console.warn('FinancesService: Erreur API, utilisation des données mock', error);
-      return mockTransactions;
+      console.error('FinancesService: Erreur API lors du chargement des transactions', error);
+      throw error;
     }
   },
 
@@ -26,8 +25,8 @@ export const FinancesService = {
       const response = await httpClient.get<FinancialTransaction>(`/finance/transactions/${id}`);
       return response.data;
     } catch (error) {
-      console.warn(`FinancesService: Erreur lors de la récupération`, error);
-      return mockTransactions.find(t => t.id === id) || null;
+      console.error(`FinancesService: Erreur lors de la récupération de la transaction ${id}`, error);
+      throw error;
     }
   },
 
@@ -68,7 +67,7 @@ export const FinancesService = {
       const response = await httpClient.get<{ total: number }>('/finance/stats/revenue', { params });
       return response.data;
     } catch (error) {
-      console.warn('FinancesService: Erreur stats revenue', error);
+      console.error('FinancesService: Erreur stats revenue', error);
       return { total: 0 };
     }
   },
@@ -82,7 +81,7 @@ export const FinancesService = {
       const response = await httpClient.get<{ total: number }>('/finance/stats/expenses', { params });
       return response.data;
     } catch (error) {
-      console.warn('FinancesService: Erreur stats expenses', error);
+      console.error('FinancesService: Erreur stats expenses', error);
       return { total: 0 };
     }
   },
@@ -96,13 +95,12 @@ export const FinancesService = {
       const response = await httpClient.get<{ balance: number }>('/finance/stats/balance', { params });
       return response.data;
     } catch (error) {
-      console.warn('FinancesService: Erreur stats balance', error);
+      console.error('FinancesService: Erreur stats balance', error);
       return { balance: 0 };
     }
   }
 };
 
 export const getTransactions = async (): Promise<FinancialTransaction[]> => {
-  console.log('Fetching financial transactions from API...');
   return FinancesService.getTransactions();
 };

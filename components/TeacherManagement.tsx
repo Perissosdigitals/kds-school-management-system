@@ -26,17 +26,17 @@ const DetailItem: React.FC<{ label: string; value: string | undefined }> = ({ la
 );
 
 const DetailSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <div className="mb-6">
-        <h3 className="text-lg font-semibold text-blue-700 mb-3 pb-2 border-b border-slate-200">{title}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {children}
-        </div>
+  <div className="mb-6">
+    <h3 className="text-lg font-semibold text-blue-700 mb-3 pb-2 border-b border-slate-200">{title}</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {children}
     </div>
+  </div>
 );
 
-const TeacherDetail: React.FC<TeacherDetailProps> = ({ 
-  teacher, 
-  onBack, 
+const TeacherDetail: React.FC<TeacherDetailProps> = ({
+  teacher,
+  onBack,
   onEdit,
   onNavigateToClass,
   onNavigateToStudent,
@@ -51,10 +51,16 @@ const TeacherDetail: React.FC<TeacherDetailProps> = ({
         </button>
         <div className="flex-1">
           <h2 className="text-3xl font-bold text-slate-800">{teacher.firstName} {teacher.lastName}</h2>
-          <p className="text-gray-500">Profil de l'enseignant - {teacher.subject}</p>
+          <p className="text-gray-500">
+            Profil de l'enseignant -
+            <span className="font-mono ml-2 px-2 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-200">
+              {teacher.registrationNumber || 'ID non attribué'}
+            </span>
+            - {teacher.subject}
+          </p>
         </div>
-        <button 
-          onClick={() => onEdit(teacher)} 
+        <button
+          onClick={() => onEdit(teacher)}
           className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg transition-colors"
         >
           <i className='bx bxs-edit'></i>
@@ -64,6 +70,7 @@ const TeacherDetail: React.FC<TeacherDetailProps> = ({
 
       <div className="bg-white p-8 rounded-xl shadow-lg">
         <DetailSection title="Informations Personnelles">
+          <DetailItem label="Matricule" value={teacher.registrationNumber} />
           <DetailItem label="Nom de famille" value={teacher.lastName} />
           <DetailItem label="Prénom" value={teacher.firstName} />
           <DetailItem label="Email" value={teacher.email} />
@@ -72,9 +79,8 @@ const TeacherDetail: React.FC<TeacherDetailProps> = ({
           <DetailItem label="Contact d'Urgence" value={teacher.emergencyContact} />
           <div>
             <p className="text-sm text-gray-500">Statut</p>
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-              teacher.status === 'Actif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${teacher.status === 'Actif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
               {teacher.status}
             </span>
           </div>
@@ -98,8 +104,8 @@ const TeacherDetail: React.FC<TeacherDetailProps> = ({
             <h3 className="text-lg font-semibold text-blue-700 mb-3 pb-2 border-b">Classes Assignées ({teacher.classes.length})</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {teacher.classes.map(cls => (
-                <div 
-                  key={cls.id} 
+                <div
+                  key={cls.id}
                   onClick={() => onNavigateToClass?.(cls.id)}
                   className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-all cursor-pointer hover:shadow-md group"
                 >
@@ -124,8 +130,8 @@ const TeacherDetail: React.FC<TeacherDetailProps> = ({
             <div className="max-h-96 overflow-y-auto pr-2">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                 {teacher.students.map(student => (
-                  <div 
-                    key={student.id} 
+                  <div
+                    key={student.id}
                     onClick={() => onNavigateToStudent?.(student.id)}
                     className="p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 hover:border-slate-300 transition-all cursor-pointer group"
                   >
@@ -206,38 +212,54 @@ const TeacherDetail: React.FC<TeacherDetailProps> = ({
   );
 };
 
-const TeacherRow = React.memo(({ teacher, onViewDetail, onEdit, onDelete }: { 
-  teacher: Teacher, 
+const TeacherRow = React.memo(({ teacher, onViewDetail, onEdit, onDelete }: {
+  teacher: Teacher,
   onViewDetail: (teacher: Teacher) => void,
-  onEdit: (teacher: Teacher) => void, 
-  onDelete: (teacher: Teacher) => void 
+  onEdit: (teacher: Teacher) => void,
+  onDelete: (teacher: Teacher) => void
 }) => (
-    <tr className="bg-white border-b hover:bg-gray-50">
-        <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-        {teacher.id}
-        </th>
-        <td 
-          className="px-6 py-4 font-medium text-blue-700 hover:underline cursor-pointer" 
-          onClick={() => onViewDetail(teacher)}
-        >
-          {teacher.lastName} {teacher.firstName}
-        </td>
-        <td className="px-6 py-4">{teacher.subject}</td>
-        <td className="px-6 py-4">{teacher.phone}</td>
-        <td className="px-6 py-4">
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-            teacher.status === 'Actif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+  <tr className="bg-white border-b hover:bg-gray-50">
+    <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+      {teacher.registrationNumber ? (
+        <span className="font-mono text-blue-600">{teacher.registrationNumber}</span>
+      ) : (
+        <span className="text-xs text-gray-400 italic" title={teacher.id}>En attente...</span>
+      )}
+    </th>
+    <td
+      className="px-6 py-4 font-medium text-blue-700 hover:underline cursor-pointer"
+      onClick={() => onViewDetail(teacher)}
+    >
+      {teacher.lastName} {teacher.firstName}
+    </td>
+    <td className="px-6 py-4">{teacher.subject}</td>
+    <td className="px-6 py-4">{teacher.phone}</td>
+    <td className="px-6 py-4">
+      <div className="flex flex-wrap gap-1">
+        {teacher.classes && teacher.classes.length > 0 ? (
+          teacher.classes.map(c => (
+            <span key={c.id} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded border border-blue-100">
+              {c.name}
+            </span>
+          ))
+        ) : (
+          <span className="text-gray-400 text-xs italic">Aucune</span>
+        )}
+      </div>
+    </td>
+    <td className="px-6 py-4">
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${teacher.status === 'Actif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
         }`}>
-            {teacher.status}
-        </span>
-        </td>
-        <td className="px-6 py-4">
-            <div className="flex items-center gap-3">
-            <button onClick={() => onEdit(teacher)} className="text-blue-600 hover:text-blue-800" title="Modifier l'enseignant"><i className='bx bxs-edit text-lg'></i></button>
-            <button onClick={() => onDelete(teacher)} className="text-red-600 hover:text-red-800" title="Supprimer l'enseignant"><i className='bx bxs-trash text-lg'></i></button>
-            </div>
-        </td>
-    </tr>
+        {teacher.status}
+      </span>
+    </td>
+    <td className="px-6 py-4">
+      <div className="flex items-center gap-3">
+        <button onClick={() => onEdit(teacher)} className="text-blue-600 hover:text-blue-800" title="Modifier l'enseignant"><i className='bx bxs-edit text-lg'></i></button>
+        <button onClick={() => onDelete(teacher)} className="text-red-600 hover:text-red-800" title="Supprimer l'enseignant"><i className='bx bxs-trash text-lg'></i></button>
+      </div>
+    </td>
+  </tr>
 ));
 
 export const TeacherManagement: React.FC = () => {
@@ -254,13 +276,13 @@ export const TeacherManagement: React.FC = () => {
   const loadTeachers = async () => {
     setIsLoading(true);
     try {
-        const data = await TeachersService.getTeachers();
-        setTeachers(data || []);
+      const data = await TeachersService.getTeachers();
+      setTeachers(data || []);
     } catch (error) {
-        console.error("Failed to load teachers:", error);
-        setTeachers([]);
+      console.error("Failed to load teachers:", error);
+      setTeachers([]);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -311,7 +333,7 @@ export const TeacherManagement: React.FC = () => {
     }));
     exportToCSV(mappedData, 'liste_professeurs', IMPORT_TEMPLATES.teachers);
   }, [teachers]);
-  
+
   const handleImport = useCallback((importedData: Teacher[]) => {
     const newTeachers = importedData.map((t, index) => ({
       ...t,
@@ -322,7 +344,7 @@ export const TeacherManagement: React.FC = () => {
   }, []);
 
   const teacherHeaders = ['id', 'lastName', 'firstName', 'subject', 'phone', 'email', 'status'];
-  
+
   const handleExportTemplate = useCallback(() => {
     exportCSVTemplate(teacherHeaders, 'modele_import_professeurs');
   }, [teacherHeaders]);
@@ -380,21 +402,21 @@ export const TeacherManagement: React.FC = () => {
           <p className="text-gray-500">Consultez et gérez les informations des professeurs.</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <button 
+          <button
             onClick={handleCreateTeacher}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 w-full sm:w-auto"
           >
             <i className='bx bx-plus-circle'></i>
             <span>Nouveau Professeur</span>
           </button>
-          <button 
+          <button
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 w-full sm:w-auto"
           >
             <i className='bx bxs-file-import'></i>
             <span>Importer CSV</span>
           </button>
-          <button 
+          <button
             onClick={handleExportTemplate}
             className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 w-full sm:w-auto"
             title="Télécharger un modèle CSV pour l'importation"
@@ -402,7 +424,7 @@ export const TeacherManagement: React.FC = () => {
             <i className='bx bxs-download'></i>
             <span>Télécharger Modèle</span>
           </button>
-          <button 
+          <button
             onClick={handleExport}
             className="flex items-center gap-2 bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 w-full sm:w-auto"
           >
@@ -413,31 +435,32 @@ export const TeacherManagement: React.FC = () => {
       </div>
       <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
         {isLoading ? <LoadingSpinner /> : (
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm text-left text-gray-500">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
                 <tr>
-                    <th scope="col" className="px-6 py-3">ID Professeur</th>
-                    <th scope="col" className="px-6 py-3">Nom Complet</th>
-                    <th scope="col" className="px-6 py-3">Matière</th>
-                    <th scope="col" className="px-6 py-3">Téléphone</th>
-                    <th scope="col" className="px-6 py-3">Statut</th>
-                    <th scope="col" className="px-6 py-3">Actions</th>
+                  <th scope="col" className="px-6 py-3">ID Professeur</th>
+                  <th scope="col" className="px-6 py-3">Nom Complet</th>
+                  <th scope="col" className="px-6 py-3">Matière</th>
+                  <th scope="col" className="px-6 py-3">Téléphone</th>
+                  <th scope="col" className="px-6 py-3">Classes</th>
+                  <th scope="col" className="px-6 py-3">Statut</th>
+                  <th scope="col" className="px-6 py-3">Actions</th>
                 </tr>
-                </thead>
-                <tbody>
+              </thead>
+              <tbody>
                 {teachers.map((teacher) => (
-                    <TeacherRow 
-                      key={teacher.id} 
-                      teacher={teacher} 
-                      onViewDetail={handleViewDetail}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                    />
+                  <TeacherRow
+                    key={teacher.id}
+                    teacher={teacher}
+                    onViewDetail={handleViewDetail}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
                 ))}
-                </tbody>
+              </tbody>
             </table>
-            </div>
+          </div>
         )}
       </div>
       <ImportCSVModal<Teacher>

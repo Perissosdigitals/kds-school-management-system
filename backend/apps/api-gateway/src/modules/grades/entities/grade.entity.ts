@@ -9,8 +9,8 @@ import {
 } from 'typeorm';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Student } from '../../students/entities/student.entity';
-import { Subject } from '../../subjects/entities/subject.entity';
 import { Teacher } from '../../teachers/entities/teacher.entity';
+import { Subject } from '../../subjects/entities/subject.entity';
 
 export enum EvaluationType {
   DEVOIR = 'Devoir',

@@ -27,7 +27,7 @@ import { SchoolClass } from './entities/class.entity';
 @ApiBearerAuth()
 @Controller('classes')
 export class ClassesController {
-  constructor(private readonly classesService: ClassesService) {}
+  constructor(private readonly classesService: ClassesService) { }
 
   @Get()
   @ApiOperation({ summary: 'Récupérer toutes les classes avec filtres et pagination' })
@@ -71,6 +71,13 @@ export class ClassesController {
   @ApiResponse({ status: 200, description: 'Classe et nombre d\'élèves récupérés' })
   async getClassWithStudentCount(@Param('id', ParseUUIDPipe) id: string) {
     return this.classesService.getClassWithStudentCount(id);
+  }
+
+  @Get(':id/students')
+  @ApiOperation({ summary: 'Récupérer les élèves d\'une classe' })
+  @ApiResponse({ status: 200, description: 'Liste des élèves récupérée' })
+  async getStudents(@Param('id', ParseUUIDPipe) id: string) {
+    return this.classesService.getStudents(id);
   }
 
   @Post()

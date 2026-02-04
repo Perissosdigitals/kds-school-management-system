@@ -24,6 +24,11 @@ export class QueryAttendanceDto {
   @IsString()
   date?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by session period (morning/afternoon)' })
+  @IsOptional()
+  @IsString()
+  period?: string;
+
   @ApiPropertyOptional({ description: 'Filter from date (YYYY-MM-DD)', example: '2024-11-01' })
   @IsOptional()
   @IsString()

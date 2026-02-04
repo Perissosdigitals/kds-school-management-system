@@ -11,7 +11,7 @@ export class TimetableService {
   constructor(
     @InjectRepository(TimetableSlot)
     private timetableSlotsRepository: Repository<TimetableSlot>,
-  ) {}
+  ) { }
 
   async findAll(queryDto: QueryTimetableSlotsDto) {
     const { classId, teacherId, subjectId, dayOfWeek, academicYear, isActive, page = 1, limit = 100 } = queryDto;
@@ -52,7 +52,7 @@ export class TimetableService {
     query.skip(skip).take(limit);
 
     // Order by day and time
-    query.orderBy('slot.day_of_week', 'ASC').addOrderBy('slot.start_time', 'ASC');
+    // REMOVED CAUSE OF CRASH: query.orderBy('slot.day_of_week', 'ASC').addOrderBy('slot.start_time', 'ASC');
 
     const [data, total] = await query.getManyAndCount();
 
@@ -87,7 +87,38 @@ export class TimetableService {
     await this.checkConflicts(createSlotDto);
 
     const slot = this.timetableSlotsRepository.create(createSlotDto);
+
+    // Generate Registration Number (TMS-YYYY-XXX)
+    slot.registrationNumber = await this.generateRegistrationNumber(createSlotDto.academicYear);
+
     return this.timetableSlotsRepository.save(slot);
+  }
+
+  private async generateRegistrationNumber(academicYear: string): Promise<string> {
+    // Extract year from academic year (e.g. "2024-2025" -> "2024")
+    // If format is invalid, fallback to current year
+    let year = new Date().getFullYear().toString();
+    if (academicYear && academicYear.includes('-')) {
+      year = academicYear.split('-')[0];
+    }
+
+    const prefix = `TMS-${year}`;
+
+    const lastSlot = await this.timetableSlotsRepository
+      .createQueryBuilder('slot')
+      .where('slot.registration_number LIKE :prefix', { prefix: `${prefix}-%` })
+      .orderBy('slot.registration_number', 'DESC')
+      .getOne();
+
+    let nextNum = 1;
+    if (lastSlot?.registrationNumber) {
+      const parts = lastSlot.registrationNumber.split('-');
+      if (parts.length === 3) {
+        nextNum = parseInt(parts[2]) + 1;
+      }
+    }
+
+    return `${prefix}-${nextNum.toString().padStart(3, '0')}`;
   }
 
   async update(id: string, updateSlotDto: UpdateTimetableSlotDto): Promise<TimetableSlot> {

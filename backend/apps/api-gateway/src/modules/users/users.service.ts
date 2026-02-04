@@ -5,13 +5,15 @@ import { User, UserRole } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-  ) {}
+    private readonly activityLogService: ActivityLogService,
+  ) { }
 
   async findAll(query: any): Promise<User[]> {
     const { role, isActive } = query;
@@ -27,6 +29,8 @@ export class UsersService {
         'user.is_active',
         'user.last_login_at',
         'user.created_at',
+        'user.avatar_url',
+        'user.custom_permissions',
       ]);
 
     if (role) {
@@ -45,7 +49,7 @@ export class UsersService {
   async findOne(id: string): Promise<User> {
     const user = await this.usersRepository.findOne({
       where: { id },
-      select: ['id', 'email', 'role', 'first_name', 'last_name', 'phone', 'is_active', 'last_login_at', 'created_at', 'updated_at'],
+      select: ['id', 'email', 'role', 'first_name', 'last_name', 'phone', 'is_active', 'last_login_at', 'created_at', 'updated_at', 'avatar_url', 'custom_permissions'],
     });
 
     if (!user) {
@@ -73,6 +77,7 @@ export class UsersService {
       last_name: createUserDto.lastName,
       phone: createUserDto.phone,
       is_active: true,
+      custom_permissions: createUserDto.role === UserRole.FONDATRICE || createUserDto.role === UserRole.ADMIN ? null : {},
     });
 
     return this.usersRepository.save(user);
@@ -101,7 +106,34 @@ export class UsersService {
       is_active: updateUserDto.isActive !== undefined ? updateUserDto.isActive : user.is_active,
     });
 
+    const updatedUser = await this.usersRepository.save(user);
+
+    // Log activity
+    try {
+      await this.activityLogService.create({
+        user_id: user.id,
+        user_name: `${user.first_name} ${user.last_name}`,
+        user_role: user.role,
+        action: 'Mise à jour utilisateur',
+        category: 'auth',
+        details: `Profil de l'utilisateur ${user.email} mis à jour`,
+      });
+    } catch (e) {
+      console.warn('Failed to log user update activity:', e);
+    }
+
+    return updatedUser;
+  }
+
+  async updateAvatar(id: string, avatarUrl: string): Promise<User> {
+    const user = await this.findOne(id);
+    user.avatar_url = avatarUrl;
     return this.usersRepository.save(user);
+  }
+
+  async updatePermissions(id: string, permissions: any): Promise<User> {
+    await this.usersRepository.update(id, { custom_permissions: permissions });
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {

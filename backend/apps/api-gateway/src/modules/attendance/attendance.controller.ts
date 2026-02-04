@@ -20,7 +20,7 @@ import { Attendance } from './entities/attendance.entity';
 @ApiTags('Attendance')
 @Controller('attendance')
 export class AttendanceController {
-  constructor(private readonly attendanceService: AttendanceService) {}
+  constructor(private readonly attendanceService: AttendanceService) { }
 
   @Get()
   @ApiOperation({ summary: 'Get all attendance records with filters and pagination' })
@@ -102,9 +102,15 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Get daily attendance for a class' })
   @ApiParam({ name: 'classId', description: 'Class ID (UUID)' })
   @ApiQuery({ name: 'date', description: 'Date (YYYY-MM-DD)', example: '2024-11-18' })
+  @ApiQuery({ name: 'period', required: false, description: 'Filter by period (morning/afternoon)' })
   @ApiResponse({ status: 200, description: 'Daily attendance retrieved successfully', type: [Attendance] })
-  getDailyAttendance(@Param('classId', ParseUUIDPipe) classId: string, @Query('date') date: string) {
-    return this.attendanceService.getDailyAttendance(classId, date);
+  getDailyAttendance(
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Query('date') date: string,
+    @Query('period') period?: 'morning' | 'afternoon',
+  ) {
+    console.log(`📡 [CONTROLLER] GET daily attendance for ${classId}, date=${date}, period=${period}`);
+    return this.attendanceService.getDailyAttendance(classId, date, period);
   }
 
   @Get('pattern/:studentId')
@@ -142,7 +148,9 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Create multiple attendance records at once' })
   @ApiResponse({ status: 201, description: 'Attendance records created successfully', type: [Attendance] })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
   createBulk(@Body() createAttendanceDtos: CreateAttendanceDto[]) {
+    console.log(`📡 [CONTROLLER] POST bulk attendance, count=${createAttendanceDtos.length}`);
     return this.attendanceService.createBulk(createAttendanceDtos);
   }
 
@@ -163,9 +171,10 @@ export class AttendanceController {
   updateJustification(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('isJustified') isJustified: boolean,
+    @Body('reason') reason?: string,
     @Body('justificationDocument') justificationDocument?: string,
   ) {
-    return this.attendanceService.updateJustification(id, isJustified, justificationDocument);
+    return this.attendanceService.updateJustification(id, isJustified, reason, justificationDocument);
   }
 
   @Delete(':id')

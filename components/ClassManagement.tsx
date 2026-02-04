@@ -5,6 +5,8 @@ import { getSubjectColor } from '../utils/colorUtils';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { ClassEditForm } from './ClassEditForm';
 import { ClassDetailView as NewClassDetailView } from './ClassDetailView';
+import { TeachersService } from '../services/api/teachers.service';
+import { StudentsService } from '../services/api/students.service';
 
 // --- Types ---
 
@@ -18,11 +20,11 @@ interface ClassFilters {
 
 // --- Statistics Component ---
 
-const ClassStatistics: React.FC<{ 
+const ClassStatistics: React.FC<{
     classes: SchoolClass[];
     students: Student[];
 }> = ({ classes, students }) => {
-    
+
     const stats = useMemo(() => {
         const totalClasses = classes.length;
         const totalCapacity = classes.reduce((sum, cls) => sum + (cls.capacity || 0), 0);
@@ -36,9 +38,9 @@ const ClassStatistics: React.FC<{
         }, {} as Record<string, number>);
 
         // Classe la plus remplie
-        const fullestClass = classes.reduce((max, cls) => 
+        const fullestClass = classes.reduce((max, cls) =>
             (cls.currentOccupancy || 0) > (max.currentOccupancy || 0) ? cls : max
-        , classes[0]);
+            , classes[0]);
 
         return {
             totalClasses,
@@ -128,9 +130,9 @@ const CompactTimetable: React.FC<{ sessions: TimetableSession[] }> = ({ sessions
             ))}
             {days.map(day => (
                 <div key={day} className="bg-slate-50 rounded p-1 space-y-1 min-h-[60px]">
-                    {sessions.filter(s => s.day === day).sort((a,b) => a.startTime.localeCompare(b.startTime)).map(session => (
+                    {sessions.filter(s => s.day === day).sort((a, b) => a.startTime.localeCompare(b.startTime)).map(session => (
                         <div key={session.id} className={`p-1 rounded ${getSubjectColor(session.subject).bg} ${getSubjectColor(session.subject).text}`} title={`${session.subject} (${session.startTime}-${session.endTime})`}>
-                            {session.subject.substring(0,4)}...
+                            {session.subject.substring(0, 4)}...
                         </div>
                     ))}
                 </div>
@@ -140,7 +142,7 @@ const CompactTimetable: React.FC<{ sessions: TimetableSession[] }> = ({ sessions
 };
 
 const RecentEvaluations: React.FC<{ evaluations: Evaluation[], grades: Grade[] }> = ({ evaluations, grades }) => {
-     if (evaluations.length === 0) {
+    if (evaluations.length === 0) {
         return <p className="text-sm text-gray-500 text-center py-4">Aucune évaluation récente pour cette classe.</p>;
     }
     return (
@@ -168,7 +170,7 @@ const RecentEvaluations: React.FC<{ evaluations: Evaluation[], grades: Grade[] }
 
 // --- Main Views ---
 
-const ClassListView: React.FC<{ 
+const ClassListView: React.FC<{
     classes: SchoolClass[];
     teachers: Teacher[];
     students: Student[];
@@ -180,9 +182,9 @@ const ClassListView: React.FC<{
     onDeleteClass: (cls: SchoolClass) => void;
     onCreateClass: () => void;
 }> = ({ classes, teachers, students, totalClasses, filters, onFilterChange, onSelectClass, onEditClass, onDeleteClass, onCreateClass }) => {
-    
+
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-    
+
     const findTeacherName = (id?: string) => {
         if (!id) return 'N/A';
         const teacher = teachers.find(t => t.id === id);
@@ -240,11 +242,11 @@ const ClassListView: React.FC<{
 
     return (
         <div className="space-y-6">
-             <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start">
                 <div>
                     <h2 className="text-3xl font-bold text-slate-800">Gestion des Classes</h2>
                     <p className="text-gray-500">
-                        {classes.length} classe{classes.length > 1 ? 's' : ''} affichée{classes.length > 1 ? 's' : ''} 
+                        {classes.length} classe{classes.length > 1 ? 's' : ''} affichée{classes.length > 1 ? 's' : ''}
                         {totalClasses > classes.length && ` sur ${totalClasses} au total`}
                     </p>
                 </div>
@@ -275,11 +277,10 @@ const ClassListView: React.FC<{
                     </div>
                     <button
                         onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                        className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg transition-all ${
-                            showAdvancedFilters 
-                                ? 'border-blue-600 bg-blue-50 text-blue-700' 
-                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
+                        className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg transition-all ${showAdvancedFilters
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
                     >
                         <i className={`bx ${showAdvancedFilters ? 'bx-filter-alt' : 'bx-slider-alt'} text-xl`}></i>
                         <span className="font-semibold">Filtres</span>
@@ -350,9 +351,9 @@ const ClassListView: React.FC<{
                             </label>
                             <select
                                 value={filters.isActive === undefined ? '' : filters.isActive ? 'true' : 'false'}
-                                onChange={(e) => onFilterChange({ 
-                                    ...filters, 
-                                    isActive: e.target.value === '' ? undefined : e.target.value === 'true' 
+                                onChange={(e) => onFilterChange({
+                                    ...filters,
+                                    isActive: e.target.value === '' ? undefined : e.target.value === 'true'
                                 })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             >
@@ -425,7 +426,7 @@ const ClassListView: React.FC<{
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {classes.map(cls => (
-                    <div 
+                    <div
                         key={cls.id}
                         className="bg-white p-6 rounded-xl shadow-md transition-transform transform hover:-translate-y-1 hover:shadow-lg border-l-4 border-blue-600 relative group"
                     >
@@ -452,7 +453,14 @@ const ClassListView: React.FC<{
                             </button>
                         </div>
                         <div onClick={() => onSelectClass(cls.id)} className="cursor-pointer">
-                            <h3 className="text-xl font-bold text-slate-800 mb-2">{cls.name}</h3>
+                            <div className="flex justify-between items-start mb-2">
+                                <h3 className="text-xl font-bold text-slate-800">{cls.name}</h3>
+                                {cls.registrationNumber && (
+                                    <span className="text-xs font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                                        {cls.registrationNumber}
+                                    </span>
+                                )}
+                            </div>
                             <div className="text-sm text-gray-500 space-y-1">
                                 <p className="flex items-center gap-2"><i className='bx bxs-user-badge'></i> {findTeacherName(cls.teacherId)}</p>
                                 <p className="flex items-center gap-2"><i className='bx bxs-group'></i> {countClassStudents(cls)} élèves</p>
@@ -497,21 +505,24 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
             if (filters.mainTeacherId) params.mainTeacherId = filters.mainTeacherId;
             if (filters.isActive !== undefined) params.isActive = filters.isActive;
 
-            const result = await ClassesService.getClasses(params);
-            const teachersData = await getClassesData(); // Get teachers and students
-            
+            // Fetch all data in parallel
+            const [classesResult, teachersResult, studentsResult] = await Promise.all([
+                ClassesService.getClasses(params),
+                TeachersService.getTeachers(),
+                StudentsService.getStudents({ limit: 1000 })
+            ]);
+
             setData({
-                classes: result.data,
-                teachers: teachersData.teachers,
-                students: teachersData.students
+                classes: classesResult.data,
+                teachers: teachersResult,
+                students: studentsResult
             });
-            setTotalClasses(result.total);
+            setTotalClasses(classesResult.total);
         } catch (error) {
             console.error('Erreur lors du chargement des classes:', error);
-            // Fallback to old method
-            const result = await getClassesData();
-            setData(result);
-            setTotalClasses(result.classes.length);
+            // Fallback empty state
+            setData({ classes: [], teachers: [], students: [] });
+            setTotalClasses(0);
         }
         setIsLoading(false);
     };
@@ -557,7 +568,7 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
 
     const availableClasses = useMemo(() => {
         if (!data) return [];
-        if (currentUser.role === 'teacher') {
+        if (currentUser.role === 'Enseignant') {
             return data.classes.filter(c => c.teacherId === currentUser.id);
         }
         return data.classes;
@@ -582,7 +593,7 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
                     </button>
                     <h2 className="text-3xl font-bold text-slate-800">Créer une Nouvelle Classe</h2>
                 </div>
-                <ClassEditForm 
+                <ClassEditForm
                     schoolClass={{
                         id: '',
                         name: '',
@@ -591,9 +602,9 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
                         capacity: 30,
                         room: '',
                         academicYear: '2024-2025'
-                    } as SchoolClass} 
-                    onSave={handleSaveClass} 
-                    onCancel={handleBack} 
+                    } as SchoolClass}
+                    onSave={handleSaveClass}
+                    onCancel={handleBack}
                 />
             </div>
         );
@@ -601,14 +612,14 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
 
     // Show detail view
     if (viewMode === 'detail' && selectedClassId) {
-        return <NewClassDetailView classId={selectedClassId} onBack={handleBack} />;
+        return <NewClassDetailView classId={selectedClassId} onBack={handleBack} currentUser={currentUser} />;
     }
 
     // Show list view
     return (
-        <ClassListView 
-            classes={availableClasses} 
-            teachers={data.teachers} 
+        <ClassListView
+            classes={availableClasses}
+            teachers={data.teachers}
             students={data.students}
             totalClasses={totalClasses}
             filters={filters}

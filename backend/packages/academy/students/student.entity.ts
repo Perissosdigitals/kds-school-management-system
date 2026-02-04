@@ -32,7 +32,7 @@ export class Student {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 20, unique: true })
+  @Column({ name: 'registration_number', type: 'varchar', length: 20, unique: true })
   registrationNumber: string; // ex: KDS24001
 
   @Column({ type: 'date' })

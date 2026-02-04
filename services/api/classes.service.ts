@@ -1,20 +1,19 @@
 import { httpClient } from '../httpClient';
-import { schoolClasses, teacherDetails, allStudents, mockSchedule, evaluations, grades } from '../../data/mockData';
 import type { SchoolClass, Teacher, Student, TimetableSession, Evaluation, Grade } from '../../types';
 
 export interface ClassListData {
-    classes: SchoolClass[];
-    teachers: Teacher[];
-    students: Student[];
+  classes: SchoolClass[];
+  teachers: Teacher[];
+  students: Student[];
 }
 
 export interface ClassDetailData {
-    classInfo: SchoolClass;
-    students: Student[];
-    teacher: Teacher | undefined;
-    timetable: TimetableSession[];
-    evaluations: Evaluation[];
-    grades: Grade[];
+  classInfo: SchoolClass;
+  students: Student[];
+  teacher: Teacher | undefined;
+  timetable: TimetableSession[];
+  evaluations: Evaluation[];
+  grades: Grade[];
 }
 
 export interface ClassQueryParams {
@@ -60,6 +59,7 @@ const mapApiClassToFrontend = (apiClass: any): SchoolClass => {
 
   return {
     id: apiClass.id,
+    registrationNumber: apiClass.registrationNumber || apiClass.registration_number || '',
     name: apiClass.name,
     level: apiClass.level,
     capacity: apiClass.capacity || 30,
@@ -68,8 +68,8 @@ const mapApiClassToFrontend = (apiClass: any): SchoolClass => {
     teacherName: apiClass.teacher_first_name && apiClass.teacher_last_name
       ? `${apiClass.teacher_first_name} ${apiClass.teacher_last_name}`
       : apiClass.mainTeacher?.firstName && apiClass.mainTeacher?.lastName
-      ? `${apiClass.mainTeacher.firstName} ${apiClass.mainTeacher.lastName}`
-      : apiClass.teacherName || '',
+        ? `${apiClass.mainTeacher.firstName} ${apiClass.mainTeacher.lastName}`
+        : apiClass.teacherName || '',
     room: apiClass.room_number || apiClass.roomNumber || apiClass.room || '',
     academicYear: apiClass.academic_year || apiClass.academicYear || '2024-2025',
     schedule: apiClass.schedule || []
@@ -93,42 +93,8 @@ export const ClassesService = {
         limit: response.data.limit
       };
     } catch (error) {
-      console.warn('ClassesService: Erreur API, utilisation des données mock', error);
-      // Fallback avec filtrage local des mock data
-      let filteredClasses = [...schoolClasses];
-      
-      if (params?.level) {
-        filteredClasses = filteredClasses.filter(c => c.level === params.level);
-      }
-      if (params?.academicYear) {
-        filteredClasses = filteredClasses.filter(c => c.academicYear === params.academicYear);
-      }
-      if (params?.mainTeacherId) {
-        filteredClasses = filteredClasses.filter(c => c.teacherId === params.mainTeacherId);
-      }
-      if (params?.search) {
-        const searchLower = params.search.toLowerCase();
-        filteredClasses = filteredClasses.filter(c => 
-          c.name.toLowerCase().includes(searchLower) || 
-          c.level.toLowerCase().includes(searchLower)
-        );
-      }
-      if (params?.isActive !== undefined) {
-        // Mock data doesn't have isActive, assume all are active
-        filteredClasses = params.isActive ? filteredClasses : [];
-      }
-      
-      const page = params?.page || 1;
-      const limit = params?.limit || 10;
-      const start = (page - 1) * limit;
-      const paginatedClasses = filteredClasses.slice(start, start + limit);
-      
-      return {
-        data: paginatedClasses,
-        total: filteredClasses.length,
-        page,
-        limit
-      };
+      console.error('ClassesService: Erreur API lors du chargement des classes', error);
+      throw error;
     }
   },
 
@@ -141,13 +107,8 @@ export const ClassesService = {
       const response = await httpClient.get<ClassStatsResponse>('/classes/stats/count', { params });
       return response.data.count;
     } catch (error) {
-      console.warn('ClassesService: Erreur API count, utilisation mock', error);
-      // Apply same filters as getClasses
-      let filteredClasses = [...schoolClasses];
-      if (params?.level) filteredClasses = filteredClasses.filter(c => c.level === params.level);
-      if (params?.academicYear) filteredClasses = filteredClasses.filter(c => c.academicYear === params.academicYear);
-      if (params?.mainTeacherId) filteredClasses = filteredClasses.filter(c => c.teacherId === params.mainTeacherId);
-      return filteredClasses.length;
+      console.error('ClassesService: Erreur API lors du comptage des classes', error);
+      throw error;
     }
   },
 
@@ -160,13 +121,8 @@ export const ClassesService = {
       const response = await httpClient.get<ClassByLevelStats[]>('/classes/stats/by-level');
       return response.data;
     } catch (error) {
-      console.warn('ClassesService: Erreur API stats by level, utilisation mock', error);
-      // Group mock classes by level
-      const levelMap = new Map<string, number>();
-      schoolClasses.forEach(cls => {
-        levelMap.set(cls.level, (levelMap.get(cls.level) || 0) + 1);
-      });
-      return Array.from(levelMap.entries()).map(([level, count]) => ({ level, count }));
+      console.error('ClassesService: Erreur API stats by level', error);
+      throw error;
     }
   },
 
@@ -179,13 +135,8 @@ export const ClassesService = {
       const response = await httpClient.get<ClassByAcademicYearStats[]>('/classes/stats/by-academic-year');
       return response.data;
     } catch (error) {
-      console.warn('ClassesService: Erreur API stats by academic year, utilisation mock', error);
-      // Group mock classes by academic year
-      const yearMap = new Map<string, number>();
-      schoolClasses.forEach(cls => {
-        yearMap.set(cls.academicYear, (yearMap.get(cls.academicYear) || 0) + 1);
-      });
-      return Array.from(yearMap.entries()).map(([academicYear, count]) => ({ academicYear, count }));
+      console.error('ClassesService: Erreur API stats by academic year', error);
+      throw error;
     }
   },
 
@@ -201,11 +152,8 @@ export const ClassesService = {
         studentCount: response.data.studentCount
       };
     } catch (error) {
-      console.warn('ClassesService: Erreur API student count, utilisation mock', error);
-      const classInfo = schoolClasses.find(c => c.id === classId);
-      if (!classInfo) throw new Error('Classe non trouvée');
-      const studentCount = allStudents.filter(s => s.gradeLevel === classInfo.level && s.status === 'Actif').length;
-      return { class: classInfo, studentCount };
+      console.error('ClassesService: Erreur API student count', error);
+      throw error;
     }
   },
 
@@ -215,16 +163,16 @@ export const ClassesService = {
   async getClassById(classId: string): Promise<ClassDetailData | null> {
     try {
       console.log(`ClassesService: Récupération de la classe ${classId}...`);
-      
+
       // Récupérer la classe depuis l'API
       const response = await httpClient.get<any>(`/classes/${classId}`);
       const apiClass = response.data;
-      
+
       if (!apiClass) return null;
 
       // Mapper les données au format ClassDetailData
       const classInfo = mapApiClassToFrontend(apiClass);
-      
+
       // Les élèves sont déjà inclus dans la réponse API
       const students: Student[] = (apiClass.students || []).map((s: any) => ({
         id: s.id,
@@ -269,70 +217,27 @@ export const ClassesService = {
       let timetableData: TimetableSession[] = [];
       try {
         console.log(`ClassesService: Tentative de chargement emploi du temps pour classe ${classId}...`);
-        const timetableResponse = await httpClient.get<any[]>(`/timetable?classId=${classId}`);
-        timetableData = timetableResponse.data.map((slot: any) => ({
+        const timetableResponse = await httpClient.get<any>(`/timetable?classId=${classId}`);
+
+        // Handle paginated response format: { data: [], total, page, limit }
+        const timetableArray = Array.isArray(timetableResponse.data)
+          ? timetableResponse.data
+          : (timetableResponse.data.data || []);
+
+        timetableData = timetableArray.map((slot: any) => ({
           id: slot.id,
-          day: slot.day_of_week || slot.dayOfWeek,
+          day: slot.day_of_week || slot.dayOfWeek || slot.day,
           startTime: slot.start_time || slot.startTime,
           endTime: slot.end_time || slot.endTime,
-          subject: slot.subject_name || slot.subject,
+          subject: slot.subject?.name || slot.subject_name || slot.subject || '',
+          subjectId: slot.subject_id || slot.subjectId || slot.subject?.id,
           classId: slot.class_id || slot.classId,
           teacherId: slot.teacher_id || slot.teacherId,
-          room: slot.room
+          room: slot.room || ''
         }));
-        console.log(`✅ ClassesService: Emploi du temps API chargé (${timetableData.length} sessions)`);
       } catch (timetableError) {
-        console.warn('⚠️ ClassesService: API timetable inaccessible, génération d\'emploi du temps de démonstration');
-        
-        // Générer un emploi du temps de démonstration basé sur la classe
-        const className = classInfo.name;
-        const level = classInfo.level;
-        
-        // Emplois du temps réalistes selon le niveau
-        if (level === 'CM2' || level === 'CM1' || level === 'CE2' || level === 'CE1' || level === 'CP') {
-          // Primaire - Emploi du temps type
-          timetableData = [
-            { id: `tt-${classId}-1`, day: 'Lundi', startTime: '08:00', endTime: '10:00', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-2`, day: 'Lundi', startTime: '10:15', endTime: '12:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-3`, day: 'Lundi', startTime: '14:00', endTime: '15:30', subject: 'Histoire-Géographie', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-4`, day: 'Mardi', startTime: '08:00', endTime: '10:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-5`, day: 'Mardi', startTime: '10:15', endTime: '12:00', subject: 'Sciences', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-6`, day: 'Mardi', startTime: '14:00', endTime: '15:30', subject: 'Sport', classId, teacherId: classInfo.teacherId || '', room: 'Gymnase' },
-            { id: `tt-${classId}-7`, day: 'Mercredi', startTime: '08:00', endTime: '10:00', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-8`, day: 'Mercredi', startTime: '10:15', endTime: '12:00', subject: 'Torah', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-9`, day: 'Jeudi', startTime: '08:00', endTime: '10:00', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-10`, day: 'Jeudi', startTime: '10:15', endTime: '12:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-11`, day: 'Jeudi', startTime: '14:00', endTime: '15:30', subject: 'Anglais', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-12`, day: 'Vendredi', startTime: '08:00', endTime: '10:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-13`, day: 'Vendredi', startTime: '10:15', endTime: '12:00', subject: 'Hébreu', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-          ];
-        } else if (level === '6ème' || level === '5ème' || level === '4ème' || level === '3ème') {
-          // Collège - Emploi du temps type
-          timetableData = [
-            { id: `tt-${classId}-1`, day: 'Lundi', startTime: '08:00', endTime: '09:30', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-2`, day: 'Lundi', startTime: '09:45', endTime: '11:15', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-3`, day: 'Lundi', startTime: '11:30', endTime: '13:00', subject: 'Histoire-Géographie', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-4`, day: 'Lundi', startTime: '14:30', endTime: '16:00', subject: 'Anglais', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-5`, day: 'Mardi', startTime: '08:00', endTime: '09:30', subject: 'Sciences et Vie de la Terre', classId, teacherId: classInfo.teacherId || '', room: 'Laboratoire' },
-            { id: `tt-${classId}-6`, day: 'Mardi', startTime: '09:45', endTime: '11:15', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-7`, day: 'Mardi', startTime: '11:30', endTime: '13:00', subject: 'EPS', classId, teacherId: classInfo.teacherId || '', room: 'Gymnase' },
-            { id: `tt-${classId}-8`, day: 'Mardi', startTime: '14:30', endTime: '16:00', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-9`, day: 'Mercredi', startTime: '08:00', endTime: '09:30', subject: 'Anglais', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-10`, day: 'Mercredi', startTime: '09:45', endTime: '11:15', subject: 'Arts Plastiques', classId, teacherId: classInfo.teacherId || '', room: 'Atelier' },
-            { id: `tt-${classId}-11`, day: 'Jeudi', startTime: '08:00', endTime: '09:30', subject: 'Physique-Chimie', classId, teacherId: classInfo.teacherId || '', room: 'Laboratoire' },
-            { id: `tt-${classId}-12`, day: 'Jeudi', startTime: '09:45', endTime: '11:15', subject: 'Français', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-13`, day: 'Jeudi', startTime: '11:30', endTime: '13:00', subject: 'Mathématiques', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-14`, day: 'Jeudi', startTime: '14:30', endTime: '16:00', subject: 'Informatique', classId, teacherId: classInfo.teacherId || '', room: 'Salle Info' },
-            { id: `tt-${classId}-15`, day: 'Vendredi', startTime: '08:00', endTime: '09:30', subject: 'Histoire-Géographie', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-16`, day: 'Vendredi', startTime: '09:45', endTime: '11:15', subject: 'Anglais', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-            { id: `tt-${classId}-17`, day: 'Vendredi', startTime: '11:30', endTime: '13:00', subject: 'Éducation Civique', classId, teacherId: classInfo.teacherId || '', room: 'Salle ' + className },
-          ];
-        } else {
-          // Autres niveaux - emploi du temps générique
-          timetableData = mockSchedule.filter(s => s.classId === classId);
-        }
-        
-        console.log(`📚 ClassesService: Emploi du temps DEMO généré (${timetableData.length} sessions pour ${className} - ${level})`);
+        console.warn('ClassesService: API timetable non disponible pour cette classe', timetableError);
+        timetableData = [];
       }
 
       return {
@@ -340,21 +245,12 @@ export const ClassesService = {
         students,
         teacher,
         timetable: timetableData,
-        evaluations: evaluations.filter(e => e.classId === classId).slice(0, 3), // À implémenter avec API
-        grades: grades.filter(g => evaluations.some(e => e.id === g.evaluationId && e.classId === classId)), // À implémenter avec API
+        evaluations: [], // Feature to be implemented via API
+        grades: [],      // Feature to be implemented via API
       };
     } catch (error) {
-      console.warn(`ClassesService: Erreur API, utilisation des données mock`, error);
-      const classInfo = schoolClasses.find(c => c.id === classId);
-      if (!classInfo) return null;
-      return {
-        classInfo,
-        students: allStudents.filter(s => s.gradeLevel === classInfo.level),
-        teacher: teacherDetails.find(t => t.id === classInfo.teacherId),
-        timetable: mockSchedule.filter(s => s.classId === classId),
-        evaluations: evaluations.filter(e => e.classId === classId).slice(0, 3),
-        grades: grades.filter(g => evaluations.some(e => e.id === g.evaluationId && e.classId === classId)),
-      };
+      console.error(`ClassesService: Erreur lors de la récupération de la classe ${classId}`, error);
+      throw error;
     }
   },
 
@@ -364,15 +260,15 @@ export const ClassesService = {
   async createClass(classData: Omit<SchoolClass, 'id'>): Promise<SchoolClass> {
     try {
       console.log('ClassesService: Création d\'une nouvelle classe...', classData);
-      
+
       // Map frontend fields to backend DTO
       const apiPayload = {
         name: classData.name,
         level: classData.level,
         academicYear: classData.academicYear,
         capacity: classData.capacity,
-        mainTeacherId: classData.teacherId || undefined, // Map teacherId to mainTeacherId
-        roomNumber: classData.room || undefined          // Map room to roomNumber
+        mainTeacherId: classData.teacherId || undefined,
+        roomNumber: classData.room || undefined
       };
 
       const response = await httpClient.post<SchoolClass>('/classes', apiPayload);
@@ -389,24 +285,14 @@ export const ClassesService = {
   async updateClass(id: string, classData: Partial<SchoolClass>): Promise<SchoolClass> {
     try {
       console.log(`ClassesService: Mise à jour de la classe ${id}...`);
-      
-      // Map frontend fields to backend DTO
-      const apiPayload: any = {
-        ...classData,
-        mainTeacherId: classData.teacherId || undefined,
-        roomNumber: classData.room || undefined
-      };
-      
-      // Remove frontend-only fields if necessary, but spreading classData might include them.
-      // Ideally we construct the payload explicitly.
-      const cleanPayload = {
+
+      const cleanPayload: any = {
         name: classData.name,
         level: classData.level,
         academicYear: classData.academicYear,
         capacity: classData.capacity,
         mainTeacherId: classData.teacherId || undefined,
-        roomNumber: classData.room || undefined,
-        status: classData.status // If status exists
+        roomNumber: classData.room || undefined
       };
 
       // Remove undefined keys
@@ -442,15 +328,8 @@ export const ClassesService = {
       const response = await httpClient.get<Student[]>(`/classes/${classId}/students`);
       return response.data;
     } catch (error) {
-      console.warn('ClassesService: Erreur API students, utilisation mock', error);
-      // Fallback: récupérer tous les élèves et filtrer par classId
-      try {
-        const allStudentsResponse = await httpClient.get<Student[]>('/students');
-        return allStudentsResponse.data.filter(s => s.classId === classId);
-      } catch {
-        // Double fallback avec mock data
-        return allStudents.filter(s => s.classId === classId);
-      }
+      console.error('ClassesService: Erreur lors de l\'obtention des élèves de la classe', error);
+      throw error;
     }
   },
 
@@ -463,14 +342,8 @@ export const ClassesService = {
       const response = await httpClient.get<Teacher>(`/classes/${classId}/teacher`);
       return response.data;
     } catch (error) {
-      console.warn('ClassesService: Erreur API teacher, utilisation mock', error);
-      // Fallback: récupérer la classe et son enseignant
-      try {
-        const classData = await this.getClassById(classId);
-        return classData?.teacher || null;
-      } catch {
-        return null;
-      }
+      console.error('ClassesService: Erreur lors de l\'obtention de l\'enseignant de la classe', error);
+      throw error;
     }
   },
 
@@ -483,24 +356,28 @@ export const ClassesService = {
       const response = await httpClient.get<TimetableSession[]>(`/timetable?classId=${classId}`);
       return response.data;
     } catch (error) {
-      console.warn('ClassesService: Erreur API timetable, utilisation mock', error);
-      return mockSchedule.filter(s => s.classId === classId);
+      console.error('ClassesService: Erreur lors de l\'obtention de l\'emploi du temps', error);
+      throw error;
     }
   }
 };
 
 // Export pour compatibilité rétroactive
 export const getClassesData = async (): Promise<ClassListData> => {
-    console.log('Fetching all class list data from API...');
+  console.log('Fetching class list from API...');
+  try {
     const result = await ClassesService.getClasses();
     return {
-        classes: result.data,
-        teachers: teacherDetails,
-        students: allStudents,
+      classes: result.data,
+      teachers: [], // Should be fetched from TeachersService by caller if needed
+      students: [], // Should be fetched from StudentsService by caller if needed
     };
+  } catch (error) {
+    console.error('getClassesData Error:', error);
+    throw error;
+  }
 };
 
 export const getSingleClassData = async (classId: string): Promise<ClassDetailData | null> => {
-    console.log(`Fetching details for class ${classId} from API...`);
-    return ClassesService.getClassById(classId);
+  return ClassesService.getClassById(classId);
 };

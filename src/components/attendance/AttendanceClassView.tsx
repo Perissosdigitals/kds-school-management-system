@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AttendanceService } from '../../services/api/attendance.service';
 import { ClassesService } from '../../services/api/classes.service';
+import { AttendanceStatus } from '../../types';
 
 interface AttendanceClassViewProps {
   classId: string;
@@ -55,13 +56,23 @@ export const AttendanceClassView: React.FC<AttendanceClassViewProps> = ({
     }
   }, [classId, filters]);
 
+
+
+  // ... (inside component)
+
   const getStudentStats = (studentId: string) => {
     const studentRecords = attendance.filter((a: any) => a.studentId === studentId);
     const total = studentRecords.length;
-    const present = studentRecords.filter((a: any) => a.status === 'present').length;
-    const absent = studentRecords.filter((a: any) => a.status === 'absent').length;
-    const late = studentRecords.filter((a: any) => a.status === 'late').length;
-    const presenceRate = total > 0 ? (present / total) * 100 : 0;
+
+    const present = studentRecords.filter((a: any) => a.status === AttendanceStatus.PRESENT).length;
+    const absent = studentRecords.filter((a: any) => a.status === AttendanceStatus.ABSENT).length;
+    const late = studentRecords.filter((a: any) => a.status === AttendanceStatus.LATE).length;
+    // Excused counts as absent for rate calculation? Or separate? Let's count excused as present or neutral?
+    // Usually excused absences don't penalize. But for now let's strict check.
+
+    // For rate, typically (Present + Late) / Total
+    const effectivePresent = present + late;
+    const presenceRate = total > 0 ? (effectivePresent / total) * 100 : 0;
 
     return { total, present, absent, late, presenceRate };
   };
@@ -70,15 +81,16 @@ export const AttendanceClassView: React.FC<AttendanceClassViewProps> = ({
     const studentRecords = attendance
       .filter((a: any) => a.studentId === studentId)
       .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
+
     return studentRecords[0]?.status || 'N/A';
   };
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case 'present': return 'text-green-600 bg-green-100';
-      case 'absent': return 'text-red-600 bg-red-100';
-      case 'late': return 'text-yellow-600 bg-yellow-100';
+      case AttendanceStatus.PRESENT: return 'text-green-600 bg-green-100';
+      case AttendanceStatus.ABSENT: return 'text-red-600 bg-red-100';
+      case AttendanceStatus.LATE: return 'text-yellow-600 bg-yellow-100';
+      case AttendanceStatus.EXCUSED: return 'text-blue-600 bg-blue-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -146,11 +158,11 @@ export const AttendanceClassView: React.FC<AttendanceClassViewProps> = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Session
+              Session (Période)
             </label>
             <select
-              value={filters.session}
-              onChange={(e) => setFilters({ ...filters, session: e.target.value })}
+              value={filters.period}
+              onChange={(e) => setFilters({ ...filters, period: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="">Toutes</option>
@@ -161,7 +173,7 @@ export const AttendanceClassView: React.FC<AttendanceClassViewProps> = ({
 
           <div className="flex items-end">
             <button
-              onClick={() => setFilters({ startDate: '', endDate: '', session: '' })}
+              onClick={() => setFilters({ startDate: '', endDate: '', period: '' })}
               className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none"
             >
               Réinitialiser
@@ -238,9 +250,8 @@ export const AttendanceClassView: React.FC<AttendanceClassViewProps> = ({
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`text-sm font-semibold ${
-                        stats.absent > 5 ? 'text-red-600' : 'text-gray-600'
-                      }`}>
+                      <span className={`text-sm font-semibold ${stats.absent > 5 ? 'text-red-600' : 'text-gray-600'
+                        }`}>
                         {stats.absent}
                         {stats.absent > 5 && ' ⚠️'}
                       </span>
@@ -251,20 +262,20 @@ export const AttendanceClassView: React.FC<AttendanceClassViewProps> = ({
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`text-sm font-semibold ${
-                        stats.presenceRate >= 90 ? 'text-green-600' :
+                      <span className={`text-sm font-semibold ${stats.presenceRate >= 90 ? 'text-green-600' :
                         stats.presenceRate >= 75 ? 'text-yellow-600' :
-                        'text-red-600'
-                      }`}>
+                          'text-red-600'
+                        }`}>
                         {stats.presenceRate.toFixed(1)}%
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(recentStatus)}`}>
-                        {recentStatus === 'present' ? '✅ Présent' :
-                         recentStatus === 'absent' ? '❌ Absent' :
-                         recentStatus === 'late' ? '⏰ Retard' :
-                         'N/A'}
+                        {recentStatus === AttendanceStatus.PRESENT && '✅ Présent'}
+                        {recentStatus === AttendanceStatus.ABSENT && '❌ Absent'}
+                        {recentStatus === AttendanceStatus.LATE && '⏰ Retard'}
+                        {recentStatus === AttendanceStatus.EXCUSED && '📝 Excusé'}
+                        {!Object.values(AttendanceStatus).includes(recentStatus as AttendanceStatus) && (recentStatus || 'N/A')}
                       </span>
                     </td>
                   </tr>

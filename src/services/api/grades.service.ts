@@ -1,11 +1,11 @@
 import axios, { AxiosInstance } from 'axios';
-import type { 
-  Grade, 
-  CreateGradeDto, 
-  UpdateGradeDto, 
+import type {
+  Grade,
+  CreateGradeDto,
+  UpdateGradeDto,
   GradeFilters,
   ReportCard,
-  ClassAverage 
+  ClassAverage
 } from '../../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
@@ -43,7 +43,7 @@ class GradesServiceClass {
    * Create multiple grades in bulk
    */
   async createBulk(grades: CreateGradeDto[]): Promise<Grade[]> {
-    const response = await this.api.post<Grade[]>('/bulk', { grades });
+    const response = await this.api.post<Grade[]>('/bulk', grades);
     return response.data;
   }
 

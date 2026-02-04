@@ -1,5 +1,6 @@
 import { httpClient } from '../httpClient';
-import { allUsers } from '../../data/mockData';
+import { ActivityService } from './activity.service';
+import type { User } from '../../types';
 
 export interface LoginCredentials {
   email: string;
@@ -8,6 +9,8 @@ export interface LoginCredentials {
 
 export interface LoginResponse {
   access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
   user: {
     id: string;
     email: string;
@@ -23,60 +26,31 @@ export const AuthService = {
    */
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
-      const response = await httpClient.post<LoginResponse>('/auth/login', credentials);
-      
+      const response = await httpClient.post<LoginResponse>('auth/login', credentials);
+
       if (response.data.access_token) {
         localStorage.setItem('ksp_token', response.data.access_token);
         localStorage.setItem('ksp_user', JSON.stringify(response.data.user));
+        if (response.data.refresh_token) {
+          localStorage.setItem('ksp_refresh_token', response.data.refresh_token);
+        }
+
+        // Log successful login
+        try {
+          await ActivityService.logActivity(
+            response.data.user as unknown as User,
+            'Connexion au système',
+            'auth',
+            `Utilisateur ${response.data.user.email} s'est connecté`
+          );
+        } catch (logError) {
+          console.warn('Failed to log login activity:', logError);
+        }
       }
-      
+
       return response.data;
     } catch (error: any) {
       console.error('Login error:', error);
-      
-      // Fallback logic for offline/network errors
-      const shouldFallback = 
-        !error.response || 
-        error.code === 'ECONNABORTED' || 
-        error.response?.status >= 500 || 
-        error.message?.toLowerCase().includes('network');
-
-      if (shouldFallback) {
-        console.warn('⚠️ AuthService: API non disponible, connexion locale (mode fallback)');
-        
-        // Find user in mock data
-        const mockUser = allUsers.find(u => u.email === credentials.email);
-        
-        // For simulation, we accept any password if user exists, or a default admin if not found
-        // Also check for the hardcoded users in ModernLogin.tsx
-        const isKnownTestUser = ['admin@ksp-school.ci', 'acoulibaly@ksp-school.ci'].includes(credentials.email);
-        
-        if (mockUser || isKnownTestUser) {
-           const userToReturn = mockUser || allUsers.find(u => u.role === 'admin') || {
-             id: 'admin-fallback',
-             email: credentials.email,
-             first_name: 'Admin',
-             last_name: 'System',
-             role: 'admin'
-           };
-
-           const mockResponse: LoginResponse = {
-             access_token: 'mock-token-' + Date.now(),
-             user: {
-               id: userToReturn.id,
-               email: userToReturn.email,
-               firstName: userToReturn.first_name || 'User',
-               lastName: userToReturn.last_name || 'Mock',
-               role: userToReturn.role
-             }
-           };
-
-           localStorage.setItem('ksp_token', mockResponse.access_token);
-           localStorage.setItem('ksp_user', JSON.stringify(mockResponse.user));
-           return mockResponse;
-        }
-      }
-      
       throw error;
     }
   },
@@ -84,9 +58,36 @@ export const AuthService = {
   /**
    * Déconnecte l'utilisateur
    */
-  logout(): void {
+  async logout(): Promise<void> {
+    const user = this.getCurrentUser();
+    const refreshToken = localStorage.getItem('ksp_refresh_token');
+
+    // Attempt to log activity on frontend before clearing
+    if (user) {
+      try {
+        await ActivityService.logActivity(
+          user as User,
+          'Déconnexion du système',
+          'auth',
+          `Utilisateur ${user.email} s'est déconnecté`
+        );
+      } catch (e) {
+        console.warn('Failed to log logout activity on frontend:', e);
+      }
+    }
+
+    // Attempt to call backend logout
+    if (refreshToken) {
+      try {
+        await httpClient.post('auth/logout', { refreshToken });
+      } catch (error) {
+        console.warn('Backend logout failed:', error);
+      }
+    }
+
     localStorage.removeItem('ksp_token');
     localStorage.removeItem('ksp_user');
+    localStorage.removeItem('ksp_refresh_token');
     window.location.href = '/login';
   },
 
@@ -117,7 +118,7 @@ export const AuthService = {
    */
   async refreshToken(): Promise<string> {
     try {
-      const response = await httpClient.post<{ access_token: string }>('/auth/refresh');
+      const response = await httpClient.post<{ access_token: string }>('auth/refresh');
       const newToken = response.data.access_token;
       localStorage.setItem('ksp_token', newToken);
       return newToken;

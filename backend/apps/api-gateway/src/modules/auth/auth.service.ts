@@ -8,6 +8,7 @@ import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { HashingService } from './hashing.service';
 import { RefreshTokenService } from './refresh-token.service';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +18,7 @@ export class AuthService {
     private jwtService: JwtService,
     private hashingService: HashingService,
     private refreshTokenService: RefreshTokenService,
+    private activityLogService: ActivityLogService,
   ) { }
 
   async login(loginDto: LoginDto, ipAddress?: string, userAgent?: string) {
@@ -41,6 +43,20 @@ export class AuthService {
     // Update last login
     user.last_login_at = new Date();
     await this.usersRepository.save(user);
+
+    // Log login activity
+    try {
+      await this.activityLogService.create({
+        user_id: user.id,
+        user_name: `${user.first_name} ${user.last_name}`,
+        user_role: user.role,
+        action: 'Connexion au système',
+        category: 'auth',
+        details: `Utilisateur ${user.email} s'est connecté`,
+      });
+    } catch (e) {
+      console.warn('Failed to log login activity:', e);
+    }
 
     // Générer access token et refresh token
     const payload = { sub: user.id, email: user.email, role: user.role };
@@ -95,6 +111,21 @@ export class AuthService {
   }
 
   async logout(refreshToken: string): Promise<void> {
+    const token = await this.refreshTokenService.validateRefreshToken(refreshToken);
+    if (token) {
+      try {
+        await this.activityLogService.create({
+          user_id: token.user.id,
+          user_name: `${token.user.first_name} ${token.user.last_name}`,
+          user_role: token.user.role,
+          action: 'Déconnexion du système',
+          category: 'auth',
+          details: `Utilisateur ${token.user.email} s'est déconnecté`,
+        });
+      } catch (e) {
+        console.warn('Failed to log logout activity:', e);
+      }
+    }
     await this.refreshTokenService.revokeRefreshToken(refreshToken);
   }
 

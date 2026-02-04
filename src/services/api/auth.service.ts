@@ -5,7 +5,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api/v1';
 
 export interface LoginCredentials {
   email: string;
@@ -39,7 +39,7 @@ class AuthServiceClass {
    * Login user
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await this.api.post('/login', credentials);
+    const response = await this.api.post('login', credentials);
     const data = response.data;
 
     // Store token in localStorage

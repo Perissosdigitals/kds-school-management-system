@@ -4,11 +4,20 @@ import { Repository, Like, ILike } from 'typeorm';
 import { Student, StudentStatus } from './entities/student.entity';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { IdGenerator, EntityCode } from '../../common/utils/id-generator.util';
+import { StorageService } from '../../common/services/storage.service';
+import { extname } from 'path';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 interface QueryStudentsDto {
   gradeLevel?: string;
   status?: StudentStatus;
   search?: string;
+  classId?: string;
+  gender?: string;
+  startDate?: string;
+  endDate?: string;
+  teacherId?: string;
   limit?: number;
   offset?: number;
 }
@@ -18,32 +27,36 @@ export class StudentsService {
   constructor(
     @InjectRepository(Student)
     private studentsRepository: Repository<Student>,
+    private storageService: StorageService,
+    private activityLogService: ActivityLogService,
   ) { }
 
   /**
-   * Génère un numéro d'inscription unique au format KDS + année + numéro séquentiel
+   * Génère un numéro d'inscription unique au format KSP-S-[CLASS]-[YEAR]-[NUM]
    */
-  private async generateRegistrationNumber(): Promise<string> {
-    const currentYear = new Date().getFullYear().toString().slice(-2);
-    const prefix = `KSP${currentYear}`;
+  private async generateRegistrationNumber(gradeLevel?: string): Promise<string> {
+    const yearCode = IdGenerator.getAcademicYearCode();
 
-    const lastStudent = await this.studentsRepository
-      .createQueryBuilder('student')
-      .where('student.registration_number LIKE :prefix', { prefix: `${prefix}%` })
-      .orderBy('student.registration_number', 'DESC')
-      .getOne();
-
-    if (!lastStudent) {
-      return `${prefix}001`;
+    // Extract context from gradeLevel (e.g., 'CM2' -> 'CM', '6ème' -> '6')
+    let context = 'STU';
+    if (gradeLevel) {
+      // Remove numbers to get the base (e.g., 'CM2' -> 'CM')
+      // or just take the first few characters.
+      // Based on user example 'CM', let's take letters only if possible or just first 2-3 chars.
+      const match = gradeLevel.match(/^[a-zA-Z]+/);
+      context = match ? match[0] : gradeLevel.substring(0, 3).toUpperCase();
     }
 
-    const lastNumber = parseInt(lastStudent.registrationNumber.slice(-3), 10);
-    const nextNumber = (lastNumber + 1).toString().padStart(3, '0');
-    return `${prefix}${nextNumber}`;
+    return IdGenerator.generateNextId(
+      this.studentsRepository,
+      EntityCode.STUDENT,
+      yearCode,
+      context
+    );
   }
 
   async findAll(query?: QueryStudentsDto): Promise<Student[]> {
-    const { gradeLevel, status, search, limit = 100, offset = 0 } = query || {};
+    const { gradeLevel, status, search, classId, gender, startDate, endDate, teacherId, limit = 100, offset = 0 } = query || {};
 
     const queryBuilder = this.studentsRepository.createQueryBuilder('student')
       .leftJoinAndSelect('student.class', 'class')
@@ -55,6 +68,26 @@ export class StudentsService {
 
     if (status) {
       queryBuilder.andWhere('student.status = :status', { status });
+    }
+
+    if (classId) {
+      queryBuilder.andWhere('student.classId = :classId', { classId });
+    }
+
+    if (gender) {
+      queryBuilder.andWhere('student.gender = :gender', { gender });
+    }
+
+    if (startDate) {
+      queryBuilder.andWhere('student.registrationDate >= :startDate', { startDate });
+    }
+
+    if (endDate) {
+      queryBuilder.andWhere('student.registrationDate <= :endDate', { endDate });
+    }
+
+    if (teacherId) {
+      queryBuilder.andWhere('class.mainTeacherId = :teacherId', { teacherId });
     }
 
     if (search) {
@@ -101,7 +134,7 @@ export class StudentsService {
   }
 
   async create(createStudentDto: CreateStudentDto): Promise<Student> {
-    const registrationNumber = await this.generateRegistrationNumber();
+    const registrationNumber = await this.generateRegistrationNumber(createStudentDto.gradeLevel);
 
     const student = this.studentsRepository.create({
       ...createStudentDto,
@@ -113,7 +146,22 @@ export class StudentsService {
     });
 
     try {
-      return await this.studentsRepository.save(student);
+      const savedStudent = await this.studentsRepository.save(student);
+
+      // Log activity
+      try {
+        await this.activityLogService.create({
+          action: 'Inscription élève',
+          category: 'pedagogical',
+          details: `Nouvel élève inscrit: ${savedStudent.firstName} ${savedStudent.lastName} (${savedStudent.registrationNumber})`,
+          student_id: savedStudent.id,
+          class_id: savedStudent.classId,
+        });
+      } catch (e) {
+        console.warn('Failed to log student creation:', e);
+      }
+
+      return savedStudent;
     } catch (error) {
       throw new BadRequestException(
         `Erreur lors de la création de l'élève: ${error.message}`
@@ -125,7 +173,7 @@ export class StudentsService {
     // Mapper les champs camelCase (DTO) vers les noms de propriétés TypeScript
     // TypeORM gérera automatiquement le mapping vers les colonnes snake_case
     const updateData: any = {};
-    
+
     if (updateStudentDto.firstName !== undefined) updateData.firstName = updateStudentDto.firstName;
     if (updateStudentDto.lastName !== undefined) updateData.lastName = updateStudentDto.lastName;
     if (updateStudentDto.dob !== undefined) updateData.dob = new Date(updateStudentDto.dob);
@@ -149,12 +197,25 @@ export class StudentsService {
       if (!student) {
         throw new NotFoundException(`Élève avec l'ID ${id} introuvable`);
       }
-      
+
       console.log('Updating student with data:', updateData);
       Object.assign(student, updateData);
       const updated = await this.studentsRepository.save(student);
       console.log('Student updated successfully:', updated.id);
-      
+
+      // Log activity
+      try {
+        await this.activityLogService.create({
+          action: 'Mise à jour élève',
+          category: 'pedagogical',
+          details: `Profil de l'élève ${updated.firstName} ${updated.lastName} mis à jour`,
+          student_id: updated.id,
+          class_id: updated.classId,
+        });
+      } catch (e) {
+        console.warn('Failed to log student update:', e);
+      }
+
       // Retourner avec les relations
       return this.findOne(updated.id);
     } catch (error) {
@@ -180,6 +241,42 @@ export class StudentsService {
     return await this.studentsRepository.save(student);
   }
 
+  async updatePhoto(id: string, photoUrl: string): Promise<Student> {
+    const student = await this.findOne(id);
+
+    // If the old photo was a storage key, we might want to delete it
+    if (student.photoUrl && student.photoUrl.startsWith('/api/v1/storage/')) {
+      const oldKey = student.photoUrl.split('/storage/')[1];
+      if (oldKey) {
+        await this.storageService.deleteFile(oldKey).catch(() => { });
+      }
+    }
+
+    student.photoUrl = photoUrl;
+    return await this.studentsRepository.save(student);
+  }
+
+  async handlePhotoUpload(id: string, file: Express.Multer.File): Promise<Student> {
+    const ext = file.originalname ? extname(file.originalname) : '.jpg';
+    const storageKey = `photos/students/${id}${ext}`;
+
+    const fileBuffer = file.buffer || (file.path ? require('fs').readFileSync(file.path) : null);
+    if (!fileBuffer) {
+      throw new BadRequestException('Le contenu du fichier est vide');
+    }
+
+    await this.storageService.uploadFile(fileBuffer, storageKey, {
+      contentType: file.mimetype,
+    });
+
+    const photoUrl = `/api/v1/storage/${storageKey}`;
+    return this.updatePhoto(id, photoUrl);
+  }
+
+  async getPhotoFile(storageKey: string) {
+    return this.storageService.getFile(storageKey);
+  }
+
   async remove(id: string): Promise<void> {
     const student = await this.findOne(id);
     await this.studentsRepository.remove(student);
@@ -197,7 +294,7 @@ export class StudentsService {
   }
 
   async count(query?: QueryStudentsDto): Promise<number> {
-    const { gradeLevel, status, search } = query || {};
+    const { gradeLevel, status, search, classId } = query || {};
 
     const queryBuilder = this.studentsRepository.createQueryBuilder('student');
 
@@ -207,6 +304,10 @@ export class StudentsService {
 
     if (status) {
       queryBuilder.andWhere('student.status = :status', { status });
+    }
+
+    if (classId) {
+      queryBuilder.andWhere('student.classId = :classId', { classId });
     }
 
     if (search) {
@@ -237,5 +338,33 @@ export class StudentsService {
       .addSelect('COUNT(*)', 'count')
       .groupBy('student.status')
       .getRawMany();
+  }
+
+  async countPendingDocuments(): Promise<number> {
+    const students = await this.studentsRepository.find({ select: ['documents'] });
+    return students.reduce((count, student) => {
+      const hasPending = (student.documents || []).some(doc => doc.status === 'En attente');
+      return hasPending ? count + 1 : count;
+    }, 0);
+  }
+
+  async countRejectedDocuments(): Promise<number> {
+    const students = await this.studentsRepository.find({ select: ['documents'] });
+    return students.reduce((count, student) => {
+      const rejectedCount = (student.documents || []).filter(doc => doc.status === 'Rejeté').length;
+      return count + rejectedCount;
+    }, 0);
+  }
+
+  async countMissingDocuments(): Promise<number> {
+    const mandatoryTypes = ['Extrait de naissance', 'Carnet de vaccination', 'Autorisation parentale', 'Fiche scolaire'];
+    const students = await this.studentsRepository.find({ select: ['documents'] });
+
+    return students.reduce((totalMissing, student) => {
+      const studentDocTypes = (student.documents || []).map(d => d.type);
+      const missingForStudent = mandatoryTypes.filter(type => !studentDocTypes.includes(type as any)).length;
+      const specificallyMissing = (student.documents || []).filter(doc => doc.status === 'Manquant').length;
+      return totalMissing + missingForStudent + specificallyMissing;
+    }, 0);
   }
 }

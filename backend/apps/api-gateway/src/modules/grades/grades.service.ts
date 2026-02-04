@@ -5,12 +5,14 @@ import { Grade, Trimester } from './entities/grade.entity';
 import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
 import { QueryGradesDto } from './dto/query-grades.dto';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class GradesService {
   constructor(
     @InjectRepository(Grade)
     private gradesRepository: Repository<Grade>,
+    private activityLogService: ActivityLogService,
   ) { }
 
   async findAll(queryDto: QueryGradesDto) {
@@ -95,12 +97,39 @@ export class GradesService {
 
   async create(createGradeDto: CreateGradeDto): Promise<Grade> {
     const grade = this.gradesRepository.create(createGradeDto);
-    return this.gradesRepository.save(grade);
+    const savedGrade = await this.gradesRepository.save(grade);
+
+    // Log activity
+    try {
+      await this.activityLogService.create({
+        action: 'Création de note',
+        category: 'grades',
+        details: `Note créé pour student ID: ${createGradeDto.studentId}, Matière ID: ${createGradeDto.subjectId}`,
+        student_id: createGradeDto.studentId,
+      });
+    } catch (e) {
+      console.warn('Failed to log grade creation:', e);
+    }
+
+    return savedGrade;
   }
 
   async createBulk(createGradeDtos: CreateGradeDto[]): Promise<Grade[]> {
     const grades = this.gradesRepository.create(createGradeDtos);
-    return this.gradesRepository.save(grades);
+    const savedGrades = await this.gradesRepository.save(grades);
+
+    // Log activity
+    try {
+      await this.activityLogService.create({
+        action: 'Saisie de notes en masse',
+        category: 'grades',
+        details: `${createGradeDtos.length} notes enregistrées`,
+      });
+    } catch (e) {
+      console.warn('Failed to log bulk grade creation:', e);
+    }
+
+    return savedGrades;
   }
 
   async update(id: string, updateGradeDto: UpdateGradeDto): Promise<Grade> {

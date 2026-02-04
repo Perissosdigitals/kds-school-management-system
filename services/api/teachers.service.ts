@@ -1,5 +1,4 @@
 import { httpClient } from '../httpClient';
-import { teacherDetails } from '../../data/mockData';
 import type { Teacher } from '../../types';
 
 // Mapper pour convertir les données de l'API au format frontend
@@ -31,12 +30,13 @@ const mapApiTeacherToFrontend = (apiTeacher: any): Teacher => {
     lastName: apiTeacher.last_name || apiTeacher.lastName || '',
     email: apiTeacher.email || '',
     phone: apiTeacher.phone || '',
+    registrationNumber: apiTeacher.registrationNumber || apiTeacher.registration_number || '',
     subject: mainSubject, // ⭐ IMPORTANT: Champ matière principale
-    hireDate: apiTeacher.hire_date 
-      ? new Date(apiTeacher.hire_date).toLocaleDateString('fr-FR')
-      : new Date().toLocaleDateString('fr-FR'),
+    hireDate: apiTeacher.hire_date
+      ? new Date(apiTeacher.hire_date).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0],
     specialization: specializations.join(', '),
-    status: apiTeacher.status === 'active' ? 'Actif' : 'Inactif',
+    status: (apiTeacher.status === 'active' || apiTeacher.status === 'Actif') ? 'Actif' : 'Inactif',
     subjects: specializations,
     address: apiTeacher.address || '',
     emergencyContact: apiTeacher.emergency_contact || '',
@@ -47,26 +47,7 @@ const mapApiTeacherToFrontend = (apiTeacher: any): Teacher => {
   };
 };
 
-/**
- * Enrichit un enseignant avec ses classes et élèves (mock data)
- */
-const enrichTeacherWithRelations = async (teacher: Teacher): Promise<Teacher> => {
-  // Import dynamique pour éviter les dépendances circulaires
-  const { schoolClasses, allStudents } = await import('../../data/mockData');
-  
-  // Trouver les classes de cet enseignant
-  const teacherClasses = schoolClasses.filter(c => c.teacherId === teacher.id);
-  
-  // Trouver les élèves de ces classes
-  const classLevels = teacherClasses.map(c => c.level);
-  const teacherStudents = allStudents.filter(s => classLevels.includes(s.gradeLevel));
-  
-  return {
-    ...teacher,
-    classes: teacherClasses,
-    students: teacherStudents
-  };
-};
+// Note: enrichTeacherWithRelations was removed to avoid overwriting real API data with mock data.
 
 export const TeachersService = {
   /**
@@ -77,21 +58,12 @@ export const TeachersService = {
       console.log('TeachersService: Requête API pour les enseignants...');
       const response = await httpClient.get<any[]>('/teachers', { params });
       const teachers = response.data.map(mapApiTeacherToFrontend);
-      
-      // Enrichir avec les données relationnelles
-      const enrichedTeachers = await Promise.all(
-        teachers.map(t => enrichTeacherWithRelations(t))
-      );
-      
-      console.log('TeachersService: Enseignants chargés et enrichis:', enrichedTeachers.length);
-      return enrichedTeachers;
+
+      console.log('TeachersService: Enseignants chargés:', teachers.length);
+      return teachers;
     } catch (error) {
-      console.warn('TeachersService: Erreur API, utilisation des données mock', error);
-      // Enrichir aussi les mock data
-      const enrichedMockData = await Promise.all(
-        teacherDetails.map(t => enrichTeacherWithRelations(t))
-      );
-      return enrichedMockData;
+      console.error('TeachersService: Erreur lors du chargement des enseignants', error);
+      throw error;
     }
   },
 
@@ -102,21 +74,19 @@ export const TeachersService = {
     try {
       console.log(`TeachersService: Récupération de l'enseignant ${id}...`);
       const response = await httpClient.get<any>(`/teachers/${id}`);
-      const teacher = mapApiTeacherToFrontend(response.data);
-      return enrichTeacherWithRelations(teacher);
+      return mapApiTeacherToFrontend(response.data);
     } catch (error) {
-      console.warn(`TeachersService: Erreur lors de la récupération de l'enseignant ${id}`, error);
-      const teacher = teacherDetails.find(t => t.id === id);
-      return teacher ? enrichTeacherWithRelations(teacher) : null;
+      console.error(`TeachersService: Erreur lors de la récupération de l'enseignant ${id}`, error);
+      throw error;
     }
   },
 
   /**
    * Crée un nouvel enseignant
    */
-  async createTeacher(teacherData: Omit<Teacher, 'id'>): Promise<Teacher> {
+  async createTeacher(teacherData: Omit<Teacher, 'id'> & { classIds?: string[] }): Promise<Teacher> {
     console.log('📝 TeachersService.createTeacher: Début de la création...', teacherData);
-    
+
     try {
       // Mapper les champs frontend vers le format API
       const apiPayload = {
@@ -131,55 +101,19 @@ export const TeachersService = {
         emergencyContact: teacherData.emergencyContact || '',
         qualifications: teacherData.qualifications || '',
         status: teacherData.status, // 'Actif' ou 'Inactif'
+        classIds: teacherData.classIds || []
       };
-      
+
       console.log('📤 TeachersService: Envoi vers API POST /teachers', apiPayload);
       const response = await httpClient.post<any>('/teachers', apiPayload);
       console.log('✅ TeachersService: Réponse API reçue:', response.data);
-      
+
       // Mapper et enrichir la réponse
       const newTeacher = mapApiTeacherToFrontend(response.data);
-      const enrichedTeacher = await enrichTeacherWithRelations(newTeacher);
-      
-      console.log('✅ TeachersService: Enseignant créé et enrichi:', enrichedTeacher);
-      return enrichedTeacher;
+      console.log('✅ TeachersService: Enseignant créé:', newTeacher);
+      return newTeacher;
     } catch (error: any) {
       console.error('❌ TeachersService: ERREUR lors de la création:', error);
-      console.error('❌ Détails:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
-      // Détecter si fallback nécessaire
-      const shouldFallback = 
-        !error.response || // Pas de connexion réseau
-        error.code === 'ECONNABORTED' || // Timeout
-        error.response?.status >= 500 || // Erreur serveur
-        error.message?.toLowerCase().includes('network'); // Erreur réseau
-      
-      if (shouldFallback) {
-        console.warn('⚠️ TeachersService: API non disponible, création locale (mode fallback)');
-        const newTeacherId = `teacher-${Date.now()}`;
-        const localTeacher: Teacher = {
-          id: newTeacherId,
-          ...teacherData,
-          status: teacherData.status || 'Actif',
-          classes: [],
-          students: []
-        };
-        
-        // Ajouter aux mock data
-        teacherDetails.push(localTeacher);
-        
-        // Enrichir avec relations
-        const enrichedTeacher = await enrichTeacherWithRelations(localTeacher);
-        console.log('🚫 TeachersService: Enseignant créé localement (mode offline):', enrichedTeacher);
-        return enrichedTeacher;
-      }
-      
-      // Erreur API à propager
-      console.error('🚫 TeachersService: Erreur API non récupérable, propagation...');
       throw error;
     }
   },
@@ -187,10 +121,10 @@ export const TeachersService = {
   /**
    * Met à jour un enseignant
    */
-  async updateTeacher(id: string, teacherData: Partial<Teacher>): Promise<Teacher> {
+  async updateTeacher(id: string, teacherData: Partial<Teacher> & { classIds?: string[] }): Promise<Teacher> {
     try {
       console.log(`TeachersService: Mise à jour de l'enseignant ${id}...`, teacherData);
-      
+
       // Mapper les champs frontend vers le format API
       const apiPayload: any = {};
       if (teacherData.firstName) apiPayload.firstName = teacherData.firstName;
@@ -203,37 +137,19 @@ export const TeachersService = {
       if (teacherData.address) apiPayload.address = teacherData.address;
       if (teacherData.emergencyContact) apiPayload.emergencyContact = teacherData.emergencyContact;
       if (teacherData.qualifications) apiPayload.qualifications = teacherData.qualifications;
-      if (teacherData.status) apiPayload.status = teacherData.status === 'Actif' ? 'active' : 'inactive';
-      
+      if (teacherData.status) apiPayload.status = teacherData.status; // Pass 'Actif' or 'Inactif' directly
+      if (teacherData.classIds) apiPayload.classIds = teacherData.classIds;
+
       console.log(`TeachersService: Payload API pour mise à jour:`, apiPayload);
       const response = await httpClient.put<any>(`/teachers/${id}`, apiPayload);
       console.log('TeachersService: Réponse API:', response.data);
-      
+
       // Mapper et enrichir la réponse
       const updatedTeacher = mapApiTeacherToFrontend(response.data);
-      const enrichedTeacher = await enrichTeacherWithRelations(updatedTeacher);
-      
-      console.log('TeachersService: Enseignant mis à jour et enrichi:', enrichedTeacher);
-      return enrichedTeacher;
+      console.log('TeachersService: Enseignant mis à jour:', updatedTeacher);
+      return updatedTeacher;
     } catch (error: any) {
       console.error('TeachersService: Erreur lors de la mise à jour', error);
-      
-      // Fallback logic
-      const shouldFallback = 
-        !error.response || 
-        error.code === 'ECONNABORTED' || 
-        error.response?.status >= 500 || 
-        error.message?.toLowerCase().includes('network');
-
-      if (shouldFallback) {
-        console.warn('⚠️ TeachersService: API non disponible, mise à jour locale (mode fallback)');
-        const index = teacherDetails.findIndex(t => t.id === id);
-        if (index !== -1) {
-          const updatedLocalTeacher = { ...teacherDetails[index], ...teacherData };
-          teacherDetails[index] = updatedLocalTeacher;
-          return enrichTeacherWithRelations(updatedLocalTeacher);
-        }
-      }
       throw error;
     }
   },
@@ -247,22 +163,6 @@ export const TeachersService = {
       await httpClient.delete(`/teachers/${id}`);
     } catch (error: any) {
       console.error('TeachersService: Erreur lors de la suppression', error);
-      
-      // Fallback logic
-      const shouldFallback = 
-        !error.response || 
-        error.code === 'ECONNABORTED' || 
-        error.response?.status >= 500 || 
-        error.message?.toLowerCase().includes('network');
-
-      if (shouldFallback) {
-        console.warn('⚠️ TeachersService: API non disponible, suppression locale (mode fallback)');
-        const index = teacherDetails.findIndex(t => t.id === id);
-        if (index !== -1) {
-          teacherDetails.splice(index, 1);
-          return;
-        }
-      }
       throw error;
     }
   }

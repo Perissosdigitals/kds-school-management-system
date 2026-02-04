@@ -1,88 +1,69 @@
 import React from 'react';
 import type { User } from '../types';
-import { useDataSourceStatus } from '../hooks/useDataSourceStatus';
 
 interface HeaderProps {
   currentUser: User;
-  users: User[];
-  onUserChange: (userId: string) => void;
   onLogout: () => void;
+  onProfileClick: () => void;
   onMenuToggle?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, users, onUserChange, onLogout, onMenuToggle }) => {
-  const { isOffline } = useDataSourceStatus();
-
+export const Header: React.FC<HeaderProps> = React.memo(({ currentUser, onLogout, onProfileClick, onMenuToggle }) => {
   return (
-    <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-30">
+    <header className="glass-panel p-4 flex justify-between items-center sticky top-0 z-30">
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button */}
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
-            className="md:hidden text-slate-700 hover:text-blue-600 transition-colors p-2"
+            className="md:hidden text-slate-700 hover:text-emerald-600 transition-colors p-2"
             aria-label="Toggle menu"
           >
             <i className='bx bx-menu text-3xl'></i>
           </button>
         )}
-        
+
         {/* Mobile Logo */}
-        <div className="flex items-center gap-2 text-blue-700 md:hidden">
+        <div className="flex items-center gap-2 text-emerald-700 md:hidden">
           <i className='bx bxs-school text-3xl'></i>
           <h1 className="text-lg font-bold">École KSP</h1>
         </div>
       </div>
-      
-      <div className="flex items-center gap-2 sm:gap-4">
-         {/* Data Source Indicator */}
-         <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
-            isOffline 
-              ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-              : 'bg-green-100 text-green-800 border border-green-200'
-          }`} title={isOffline ? "Données simulées (Backend hors ligne)" : "Données réelles (Backend connecté)"}>
-            <i className={`bx ${isOffline ? 'bx-cloud-off' : 'bx-cloud'} text-sm`}></i>
-            <span className="hidden sm:inline">
-              {isOffline ? 'Mode Simulation' : 'Mode Connecté'}
-            </span>
-         </div>
 
-         {/* User Switcher - Hidden on small mobile */}
-         <div className="text-sm hidden sm:block">
-            <label htmlFor="user-switcher" className="sr-only">Changer d'utilisateur</label>
-             <select 
-                id="user-switcher"
-                value={currentUser.id} 
-                onChange={(e) => onUserChange(e.target.value)}
-                className="bg-slate-100 border-slate-200 border rounded-md p-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Simulate user login"
-            >
-                {users.map(user => (
-                    <option key={user.id} value={user.id}>
-                        Simuler: {user.first_name} {user.last_name} ({user.role})
-                    </option>
-                ))}
-            </select>
-        </div>
-        
+      <div className="flex items-center gap-2 sm:gap-4">
         {/* User Info */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold text-sm">
-            {currentUser.avatar}
+        <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer" onClick={onProfileClick} title="Voir mon profil">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm overflow-hidden ring-2 ring-emerald-50 group-hover:ring-emerald-200 transition-all shadow-sm">
+            {currentUser.avatar_url ? (
+              <img src={currentUser.avatar_url} alt={currentUser.first_name} className="w-full h-full object-cover" />
+            ) : (
+              `${currentUser.first_name?.charAt(0) || ''}${currentUser.last_name?.charAt(0) || ''}`
+            )}
           </div>
           <div className="hidden lg:block">
-            <div className="font-semibold text-slate-800 text-sm">{currentUser.first_name} {currentUser.last_name}</div>
-            <div className="text-xs text-gray-500">{currentUser.role}</div>
+            <div className="font-bold text-slate-800 text-sm group-hover:text-emerald-700 transition-colors">{currentUser.first_name} {currentUser.last_name}</div>
+            <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider leading-tight">{currentUser.role}</div>
           </div>
         </div>
-        
-        {/* Logout Button */}
-        <button 
-          onClick={onLogout} 
-          title="Se déconnecter" 
-          className="text-slate-500 hover:text-red-600 transition-colors p-1"
+
+        <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
+
+        {/* Profile Settings Button */}
+        <button
+          onClick={onProfileClick}
+          title="Paramètres du compte"
+          className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
         >
-            <i className='bx bx-log-out text-xl sm:text-2xl'></i>
+          <i className='bx bx-cog text-xl sm:text-2xl'></i>
+        </button>
+
+        {/* Logout Button */}
+        <button
+          onClick={onLogout}
+          title="Se déconnecter"
+          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+        >
+          <i className='bx bx-log-out text-xl sm:text-2xl'></i>
         </button>
       </div>
     </header>

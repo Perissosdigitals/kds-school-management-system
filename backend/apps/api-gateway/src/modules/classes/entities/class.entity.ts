@@ -18,6 +18,10 @@ export class SchoolClass {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @ApiProperty({ description: 'Numéro d\'enregistrement unique (ex: CLS-2025-001)' })
+  @Column({ name: 'registration_number', length: 20, unique: true, nullable: true })
+  registrationNumber: string;
+
   @ApiProperty({ description: 'Nom de la classe', example: '6ème A' })
   @Column({ length: 50 })
   name: string;
@@ -45,6 +49,14 @@ export class SchoolClass {
   @ApiProperty({ description: 'Statut actif de la classe', default: true })
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
+
+  @ApiProperty({ enum: ['synced', 'pending', 'error'], default: 'synced' })
+  @Column({ name: 'sync_status', type: 'varchar', length: 20, default: 'synced' })
+  syncStatus: string;
+
+  @ApiProperty({ enum: ['valid', 'pending', 'invalid'], default: 'valid' })
+  @Column({ name: 'validation_state', type: 'varchar', length: 20, default: 'valid' })
+  validationState: string;
 
   @ApiProperty({ description: 'Date de création' })
   @CreateDateColumn({ name: 'created_at' })

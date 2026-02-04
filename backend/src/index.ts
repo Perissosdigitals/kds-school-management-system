@@ -6,195 +6,480 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { jwt } from 'hono/jwt';
-import { bearerAuth } from 'hono/bearer-auth';
+
+// Cloudflare Bindings types
+type D1Database = {
+    prepare: (query: string) => D1PreparedStatement;
+    batch: (statements: D1PreparedStatement[]) => Promise<D1Result[]>;
+};
+
+type D1PreparedStatement = {
+    bind: (...values: any[]) => D1PreparedStatement;
+    first: <T = any>(colName?: string) => Promise<T | null>;
+    all: <T = any>() => Promise<D1Result<T>>;
+    run: () => Promise<D1Result>;
+};
+
+type D1Result<T = any> = {
+    results: T[];
+    success: boolean;
+    error?: string;
+    meta: any;
+};
+
+type R2Bucket = {
+    get: (key: string) => Promise<R2Object | null>;
+    put: (key: string, value: any, options?: any) => Promise<R2Object>;
+};
+
+type R2Object = {
+    key: string;
+    size: number;
+    httpEtag: string;
+    body: ReadableStream;
+    writeHttpMetadata: (headers: Headers) => void;
+};
 
 interface Env {
-  DB: D1Database;
-  JWT_SECRET: string;
+    DB: D1Database;
+    DOCUMENTS: R2Bucket;
+    JWT_SECRET: string;
+    NODE_ENV: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
 
 // CORS middleware
 app.use('/*', cors({
-  origin: '*',
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+    origin: '*',
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // ========================================================================
-// SYSTEM / HEALTH ROUTES
+// SYSTEM / HEALTH / STORAGE ROUTES
 // ========================================================================
 
+// Helper to update dashboard metrics atomically
+const updateMetricSQL = (db: any, key: string, delta: number) => {
+    return db.prepare(`
+        INSERT INTO dashboard_metrics (metric_key, metric_value, last_updated)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(metric_key) DO UPDATE SET
+            metric_value = metric_value + EXCLUDED.metric_value,
+            last_updated = CURRENT_TIMESTAMP
+    `).bind(key, delta);
+};
+
+// Helper to sync a metric from actual count via subquery
+const syncMetricSQL = (db: any, key: string, query: string) => {
+    return db.prepare(`
+        INSERT INTO dashboard_metrics (metric_key, metric_value, last_updated)
+        SELECT ?, (${query}), CURRENT_TIMESTAMP
+        ON CONFLICT(metric_key) DO UPDATE SET
+            metric_value = EXCLUDED.metric_value,
+            last_updated = CURRENT_TIMESTAMP
+    `).bind(key);
+};
+
 app.get('/api/v1/health', async (c) => {
-  return c.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'kds-backend-api',
-    version: '1.0.0',
-  });
-});
-
-app.get('/api/v1/system/database-info', async (c) => {
-  try {
-    // Get table counts
-    const studentsCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM students').first();
-    const classesCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM classes').first();
-    const teachersCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM teachers').first();
-    const gradesCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM grades').first();
-    const attendanceCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM attendance').first();
-    const usersCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM users').first();
-
     return c.json({
-      name: 'kds-school-db',
-      type: 'Cloudflare D1',
-      tables: ['students', 'classes', 'teachers', 'grades', 'attendance', 'users', 'subjects', 'parents'],
-      recordCounts: {
-        students: studentsCount?.count || 0,
-        classes: classesCount?.count || 0,
-        teachers: teachersCount?.count || 0,
-        grades: gradesCount?.count || 0,
-        attendance: attendanceCount?.count || 0,
-        users: usersCount?.count || 0,
-      },
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        service: 'kds-backend-api',
+        version: '1.5.0-persistence-fix',
+        env_keys: Object.keys(c.env || {}),
     });
-  } catch (error) {
-    return c.json({ error: 'Failed to get database info' }, 500);
-  }
 });
 
-// Data preview endpoint with pagination
+// Debug endpoint to verify D1 data connectivity
+app.get('/api/v1/debug/db', async (c) => {
+    try {
+        const students = await c.env.DB.prepare("SELECT status, COUNT(*) as count FROM students GROUP BY status").all();
+        const classes = await c.env.DB.prepare("SELECT COUNT(*) as count FROM classes").first();
+        const teachers = await c.env.DB.prepare("SELECT COUNT(*) as count FROM teachers").first();
+
+        return c.json({
+            success: true,
+            database: 'connected',
+            students: students.results,
+            classes_count: classes,
+            teachers_count: teachers
+        });
+    } catch (error) {
+        return c.json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined
+        }, 500);
+    }
+});
+
+// SSE Real-time updates endpoint
+app.get('/api/v1/updates', async (c) => {
+    const stream = new ReadableStream({
+        async start(controller) {
+            const encoder = new TextEncoder();
+
+            // Send initial heartbeat
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', time: new Date().toISOString() })}\n\n`));
+
+            // Send heartbeat every 25 seconds to keep connection alive
+            const heartbeat = setInterval(() => {
+                try {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'heartbeat', time: new Date().toISOString() })}\n\n`));
+                } catch (e) {
+                    clearInterval(heartbeat);
+                    controller.close();
+                }
+            }, 25000);
+
+            // Cleanup on close
+            c.req.raw.signal.addEventListener('abort', () => {
+                clearInterval(heartbeat);
+                controller.close();
+            });
+        }
+    });
+
+    return new Response(stream, {
+        headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*'
+        }
+    });
+});
+
+// Generic storage endpoint for R2
+app.get('/api/v1/storage/:path{.+}', async (c) => {
+    const path = c.req.param('path');
+    const object = await c.env.DOCUMENTS.get(path);
+
+    if (!object) {
+        return c.text('File not found', 404);
+    }
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+    headers.set('Cache-Control', 'public, max-age=3600');
+    headers.set('Access-Control-Allow-Origin', '*');
+
+    return new Response(object.body, { headers });
+});
+
+// Upload endpoint for R2 (used by API)
+// Enhanced document upload with student record sync and validation
+app.post('/api/v1/documents/upload', async (c) => {
+    try {
+        const formData = await c.req.parseBody();
+        const file = formData['file'] as File;
+        const studentId = formData['studentId'] as string;
+        const docType = formData['type'] as string || 'general';
+
+        if (!file || !studentId) {
+            return c.json({ error: 'Missing file or studentId' }, 400);
+        }
+
+        // 1. Validate student exists
+        const student = await c.env.DB.prepare(
+            'SELECT id, first_name, last_name, documents FROM students WHERE id = ?'
+        ).bind(studentId).first();
+
+        if (!student) {
+            return c.json({ error: 'Student not found' }, 404);
+        }
+
+        // 2. Validate file type and size
+        const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+        if (file.size > MAX_SIZE) {
+            return c.json({ error: 'File too large (max 10MB)' }, 400);
+        }
+
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (!allowedTypes.includes(file.type)) {
+            return c.json({ error: 'Invalid file type. Only PDF and Images (JPG/PNG) are allowed.' }, 400);
+        }
+
+        // 3. Generate secure file key with folder structure
+        const timestamp = Date.now();
+        const safeFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const key = `documents/${studentId}/${docType}/${timestamp}_${safeFilename}`;
+
+        // 4. Store in R2 with metadata
+        await c.env.DOCUMENTS.put(key, file.stream(), {
+            httpMetadata: {
+                contentType: file.type,
+                contentDisposition: `attachment; filename="${safeFilename}"`
+            },
+            customMetadata: {
+                studentId,
+                docType,
+                originalName: file.name,
+                uploadedAt: new Date().toISOString()
+            }
+        });
+
+        const fileUrl = `/api/v1/storage/${key}`;
+
+        // 5. Record in D1 within a transaction (batch)
+        const docId = `doc_${timestamp}_${crypto.randomUUID().slice(0, 8)}`;
+
+        // Sync to students table JSON metadata as well for UI compatibility
+        let studentDocs = [];
+        try {
+            studentDocs = JSON.parse((student as any).documents || '[]');
+        } catch (e) {
+            studentDocs = [];
+        }
+
+        studentDocs.push({
+            id: docId,
+            type: docType,
+            title: docType,
+            status: 'pending',
+            fileName: file.name,
+            fileData: fileUrl,
+            updatedAt: new Date().toISOString()
+        });
+
+        await c.env.DB.batch([
+            // Insert document record
+            c.env.DB.prepare(`
+                INSERT INTO documents (id, student_id, filename, doc_type, status, r2_key, uploaded_at)
+                VALUES (?, ?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP)
+            `).bind(docId, studentId, file.name, docType, key),
+
+            // Update student record (counters and JSON metadata)
+            c.env.DB.prepare(`
+                UPDATE students 
+                SET document_count = COALESCE(document_count, 0) + 1,
+                    pending_docs = COALESCE(pending_docs, 0) + 1,
+                    documents = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            `).bind(JSON.stringify(studentDocs), studentId),
+
+            // NEW: Update global dashboard metric
+            updateMetricSQL(c.env.DB, 'pending_documents', 1)
+        ]);
+
+        return c.json({
+            success: true,
+            id: docId,
+            documentId: docId,
+            url: fileUrl,
+            student: `${(student as any).first_name} ${(student as any).last_name}`
+        });
+    } catch (error) {
+        console.error('Document upload error:', error);
+        return c.json({ error: 'Upload failed', message: error instanceof Error ? error.message : 'Unknown error' }, 500);
+    }
+});
+
+// Generic storage upload
+app.post('/api/v1/storage/upload', async (c) => {
+    try {
+        const formData = await c.req.parseBody();
+        const file = formData['file'] as File;
+        const path = formData['path'] as string;
+
+        if (!file || !path) {
+            return c.json({ error: 'Missing file or path' }, 400);
+        }
+
+        await c.env.DOCUMENTS.put(path, file.stream(), {
+            httpMetadata: { contentType: file.type },
+        });
+
+        return c.json({ success: true, path, url: `/api/v1/storage/${path}` });
+    } catch (error) {
+        return c.json({ error: 'Upload failed', message: error instanceof Error ? error.message : 'Unknown error' }, 500);
+    }
+});
+
+// ========================================================================
+// DATA NORMALIZATION (MAPPING)
+// ========================================================================
+
+/**
+ * Utility to map snake_case object to camelCase
+ */
+function mapKeys(obj: any, mapping: Record<string, string>): any {
+    if (!obj) return null;
+    const result: any = { ...obj };
+    for (const [snake, camel] of Object.entries(mapping)) {
+        if (result[snake] !== undefined) {
+            result[camel] = result[snake];
+            // Don't delete snake_case to avoid breaking existing code if any
+        }
+    }
+    return result;
+}
+
+const mapStudent = (s: any) => {
+    if (!s) return null;
+    const mapped = mapKeys(s, {
+        first_name: 'firstName',
+        last_name: 'lastName',
+        birth_date: 'dob',
+        academic_level: 'gradeLevel',
+        enrollment_date: 'registrationDate',
+        student_code: 'registrationNumber',
+        class_id: 'classId',
+        created_at: 'createdAt',
+        updated_at: 'updatedAt'
+    });
+
+    mapped.firstName = s.first_name || s.user_first_name || s.firstName;
+    mapped.lastName = s.last_name || s.user_last_name || s.lastName;
+    mapped.email = s.user_email || s.email;
+    mapped.className = s.class_name || s.className;
+
+    // Standardize documents array (parse JSON from D1)
+    try {
+        mapped.documents = typeof s.documents === 'string' ? JSON.parse(s.documents) : (s.documents || []);
+    } catch (e) {
+        mapped.documents = [];
+    }
+
+    return mapped;
+};
+
+const mapTeacher = (t: any) => {
+    if (!t) return null;
+    const mapped = mapKeys(t, {
+        specialization: 'specialization',
+        hire_date: 'hireDate',
+        registration_number: 'registrationNumber',
+        created_at: 'createdAt',
+        updated_at: 'updatedAt'
+    });
+
+    mapped.firstName = t.first_name || t.user_first_name || t.firstName;
+    mapped.lastName = t.last_name || t.user_last_name || t.lastName;
+    mapped.email = t.user_email || t.email;
+    mapped.subject = t.subject || t.specialization;
+
+    return mapped;
+};
+
+const mapClass = (c: any) => {
+    if (!c) return null;
+    const mapped = mapKeys(c, {
+        main_teacher_id: 'teacherId',
+        room_number: 'room',
+        room_number_number: 'room',
+        academic_year: 'academicYear',
+        capacity: 'capacity',
+        student_count: 'currentOccupancy',
+        teacher_name: 'teacherName',
+        created_at: 'createdAt',
+        updated_at: 'updatedAt'
+    });
+    // Compatibility with different frontend expectations
+    mapped.maxStudents = mapped.capacity;
+    mapped.academic_year = mapped.academicYear;
+    mapped.currentOccupancy = mapped.currentOccupancy || mapped.student_count || 0;
+    return mapped;
+};
+
+const mapDocument = (d: any) => {
+    if (!d) return null;
+    const mapped = mapKeys(d, {
+        document_type: 'type',
+        file_url: 'fileUrl',
+        file_name: 'fileName',
+        uploaded_at: 'updatedAt'
+    });
+
+    // Add student name fields from joint users u through students s
+    mapped.studentName = (d.user_first_name || d.user_last_name)
+        ? `${d.user_first_name} ${d.user_last_name}`.trim()
+        : 'Candidat';
+
+    return mapped;
+};
+
+const mapUser = (u: any) => mapKeys(u, {
+    first_name: 'firstName',
+    last_name: 'lastName',
+    avatar_url: 'avatarUrl',
+    is_active: 'isActive',
+    created_at: 'createdAt',
+    updated_at: 'updatedAt'
+});
+
+const mapActivity = (a: any) => mapKeys(a, {
+    user_id: 'userId',
+    user_name: 'userName',
+    user_role: 'userRole',
+    class_id: 'classId',
+    student_id: 'studentId'
+});
+
+// ========================================================================
+// DATA PREVIEW & SEARCH
+// ========================================================================
+
 app.get('/api/v1/data/preview/:table', async (c) => {
-  try {
-    const table = c.req.param('table');
-    const page = parseInt(c.req.query('page') || '1');
-    const limit = parseInt(c.req.query('limit') || '50');
-    const search = c.req.query('search') || '';
-    const offset = (page - 1) * limit;
+    try {
+        const table = c.req.param('table');
+        const page = parseInt(c.req.query('page') || '1');
+        const limit = parseInt(c.req.query('limit') || '50');
+        const search = c.req.query('search') || '';
+        const offset = (page - 1) * limit;
 
-    // Whitelist tables for security
-    const allowedTables = ['students', 'classes', 'teachers', 'grades', 'attendance', 'users', 'subjects', 'parents'];
-    if (!allowedTables.includes(table)) {
-      return c.json({ error: 'Invalid table name' }, 400);
+        const allowedTables = ['students', 'classes', 'teachers', 'grades', 'attendance', 'users', 'subjects', 'parents'];
+        if (!allowedTables.includes(table)) {
+            return c.json({ error: 'Invalid table name' }, 400);
+        }
+
+        let query = '';
+        let countQuery = '';
+        const searchPattern = search ? `%${search}%` : '';
+
+        if (table === 'students') {
+            query = `
+        SELECT s.*, c.name as class_name
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        WHERE s.status = 'active'
+        ${search ? `AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.student_code LIKE ?)` : ''}
+        ORDER BY s.last_name, s.first_name
+        LIMIT ? OFFSET ?
+      `;
+            countQuery = `SELECT COUNT(*) as count FROM students WHERE status = 'active' ${search ? `AND (first_name LIKE ? OR last_name LIKE ? OR student_code LIKE ?)` : ''}`;
+        } else {
+            query = `SELECT * FROM ${table} ${search ? `WHERE name LIKE ?` : ''} LIMIT ? OFFSET ?`;
+            countQuery = `SELECT COUNT(*) as count FROM ${table} ${search ? `WHERE name LIKE ?` : ''}`;
+        }
+
+        const { results } = search
+            ? await c.env.DB.prepare(query).bind(searchPattern, searchPattern, searchPattern, limit, offset).all()
+            : await c.env.DB.prepare(query).bind(limit, offset).all();
+
+        const totalCount = search
+            ? await c.env.DB.prepare(countQuery).bind(searchPattern, searchPattern, searchPattern).first()
+            : await c.env.DB.prepare(countQuery).first();
+
+        // Map results if needed
+        let mappedData = results;
+        if (table === 'students') mappedData = results.map(mapStudent);
+        if (table === 'teachers') mappedData = results.map(mapTeacher);
+        if (table === 'classes') mappedData = results.map(mapClass);
+        if (table === 'users') mappedData = results.map(mapUser);
+
+        return c.json({
+            table,
+            data: mappedData,
+            pagination: { page, limit, total: (totalCount as any)?.count || 0 }
+        });
+    } catch (error) {
+        return c.json({ error: 'Failed to preview data' }, 500);
     }
-
-    // Build query based on table type
-    let query = '';
-    let countQuery = '';
-
-    switch (table) {
-      case 'students':
-        query = `
-          SELECT s.*, c.name as class_name, c.level as class_level
-          FROM students s
-          LEFT JOIN classes c ON s.class_id = c.id
-          WHERE s.status = 'active'
-          ${search ? `AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.student_code LIKE ?)` : ''}
-          ORDER BY s.last_name, s.first_name
-          LIMIT ? OFFSET ?
-        `;
-        countQuery = `SELECT COUNT(*) as count FROM students WHERE status = 'active' ${search ? `AND (first_name LIKE ? OR last_name LIKE ? OR student_code LIKE ?)` : ''}`;
-        break;
-
-      case 'grades':
-        query = `
-          SELECT g.*, s.first_name || ' ' || s.last_name as student_name, s.student_code,
-                 c.name as class_name, sub.name as subject_name, t.first_name || ' ' || t.last_name as teacher_name
-          FROM grades g
-          LEFT JOIN students s ON g.student_id = s.id
-          LEFT JOIN classes c ON g.class_id = c.id
-          LEFT JOIN subjects sub ON g.subject_id = sub.id
-          LEFT JOIN teachers t ON g.teacher_id = t.id
-          ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ? OR sub.name LIKE ?)` : ''}
-          ORDER BY g.created_at DESC
-          LIMIT ? OFFSET ?
-        `;
-        countQuery = `
-          SELECT COUNT(*) as count FROM grades g
-          LEFT JOIN students s ON g.student_id = s.id
-          LEFT JOIN subjects sub ON g.subject_id = sub.id
-          ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ? OR sub.name LIKE ?)` : ''}
-        `;
-        break;
-
-      case 'attendance':
-        query = `
-          SELECT a.*, s.first_name || ' ' || s.last_name as student_name, s.student_code,
-                 c.name as class_name
-          FROM attendance a
-          LEFT JOIN students s ON a.student_id = s.id
-          LEFT JOIN classes c ON a.class_id = c.id
-          ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ?)` : ''}
-          ORDER BY a.date DESC
-          LIMIT ? OFFSET ?
-        `;
-        countQuery = `
-          SELECT COUNT(*) as count FROM attendance a
-          LEFT JOIN students s ON a.student_id = s.id
-          ${search ? `WHERE (s.first_name LIKE ? OR s.last_name LIKE ?)` : ''}
-        `;
-        break;
-
-      default:
-        query = `SELECT * FROM ${table} ${search ? `WHERE name LIKE ?` : ''} LIMIT ? OFFSET ?`;
-        countQuery = `SELECT COUNT(*) as count FROM ${table} ${search ? `WHERE name LIKE ?` : ''}`;
-    }
-
-    // Execute queries with proper binding
-    const searchPattern = search ? `%${search}%` : '';
-    let results, totalCount;
-
-    if (search) {
-      if (table === 'students' || table === 'grades') {
-        results = await c.env.DB.prepare(query).bind(searchPattern, searchPattern, searchPattern, limit, offset).all();
-        totalCount = await c.env.DB.prepare(countQuery).bind(searchPattern, searchPattern, searchPattern).first();
-      } else if (table === 'attendance') {
-        results = await c.env.DB.prepare(query).bind(searchPattern, searchPattern, limit, offset).all();
-        totalCount = await c.env.DB.prepare(countQuery).bind(searchPattern, searchPattern).first();
-      } else {
-        results = await c.env.DB.prepare(query).bind(searchPattern, limit, offset).all();
-        totalCount = await c.env.DB.prepare(countQuery).bind(searchPattern).first();
-      }
-    } else {
-      results = await c.env.DB.prepare(query).bind(limit, offset).all();
-      totalCount = await c.env.DB.prepare(countQuery).first();
-    }
-
-    return c.json({
-      table,
-      data: results.results,
-      pagination: {
-        page,
-        limit,
-        total: totalCount?.count || 0,
-        totalPages: Math.ceil((totalCount?.count || 0) / limit),
-      },
-    });
-  } catch (error) {
-    console.error('Preview error:', error);
-    return c.json({ error: 'Failed to preview data' }, 500);
-  }
-});
-
-// Search for specific student by code
-app.get('/api/v1/data/search-student/:code', async (c) => {
-  try {
-    const code = c.req.param('code');
-    const student = await c.env.DB.prepare(`
-      SELECT s.*, c.name as class_name, c.level as class_level
-      FROM students s
-      LEFT JOIN classes c ON s.class_id = c.id
-      WHERE s.student_code = ?
-    `).bind(code).first();
-
-    if (!student) {
-      return c.json({ error: 'Student not found', found: false }, 404);
-    }
-
-    return c.json({ found: true, student });
-  } catch (error) {
-    return c.json({ error: 'Search failed' }, 500);
-  }
 });
 
 // ========================================================================
@@ -202,35 +487,485 @@ app.get('/api/v1/data/search-student/:code', async (c) => {
 // ========================================================================
 
 app.post('/api/v1/auth/login', async (c) => {
-  try {
-    const { email, password } = await c.req.json();
+    try {
+        const { email } = await c.req.json();
+        const user = await c.env.DB.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').bind(email).first();
 
-    const user = await c.env.DB.prepare(
-      'SELECT * FROM users WHERE email = ? AND is_active = 1'
-    ).bind(email).first();
+        if (!user) return c.json({ error: 'Invalid credentials' }, 401);
 
-    if (!user) {
-      return c.json({ error: 'Invalid credentials' }, 401);
+        const payload = {
+            sub: (user as any).id,
+            email: (user as any).email,
+            role: (user as any).role,
+            exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
+        };
+
+        const token = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })) + '.' + btoa(JSON.stringify(payload)) + '.mock_signature';
+
+        return c.json({
+            access_token: token,
+            user: mapUser(user),
+        });
+    } catch (error) {
+        return c.json({ error: 'Login failed' }, 500);
+    }
+});
+
+app.post('/api/v1/users', async (c) => {
+    try {
+        const data = await c.req.json();
+        const id = data.id || `user-${crypto.randomUUID()}`;
+
+        await c.env.DB.prepare(`
+            INSERT INTO users (id, email, password_hash, role, first_name, last_name, phone, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        `).bind(
+            id,
+            data.email,
+            data.password_hash || 'placeholder_hash',
+            data.role || 'staff',
+            data.firstName || data.first_name,
+            data.lastName || data.last_name,
+            data.phone || null
+        ).run();
+
+        const user = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
+        return c.json(mapUser(user), 201);
+    } catch (error) {
+        return c.json({ error: 'Failed to create user', message: error instanceof Error ? error.message : 'Unknown error' }, 500);
+    }
+});
+
+app.put('/api/v1/users/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const data = await c.req.json();
+
+        await c.env.DB.prepare(`
+            UPDATE users SET 
+                email = COALESCE(?, email),
+                role = COALESCE(?, role),
+                first_name = COALESCE(?, first_name),
+                last_name = COALESCE(?, last_name),
+                phone = COALESCE(?, phone),
+                is_active = COALESCE(?, is_active),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).bind(
+            data.email || null,
+            data.role || null,
+            data.firstName || data.first_name || null,
+            data.lastName || data.last_name || null,
+            data.phone || null,
+            data.isActive !== undefined ? (data.isActive ? 1 : 0) : null,
+            id
+        ).run();
+
+        const user = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
+        return c.json(mapUser(user));
+    } catch (error) {
+        return c.json({ error: 'Failed to update user' }, 500);
+    }
+});
+
+// ========================================================================
+// STATISTICS ROUTES
+// ========================================================================
+
+// ========================================================================
+// STATISTICS ROUTES
+// ========================================================================
+
+// New consolidated stats endpoint
+app.get('/api/v1/stats/summary', async (c) => {
+    try {
+        const [students, teachers, classes, pending, rejected, rev, exp] = await Promise.all([
+            c.env.DB.prepare("SELECT COUNT(*) as count FROM students WHERE status = 'active'").first(),
+            c.env.DB.prepare("SELECT COUNT(*) as count FROM teachers WHERE status = 'active'").first(),
+            c.env.DB.prepare("SELECT COUNT(*) as count FROM classes WHERE is_active = 1").first(),
+            c.env.DB.prepare("SELECT COUNT(*) as count FROM documents WHERE status = 'En attente' OR status = 'pending'").first(),
+            c.env.DB.prepare("SELECT COUNT(*) as count FROM documents WHERE status = 'Rejeté' OR status = 'rejected'").first(),
+            c.env.DB.prepare("SELECT SUM(amount_paid) as total FROM transactions WHERE type = 'revenue'").first(),
+            c.env.DB.prepare("SELECT SUM(amount) as total FROM transactions WHERE type = 'expense'").first(),
+        ]);
+
+        // REFINED JSON-BASED CALCULATION FOR MISSING DOCS
+        const { results } = await c.env.DB.prepare("SELECT documents FROM students WHERE status = 'active'").all();
+        let missingDocs = 0;
+        const mandatoryTypes = ['Extrait de naissance', 'Carnet de vaccination', 'Autorisation parentale', 'Fiche scolaire'];
+
+        results.forEach((row: any) => {
+            try {
+                const docs = typeof row.documents === 'string' ? JSON.parse(row.documents) : (row.documents || []);
+                const presentTypes = docs.map((d: any) => d.type || d.document_type).filter((t: any) => mandatoryTypes.includes(t));
+                const implicitMissing = mandatoryTypes.filter(t => !presentTypes.includes(t)).length;
+                missingDocs += implicitMissing;
+            } catch (e) {
+                missingDocs += 4;
+            }
+        });
+
+        return c.json({
+            students: (students as any)?.count || 0,
+            teachers: (teachers as any)?.count || 0,
+            classes: (classes as any)?.count || 0,
+            pendingDocs: (pending as any)?.count || 0,
+            missingDocs: missingDocs,
+            rejectedDocs: (rejected as any)?.count || 0,
+            revenue: (rev as any)?.total || 0,
+            expenses: (exp as any)?.total || 0,
+            balance: ((rev as any)?.total || 0) - ((exp as any)?.total || 0)
+        });
+    } catch (e) {
+        return c.json({ error: 'Stats error', message: e instanceof Error ? e.message : 'Unknown' }, 500);
+    }
+});
+
+app.get('/api/v1/students/stats/count', async (c) => {
+    const res = await c.env.DB.prepare("SELECT COUNT(*) as count FROM students WHERE status = 'active'").first();
+    return c.json(res || { count: 0 });
+});
+
+app.get('/api/v1/teachers/stats/count', async (c) => {
+    const res = await c.env.DB.prepare("SELECT COUNT(*) as count FROM teachers WHERE status = 'active'").first();
+    return c.json(res || { count: 0 });
+});
+
+app.get('/api/v1/classes/stats/count', async (c) => {
+    const res = await c.env.DB.prepare("SELECT COUNT(*) as count FROM classes WHERE is_active = 1").first();
+    return c.json(res || { count: 0 });
+});
+
+app.get('/api/v1/students/stats/pending-docs', async (c) => {
+    try {
+        // DERIVE FROM JSON METADATA IN STUDENTS TABLE
+        const { results } = await c.env.DB.prepare("SELECT documents FROM students WHERE status = 'active'").all();
+        let count = 0;
+
+        results.forEach((row: any) => {
+            try {
+                const docs = typeof row.documents === 'string' ? JSON.parse(row.documents) : (row.documents || []);
+                count += docs.filter((d: any) => d.status === 'En attente' || d.status === 'pending').length;
+            } catch (e) { }
+        });
+
+        // Add docs from the dedicated documents table that might not be synced yet
+        const legacyRes = await c.env.DB.prepare("SELECT COUNT(*) as count FROM documents WHERE status = 'En attente' OR status = 'pending'").first();
+        const legacyCount = (legacyRes as any)?.count || 0;
+
+        return c.json({ count: count + legacyCount });
+    } catch (e) {
+        console.error('Pending docs stat error:', e);
+        return c.json({ count: 0, error: 'Failed to fetch pending docs', message: e instanceof Error ? e.message : 'Unknown' }, 500);
+    }
+});
+
+app.get('/api/v1/students/stats/missing-docs', async (c) => {
+    try {
+        const { results } = await c.env.DB.prepare("SELECT documents FROM students WHERE status = 'active'").all();
+        let count = 0;
+        const mandatoryTypes = ['Extrait de naissance', 'Carnet de vaccination', 'Autorisation parentale', 'Fiche scolaire'];
+
+        results.forEach((row: any) => {
+            try {
+                const docs = typeof row.documents === 'string' ? JSON.parse(row.documents) : (row.documents || []);
+                const presentTypes = docs.map((d: any) => d.type || d.document_type || d.type).filter((t: any) => mandatoryTypes.includes(t));
+
+                // Add default missing (those not present in the list)
+                const implicitMissing = mandatoryTypes.filter(t => !presentTypes.includes(t)).length;
+                count += implicitMissing;
+            } catch (e) {
+                count += 4;
+            }
+        });
+
+        return c.json({ count });
+    } catch (e) {
+        console.error('Missing docs stat error:', e);
+        return c.json({ count: 0, error: 'Failed to calculate missing docs', message: e instanceof Error ? e.message : 'Unknown' }, 500);
+    }
+});
+
+app.get('/api/v1/students/stats/rejected-docs', async (c) => {
+    try {
+        const { results } = await c.env.DB.prepare("SELECT documents FROM students WHERE status = 'active'").all();
+        let count = 0;
+
+        results.forEach((row: any) => {
+            try {
+                const docs = typeof row.documents === 'string' ? JSON.parse(row.documents) : (row.documents || []);
+                count += docs.filter((d: any) => d.status === 'Rejeté' || d.status === 'rejected').length;
+            } catch (e) { }
+        });
+
+        return c.json({ count });
+    } catch (e) {
+        console.error('Rejected docs stat error:', e);
+        return c.json({ count: 0, error: 'Failed to fetch rejected docs', message: e instanceof Error ? e.message : 'Unknown' }, 500);
+    }
+});
+
+const mapTransaction = (t: any) => mapKeys(t, {
+    amount_paid: 'amountPaid',
+    payment_method: 'paymentMethod',
+    payment_date: 'paymentDate',
+    created_at: 'createdAt',
+    updated_at: 'updatedAt'
+});
+
+// ========================================================================
+// FINANCE ROUTES
+// ========================================================================
+
+app.get('/api/v1/finance/transactions', async (c) => {
+    const studentId = c.req.query('studentId');
+    const status = c.req.query('status');
+    const type = c.req.query('type');
+    const startDate = c.req.query('startDate');
+    const endDate = c.req.query('endDate');
+    const page = parseInt(c.req.query('page') || '1');
+    const limit = parseInt(c.req.query('limit') || '20');
+    const offset = (page - 1) * limit;
+
+    let query = `SELECT * FROM transactions WHERE 1=1`;
+    const params: any[] = [];
+
+    if (studentId) {
+        query += ` AND student_id = ?`;
+        params.push(studentId);
+    }
+    if (status) {
+        query += ` AND status = ?`;
+        params.push(status);
+    }
+    if (type) {
+        query += ` AND type = ?`;
+        params.push(type);
+    }
+    if (startDate) {
+        query += ` AND date >= ?`;
+        params.push(startDate);
+    }
+    if (endDate) {
+        query += ` AND date <= ?`;
+        params.push(endDate);
     }
 
-    // In production, verify password hash with bcrypt
-    // For now, accepting any password for demo
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as count FROM (${query})`;
+    const countRes = await c.env.DB.prepare(countQuery).bind(...params).first();
+    const total = (countRes as any)?.count || 0;
 
-    const token = await generateJWT(user, c.env.JWT_SECRET);
+    query += ` ORDER BY date DESC, created_at DESC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
 
     return c.json({
-      access_token: token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        firstName: user.first_name,
-        lastName: user.last_name,
-      },
+        data: results.map(mapTransaction),
+        total,
+        page,
+        limit
     });
-  } catch (error) {
-    return c.json({ error: 'Login failed' }, 500);
-  }
+});
+
+app.get('/api/v1/finance/stats/revenue', async (c) => {
+    const startDate = c.req.query('startDate');
+    const endDate = c.req.query('endDate');
+
+    let query = "SELECT SUM(amount_paid) as total FROM transactions WHERE type = 'revenue'";
+    const params: any[] = [];
+
+    if (startDate) {
+        query += " AND date >= ?";
+        params.push(startDate);
+    }
+    if (endDate) {
+        query += " AND date <= ?";
+        params.push(endDate);
+    }
+
+    try {
+        const res = await c.env.DB.prepare(query).bind(...params).first();
+        return c.json({ total: (res as any)?.total || 0 });
+    } catch (e) {
+        return c.json({ total: 0 });
+    }
+});
+
+app.get('/api/v1/finance/stats/expenses', async (c) => {
+    const startDate = c.req.query('startDate');
+    const endDate = c.req.query('endDate');
+
+    let query = "SELECT SUM(amount) as total FROM transactions WHERE type = 'expense'";
+    const params: any[] = [];
+
+    if (startDate) {
+        query += " AND date >= ?";
+        params.push(startDate);
+    }
+    if (endDate) {
+        query += " AND date <= ?";
+        params.push(endDate);
+    }
+
+    try {
+        const res = await c.env.DB.prepare(query).bind(...params).first();
+        return c.json({ total: (res as any)?.total || 0 });
+    } catch (e) {
+        return c.json({ total: 0 });
+    }
+});
+
+app.get('/api/v1/finance/stats/balance', async (c) => {
+    const startDate = c.req.query('startDate');
+    const endDate = c.req.query('endDate');
+
+    let revQuery = "SELECT SUM(amount_paid) as total FROM transactions WHERE type = 'revenue'";
+    let expQuery = "SELECT SUM(amount) as total FROM transactions WHERE type = 'expense'";
+    const params: any[] = [];
+
+    if (startDate) {
+        revQuery += " AND date >= ?";
+        expQuery += " AND date >= ?";
+        params.push(startDate);
+    }
+    if (endDate) {
+        revQuery += " AND date <= ?";
+        expQuery += " AND date <= ?";
+        params.push(endDate);
+    }
+
+    try {
+        const [rev, exp] = await Promise.all([
+            c.env.DB.prepare(revQuery).bind(...params).first(),
+            c.env.DB.prepare(expQuery).bind(...params).first(),
+        ]);
+        const balance = ((rev as any)?.total || 0) - ((exp as any)?.total || 0);
+        return c.json({ balance });
+    } catch (e) {
+        return c.json({ balance: 0 });
+    }
+});
+
+// Dashboard Analytics with Caching Strategy
+const DASHBOARD_CACHE_TTL = 30; // seconds
+
+app.get('/api/v1/analytics/dashboard', async (c) => {
+    try {
+        // Check Cloudflare Cache
+        const cacheKey = c.req.url;
+        const cache = (caches as any).default;
+        let response = await cache.match(cacheKey);
+
+        if (response) {
+            return response;
+        }
+
+        if (c.req.query('sync') === 'true') {
+            const syncStatements = [
+                syncMetricSQL(c.env.DB, 'total_students', "SELECT COUNT(*) FROM students WHERE LOWER(status) IN ('active', 'actif')"),
+                syncMetricSQL(c.env.DB, 'total_teachers', "SELECT COUNT(*) FROM teachers WHERE LOWER(status) IN ('active', 'actif')"),
+                syncMetricSQL(c.env.DB, 'active_classes', "SELECT COUNT(*) FROM classes WHERE is_active = 1"),
+                syncMetricSQL(c.env.DB, 'pending_documents', "SELECT COUNT(*) FROM documents WHERE LOWER(status) IN ('pending', 'en attente')"),
+                syncMetricSQL(c.env.DB, 'total_revenue', "SELECT COALESCE(SUM(amount_paid), 0) FROM transactions WHERE type = 'revenue'"),
+                syncMetricSQL(c.env.DB, 'students_male', "SELECT COUNT(*) FROM students WHERE LOWER(gender) IN ('masculin', 'male', 'm') AND LOWER(status) IN ('active', 'actif')"),
+                syncMetricSQL(c.env.DB, 'students_female', "SELECT COUNT(*) FROM students WHERE LOWER(gender) IN ('féminin', 'female', 'f') AND LOWER(status) IN ('active', 'actif')"),
+            ];
+            await c.env.DB.batch(syncStatements);
+        }
+
+        const batchResults = await c.env.DB.batch([
+            // Fast metrics from aggregation table
+            c.env.DB.prepare("SELECT metric_key, metric_value FROM dashboard_metrics"),
+
+            // Classes with occupancy and teacher info (Still dynamic for accuracy)
+            c.env.DB.prepare(`
+                SELECT c.id, c.name as class_name, c.capacity,
+                       (SELECT COUNT(*) FROM students s WHERE s.class_id = c.id AND LOWER(s.status) IN ('active', 'actif')) as student_count,
+                       COALESCE(u.first_name || ' ' || u.last_name, t.first_name || ' ' || t.last_name) as teacher_name
+                FROM classes c
+                LEFT JOIN teachers t ON c.main_teacher_id = t.id
+                LEFT JOIN users u ON t.user_id = u.id
+                WHERE c.is_active = 1
+                ORDER BY c.level, c.name
+            `),
+
+            // 30-day Document status breakdown (Still dynamic as it's time-sensitive)
+            c.env.DB.prepare(`
+                SELECT 
+                    COUNT(*) as total_docs,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_docs,
+                    SUM(CASE WHEN status = 'approved' OR status = 'Validé' THEN 1 ELSE 0 END) as approved_docs,
+                    SUM(CASE WHEN status = 'rejected' OR status = 'Rejeté' THEN 1 ELSE 0 END) as rejected_docs,
+                    SUM(CASE WHEN status = 'missing' THEN 1 ELSE 0 END) as missing_docs
+                FROM documents
+                WHERE DATE(uploaded_at) >= DATE('now', '-30 days')
+            `),
+
+            // Academic Performance
+            c.env.DB.prepare(`
+                SELECT c.id, c.name, AVG((g.value / g.max_value) * 100) as average
+                FROM classes c
+                JOIN students s ON s.class_id = c.id
+                JOIN grades g ON g.student_id = s.id
+                WHERE c.is_active = 1
+                GROUP BY c.id, c.name
+                ORDER BY average DESC
+            `),
+        ]);
+
+        const metricsRaw = batchResults[0]?.results || [];
+        const metrics: Record<string, number> = {};
+        metricsRaw.forEach((m: any) => { metrics[m.metric_key] = m.metric_value; });
+
+        const classesRows = batchResults[1]?.results || [];
+        const documentsRow = batchResults[2]?.results?.[0] as any || { total_docs: 0, pending_docs: 0, approved_docs: 0, rejected_docs: 0, missing_docs: 0 };
+        const performanceRows = batchResults[3]?.results || [];
+
+        const dashboardData = {
+            timestamp: new Date().toISOString(),
+            students: {
+                total: metrics['total_students'] || 0,
+                male: metrics['students_male'] || 0,
+                female: metrics['students_female'] || 0
+            },
+            teachers: {
+                total: metrics['total_teachers'] || 0
+            },
+            classes: classesRows,
+            documents: {
+                total_docs: documentsRow.total_docs || 0,
+                pending_docs: metrics['pending_documents'] || documentsRow.pending_docs || 0,
+                approved_docs: documentsRow.approved_docs || 0,
+                rejected_docs: documentsRow.rejected_docs || 0,
+                missing_docs: documentsRow.missing_docs || 0
+            },
+            classPerformances: performanceRows,
+            totalRevenue: metrics['total_revenue'] || 0,
+
+            // Legacy flat fields
+            studentsCount: metrics['total_students'] || 0,
+            teachersCount: metrics['total_teachers'] || 0,
+            classesCount: classesRows.length || 0,
+            pendingDocs: metrics['pending_documents'] || 0,
+            missingDocs: documentsRow.missing_docs || 0,
+            approvedDocs: documentsRow.approved_docs || 0,
+            rejectedDocs: documentsRow.rejected_docs || 0,
+
+            server: 'cloudflare-d1-optimized'
+        };
+
+        // Cache the response
+        response = c.json(dashboardData);
+        response.headers.set('Cache-Control', `public, max-age=${DASHBOARD_CACHE_TTL}`);
+        c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));
+
+        return response;
+    } catch (e) {
+        console.error('Dashboard analytics error:', e);
+        return c.json({ error: 'Failed to generate dashboard statistics' }, 500);
+    }
 });
 
 // ========================================================================
@@ -238,145 +973,291 @@ app.post('/api/v1/auth/login', async (c) => {
 // ========================================================================
 
 app.get('/api/v1/students', async (c) => {
-  try {
-    const { results } = await c.env.DB.prepare(`
-      SELECT s.*, c.name as class_name
-      FROM students s
-      LEFT JOIN classes c ON s.class_id = c.id
-      WHERE s.status = 'active'
-      ORDER BY s.last_name, s.first_name
-    `).all();
+    const search = c.req.query('search') || c.req.query('q');
+    const classId = c.req.query('classId');
+    const gradeLevel = c.req.query('gradeLevel');
+    const status = c.req.query('status');
+    const gender = c.req.query('gender');
+    const teacherId = c.req.query('teacherId');
+    const startDate = c.req.query('startDate');
+    const endDate = c.req.query('endDate');
 
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch students' }, 500);
-  }
+    let query = `
+        SELECT s.*, 
+               u.first_name as user_first_name, u.last_name as user_last_name, u.email as user_email,
+               c.name as class_name 
+        FROM students s 
+        LEFT JOIN users u ON s.user_id = u.id 
+        LEFT JOIN classes c ON s.class_id = c.id 
+        WHERE 1=1
+    `;
+
+    const params: any[] = [];
+
+    if (status && status !== 'all') {
+        const dbStatus = status === 'Actif' ? 'active' : status === 'Inactif' ? 'inactive' : status;
+        query += ` AND s.status = ?`;
+        params.push(dbStatus);
+    } else if (!status || status === 'active') {
+        // Default to active unless explicitly 'all'
+        if (status !== 'all') {
+            query += ` AND s.status = 'active'`;
+        }
+    }
+
+    if (classId) {
+        query += ` AND s.class_id = ?`;
+        params.push(classId);
+    }
+
+    if (gradeLevel) {
+        query += ` AND (s.academic_level = ? OR c.level = ?)`;
+        params.push(gradeLevel, gradeLevel);
+    }
+
+    if (gender) {
+        // Handle both 'Masculin'/'Féminin' and 'male'/'female'
+        if (gender === 'Masculin' || gender === 'male') {
+            query += ` AND (s.gender = 'Masculin' OR s.gender = 'male')`;
+        } else if (gender === 'Féminin' || gender === 'female') {
+            query += ` AND (s.gender = 'Féminin' OR s.gender = 'female')`;
+        }
+    }
+
+    if (teacherId) {
+        query += ` AND c.main_teacher_id = ?`;
+        params.push(teacherId);
+    }
+
+    if (startDate) {
+        query += ` AND s.enrollment_date >= ?`;
+        params.push(startDate);
+    }
+
+    if (endDate) {
+        query += ` AND s.enrollment_date <= ?`;
+        params.push(endDate);
+    }
+
+    if (search) {
+        query += ` AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.student_code LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)`;
+        const searchPattern = `%${search}%`;
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+    }
+
+    query += ` ORDER BY s.last_name ASC, s.first_name ASC`;
+
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    return c.json(results.map(mapStudent));
 });
 
 app.get('/api/v1/students/:id', async (c) => {
-  try {
     const id = c.req.param('id');
+    if (id === 'stats') return c.notFound(); // Safety for overlapping routes
+
     const student = await c.env.DB.prepare(`
-      SELECT s.*, c.name as class_name
-      FROM students s
-      LEFT JOIN classes c ON s.class_id = c.id
-      WHERE s.id = ?
+        SELECT s.*, 
+               u.first_name as user_first_name, u.last_name as user_last_name, u.email as user_email,
+               c.name as class_name 
+        FROM students s 
+        LEFT JOIN users u ON s.user_id = u.id 
+        LEFT JOIN classes c ON s.class_id = c.id 
+        WHERE s.id = ?
     `).bind(id).first();
-
-    if (!student) {
-      return c.json({ error: 'Student not found' }, 404);
-    }
-
-    return c.json(student);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch student' }, 500);
-  }
+    return student ? c.json(mapStudent(student)) : c.json({ error: 'Not found' }, 404);
 });
 
-app.get('/api/v1/students/stats/count', async (c) => {
-  try {
-    const result = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM students WHERE status = 'active'
-    `).first();
-
-    return c.json({ count: result?.count || 0 });
-  } catch (error) {
-    return c.json({ error: 'Failed to get count' }, 500);
-  }
-});
-
-// POST - Create new student
 app.post('/api/v1/students', async (c) => {
-  try {
-    const body = await c.req.json();
-    const studentId = crypto.randomUUID();
+    try {
+        const data = await c.req.json();
+        const id = data.id || crypto.randomUUID();
+        const userId = data.userId || `user-student-${id}`;
 
-    // Create student record with first_name and last_name directly
-    await c.env.DB.prepare(`
-      INSERT INTO students (id, student_code, first_name, last_name, birth_date, gender, nationality, 
-        birth_place, address, enrollment_date, class_id, parent_id, emergency_contact, medical_info, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
-    `).bind(
-      studentId,
-      body.studentCode || `KDS${Date.now()}`,
-      body.firstName,
-      body.lastName,
-      body.birthDate,
-      body.gender,
-      body.nationality || null,
-      body.birthPlace || null,
-      body.address || null,
-      body.enrollmentDate || new Date().toISOString().split('T')[0],
-      body.classId || null,
-      body.parentId || null,
-      body.emergencyContact || null,
-      body.medicalInfo || null
-    ).run();
+        const isEntryActive = (data.status === 'Actif' || data.status === 'active');
+        const statements = [];
 
-    return c.json({ id: studentId, message: 'Student created successfully' }, 201);
-  } catch (error) {
-    console.error('Create student error:', error);
-    return c.json({ error: 'Failed to create student' }, 500);
-  }
+        // Prepare User statement
+        statements.push(c.env.DB.prepare(`
+            INSERT INTO users (id, email, password_hash, role, first_name, last_name, is_active)
+            VALUES (?, ?, 'placeholder', 'student', ?, ?, 1)
+            ON CONFLICT(email) DO UPDATE SET is_active = 1
+        `).bind(userId, data.email || `s-${id}@ksp.ci`, data.firstName || '', data.lastName || ''));
+
+        // Prepare Student statement
+        statements.push(c.env.DB.prepare(`
+            INSERT INTO students (
+                id, user_id, student_code, birth_date, gender, nationality, 
+                birth_place, address, enrollment_date, class_id, academic_level, 
+                emergency_contact, medical_info, status, photo_url, documents
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+            id, userId, data.registrationNumber || `KSP-S-${id.substring(0, 4)}`,
+            data.dob || '2010-01-01', data.gender || 'other', data.nationality || 'Ivoirienne',
+            data.birthPlace || null, data.address || null,
+            data.classId || null, data.gradeLevel || null,
+            data.phone || data.emergencyContactPhone || null,
+            data.medicalInfo || null,
+            isEntryActive ? 'active' : 'inactive',
+            data.photoUrl || null,
+            JSON.stringify(data.documents || [])
+        ));
+
+        // Update metrics if active
+        if (isEntryActive) {
+            statements.push(updateMetricSQL(c.env.DB, 'total_students', 1));
+            const gen = (data.gender || '').toLowerCase();
+            const genderKey = (gen === 'masculin' || gen === 'male' || gen === 'm') ? 'students_male' :
+                (gen === 'féminin' || gen === 'female' || gen === 'f') ? 'students_female' : null;
+            if (genderKey) {
+                statements.push(updateMetricSQL(c.env.DB, genderKey, 1));
+            }
+        }
+
+        await c.env.DB.batch(statements);
+
+        // Persistence confirmation
+        const student = await c.env.DB.prepare(`
+            SELECT s.*, 
+                   u.first_name as user_first_name, u.last_name as user_last_name, u.email as user_email,
+                   c.name as class_name 
+            FROM students s 
+            LEFT JOIN users u ON s.user_id = u.id 
+            LEFT JOIN classes c ON s.class_id = c.id 
+            WHERE s.id = ?
+        `).bind(id).first();
+
+        return c.json(mapStudent(student), 201);
+    } catch (error) {
+        console.error('Student creation error:', error);
+        return c.json({ error: 'Failed to create student', message: error instanceof Error ? error.message : 'Unknown' }, 500);
+    }
 });
 
-// PUT - Update student
 app.put('/api/v1/students/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
+    try {
+        const id = c.req.param('id');
+        const data = await c.req.json();
 
-    // Update student record with first_name and last_name directly
-    await c.env.DB.prepare(`
-      UPDATE students SET
-        first_name = COALESCE(?, first_name),
-        last_name = COALESCE(?, last_name),
-        birth_date = COALESCE(?, birth_date),
-        gender = COALESCE(?, gender),
-        nationality = COALESCE(?, nationality),
-        birth_place = COALESCE(?, birth_place),
-        address = COALESCE(?, address),
-        class_id = COALESCE(?, class_id),
-        emergency_contact = COALESCE(?, emergency_contact),
-        medical_info = COALESCE(?, medical_info),
-        status = COALESCE(?, status),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      body.firstName || null,
-      body.lastName || null,
-      body.birthDate || null,
-      body.gender || null,
-      body.nationality || null,
-      body.birthPlace || null,
-      body.address || null,
-      body.classId || null,
-      body.emergencyContact || null,
-      body.medicalInfo || null,
-      body.status || null,
-      id
-    ).run();
+        const result = await c.env.DB.prepare(`
+            UPDATE students SET 
+                student_code = COALESCE(?, student_code),
+                birth_date = COALESCE(?, birth_date),
+                gender = COALESCE(?, gender),
+                nationality = COALESCE(?, nationality),
+                birth_place = COALESCE(?, birth_place),
+                address = COALESCE(?, address),
+                class_id = COALESCE(?, class_id),
+                academic_level = COALESCE(?, academic_level),
+                emergency_contact = COALESCE(?, emergency_contact),
+                medical_info = COALESCE(?, medical_info),
+                status = COALESCE(?, status),
+                photo_url = COALESCE(?, photo_url),
+                documents = COALESCE(?, documents),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).bind(
+            data.registrationNumber || null,
+            data.dob || null,
+            data.gender || null,
+            data.nationality || null,
+            data.birthPlace || null,
+            data.address || null,
+            data.classId || null,
+            data.gradeLevel || null,
+            data.phone || data.emergencyContactPhone || null,
+            data.medicalInfo || null,
+            (data.status === 'Actif' || data.status === 'active') ? 'active' : data.status === 'inactive' ? 'inactive' : null,
+            data.photoUrl || null,
+            data.documents ? JSON.stringify(data.documents) : null,
+            id
+        ).run();
 
-    return c.json({ message: 'Student updated successfully' });
-  } catch (error) {
-    console.error('Update student error:', error);
-    return c.json({ error: 'Failed to update student' }, 500);
-  }
+        if (result.meta.changes === 0) {
+            return c.json({ error: 'Student not found or no changes were made' }, 404);
+        }
+
+        // NEW: Sync metrics if status or gender was updated
+        if (data.status || data.gender) {
+            await c.env.DB.batch([
+                syncMetricSQL(c.env.DB, 'total_students', "SELECT COUNT(*) FROM students WHERE LOWER(status) IN ('active', 'actif')"),
+                syncMetricSQL(c.env.DB, 'students_male', "SELECT COUNT(*) FROM students WHERE LOWER(gender) IN ('masculin', 'male', 'm') AND LOWER(status) IN ('active', 'actif')"),
+                syncMetricSQL(c.env.DB, 'students_female', "SELECT COUNT(*) FROM students WHERE LOWER(gender) IN ('féminin', 'female', 'f') AND LOWER(status) IN ('active', 'actif')"),
+            ]);
+        }
+
+        // Persistence confirmation and return updated record
+        const updated = await c.env.DB.prepare(`
+            SELECT s.*, 
+                   u.first_name as user_first_name, u.last_name as user_last_name, u.email as user_email,
+                   c.name as class_name 
+            FROM students s 
+            LEFT JOIN users u ON s.user_id = u.id 
+            LEFT JOIN classes c ON s.class_id = c.id 
+            WHERE s.id = ?
+        `).bind(id).first();
+
+        return c.json(mapStudent(updated));
+    } catch (error) {
+        console.error('Student update error:', error);
+        return c.json({ error: 'Failed to update student', message: error instanceof Error ? error.message : 'Unknown' }, 500);
+    }
 });
 
-// DELETE - Delete student (soft delete)
-app.delete('/api/v1/students/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
+app.patch('/api/v1/students/:id/documents', async (c) => {
+    try {
+        const studentId = c.req.param('id');
+        const { documents } = await c.req.json();
 
-    await c.env.DB.prepare(`
-      UPDATE students SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    `).bind(id).run();
+        if (!Array.isArray(documents)) {
+            return c.json({ error: 'Documents must be an array' }, 400);
+        }
 
-    return c.json({ message: 'Student deleted successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to delete student' }, 500);
-  }
+        const statements = documents.map((doc: any) => {
+            const docId = doc.id || crypto.randomUUID();
+            return c.env.DB.prepare(`
+                INSERT INTO documents (id, student_id, document_type, status, file_path, uploaded_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(student_id, document_type) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    file_path = COALESCE(EXCLUDED.file_path, documents.file_path),
+                    uploaded_at = CURRENT_TIMESTAMP
+            `).bind(docId, studentId, doc.type || doc.document_type, doc.status || 'Manquant', doc.fileUrl || doc.file_path || null);
+        });
+
+        // NEW: Sync pending documents metric after bulk update
+        statements.push(syncMetricSQL(c.env.DB, 'pending_documents', "SELECT COUNT(*) FROM documents WHERE LOWER(status) IN ('pending', 'en attente')"));
+
+        await c.env.DB.batch(statements);
+
+        // Sync metadata back to students table for real-time stats
+        const updatedDocsRaw = await c.env.DB.prepare('SELECT * FROM documents WHERE student_id = ?').bind(studentId).all();
+        const updatedDocs = updatedDocsRaw.results.map(mapDocument);
+
+        await c.env.DB.prepare('UPDATE students SET documents = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+            .bind(JSON.stringify(updatedDocs), studentId)
+            .run();
+
+        // Fetch and return the updated student state (with all docs)
+        const student = await c.env.DB.prepare(`
+            SELECT s.*, 
+                   u.first_name as user_first_name, u.last_name as user_last_name, u.email as user_email,
+                   c.name as class_name 
+            FROM students s 
+            LEFT JOIN users u ON s.user_id = u.id 
+            LEFT JOIN classes c ON s.class_id = c.id 
+            WHERE s.id = ?
+        `).bind(studentId).first();
+
+        const studentDocs = await c.env.DB.prepare('SELECT * FROM documents WHERE student_id = ?').bind(studentId).all();
+
+        const mappedStudent = mapStudent(student);
+        mappedStudent.documents = studentDocs.results.map(mapDocument);
+
+        return c.json(mappedStudent);
+    } catch (error) {
+        console.error('Documents bulk update error:', error);
+        return c.json({ error: 'Failed to update documents', message: error instanceof Error ? error.message : 'Unknown' }, 500);
+    }
 });
 
 // ========================================================================
@@ -384,836 +1265,154 @@ app.delete('/api/v1/students/:id', async (c) => {
 // ========================================================================
 
 app.get('/api/v1/teachers', async (c) => {
-  try {
     const { results } = await c.env.DB.prepare(`
-      SELECT t.*, u.first_name, u.last_name, u.email, u.phone
-      FROM teachers t
-      LEFT JOIN users u ON t.user_id = u.id
-      WHERE t.status = 'active'
-      ORDER BY u.last_name, u.first_name
+        SELECT t.*, 
+               COALESCE(u.first_name, t.first_name) as first_name, 
+               COALESCE(u.last_name, t.last_name) as last_name, 
+               COALESCE(u.email, t.email) as email
+        FROM teachers t 
+        LEFT JOIN users u ON t.user_id = u.id 
+        WHERE t.status = 'active'
     `).all();
-
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch teachers' }, 500);
-  }
+    return c.json(results.map(mapTeacher));
 });
 
-app.get('/api/v1/teachers/stats/count', async (c) => {
-  try {
-    const result = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM teachers WHERE status = 'active'
-    `).first();
-
-    return c.json({ count: result?.count || 0 });
-  } catch (error) {
-    return c.json({ error: 'Failed to get count' }, 500);
-  }
-});
-
-// POST - Create teacher
-app.post('/api/v1/teachers', async (c) => {
-  try {
-    const body = await c.req.json();
-    const userId = crypto.randomUUID();
-    const teacherId = crypto.randomUUID();
-
-    // Create user record first
-    await c.env.DB.prepare(`
-      INSERT INTO users (id, first_name, last_name, email, phone, password_hash, role, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, 'student', 1)
-    `).bind(
-      userId,
-      body.firstName,
-      body.lastName,
-      body.email,
-      body.phone || null,
-      body.password || 'default_password_hash'
-    ).run();
-
-    // Create teacher record
-    await c.env.DB.prepare(`
-      INSERT INTO teachers (id, user_id, hire_date, specialization, status)
-      VALUES (?, ?, ?, ?, 'active')
-    `).bind(
-      teacherId,
-      userId,
-      body.hireDate || new Date().toISOString().split('T')[0],
-      body.specializations ? JSON.stringify(body.specializations) : '[]'
-    ).run();
-
-    return c.json({ id: teacherId, message: 'Teacher created successfully' }, 201);
-  } catch (error) {
-    console.error('Create teacher error:', error);
-    return c.json({ error: 'Failed to create teacher' }, 500);
-  }
-});
-
-// PUT - Update teacher
-app.put('/api/v1/teachers/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-
-    // Update user info
-    if (body.firstName || body.lastName || body.email || body.phone) {
-      const teacher = await c.env.DB.prepare('SELECT user_id FROM teachers WHERE id = ?').bind(id).first();
-      if (teacher) {
-        await c.env.DB.prepare(`
-          UPDATE users SET 
-            first_name = COALESCE(?, first_name),
-            last_name = COALESCE(?, last_name),
-            email = COALESCE(?, email),
-            phone = COALESCE(?, phone),
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `).bind(
-          body.firstName || null,
-          body.lastName || null,
-          body.email || null,
-          body.phone || null,
-          teacher.user_id
-        ).run();
-      }
-    }
-
-    // Update teacher info
-    await c.env.DB.prepare(`
-      UPDATE teachers SET
-        hire_date = COALESCE(?, hire_date),
-        specialization = COALESCE(?, specialization),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      body.hireDate || null,
-      body.specializations ? JSON.stringify(body.specializations) : null,
-      id
-    ).run();
-
-    return c.json({ message: 'Teacher updated successfully' });
-  } catch (error) {
-    console.error('Update teacher error:', error);
-    return c.json({ error: 'Failed to update teacher' }, 500);
-  }
-});
-
-// DELETE - Delete teacher (soft delete)
-app.delete('/api/v1/teachers/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-
-    await c.env.DB.prepare(`
-      UPDATE teachers SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    `).bind(id).run();
-
-    return c.json({ message: 'Teacher deleted successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to delete teacher' }, 500);
-  }
-});
-
-// ========================================================================
-// CLASSES ROUTES
-// ========================================================================
-
-app.get('/api/v1/classes', async (c) => {
-  try {
-    // Get pagination parameters
-    const page = parseInt(c.req.query('page') || '1');
-    const limit = parseInt(c.req.query('limit') || '100');
-    const offset = (page - 1) * limit;
-
-    // Get filters
-    const level = c.req.query('level');
-    const academicYear = c.req.query('academicYear');
-    const mainTeacherId = c.req.query('mainTeacherId');
-    const search = c.req.query('search');
-
-    // Build WHERE clause
-    let whereConditions = ['c.is_active = 1'];
-    const params: any[] = [];
-
-    if (level) {
-      whereConditions.push('c.level = ?');
-      params.push(level);
-    }
-    if (academicYear) {
-      whereConditions.push('c.academic_year = ?');
-      params.push(academicYear);
-    }
-    if (mainTeacherId) {
-      whereConditions.push('c.main_teacher_id = ?');
-      params.push(mainTeacherId);
-    }
-    if (search) {
-      whereConditions.push('(c.name LIKE ? OR c.level LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
-    }
-
-    const whereClause = whereConditions.join(' AND ');
-
-    // Get total count
-    const countResult = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM classes c WHERE ${whereClause}
-    `).bind(...params).first();
-    const total = countResult?.count || 0;
-
-    // Get paginated results
-    const { results } = await c.env.DB.prepare(`
-      SELECT c.*, u.first_name as teacher_first_name, u.last_name as teacher_last_name,
-             (SELECT COUNT(*) FROM students WHERE class_id = c.id AND status = 'active') as student_count
-      FROM classes c
-      LEFT JOIN teachers t ON c.main_teacher_id = t.id
-      LEFT JOIN users u ON t.user_id = u.id
-      WHERE ${whereClause}
-      ORDER BY c.level, c.name
-      LIMIT ? OFFSET ?
-    `).bind(...params, limit, offset).all();
-
-    return c.json({
-      data: results,
-      total: total,
-      page: page,
-      limit: limit
-    });
-  } catch (error) {
-    console.error('Failed to fetch classes:', error);
-    return c.json({ error: 'Failed to fetch classes' }, 500);
-  }
-});
-
-// Get single class by ID with full details
-app.get('/api/v1/classes/:id', async (c) => {
-  try {
-    const classId = c.req.param('id');
-
-    // Get class details
-    const classData = await c.env.DB.prepare(`
-      SELECT c.*, u.first_name as teacher_first_name, u.last_name as teacher_last_name,
-             (SELECT COUNT(*) FROM students WHERE class_id = c.id AND status = 'active') as student_count
-      FROM classes c
-      LEFT JOIN teachers t ON c.main_teacher_id = t.id
-      LEFT JOIN users u ON t.user_id = u.id
-      WHERE c.id = ?
-    `).bind(classId).first();
-
-    if (!classData) {
-      return c.json({ error: 'Class not found' }, 404);
-    }
-
-    // Get students in this class
-    const { results: students } = await c.env.DB.prepare(`
-      SELECT 
-        s.id,
-        s.student_code as registrationNumber,
-        s.first_name as firstName,
-        s.last_name as lastName,
-        s.birth_date as dob,
-        s.gender,
-        s.nationality,
-        s.birth_place as birthPlace,
-        s.address,
-        s.enrollment_date as enrollmentDate,
-        s.enrollment_date as registrationDate,
-        s.class_id as classId,
-        s.academic_level as gradeLevel,
-        s.previous_school as previousSchool,
-        s.emergency_contact as emergencyContactPhone,
-        s.medical_info as medicalInfo,
-        s.status
-      FROM students s
-      WHERE s.class_id = ? AND s.status = 'active'
-      ORDER BY s.last_name, s.first_name
-    `).bind(classId).all();
-
-    // Get main teacher details if exists
-    let mainTeacher = null;
-    if (classData.main_teacher_id) {
-      const teacherData = await c.env.DB.prepare(`
-        SELECT 
-          t.id,
-          u.first_name as firstName,
-          u.last_name as lastName,
-          t.specialization,
-          u.email,
-          u.phone,
-          t.status
-        FROM teachers t
-        LEFT JOIN users u ON t.user_id = u.id
+app.get('/api/v1/teachers/:id', async (c) => {
+    const teacher = await c.env.DB.prepare(`
+        SELECT t.*, 
+               COALESCE(u.first_name, t.first_name) as first_name, 
+               COALESCE(u.last_name, t.last_name) as last_name, 
+               COALESCE(u.email, t.email) as email,
+               COALESCE(u.phone, t.phone) as phone, 
+               u.avatar_url
+        FROM teachers t 
+        LEFT JOIN users u ON t.user_id = u.id 
         WHERE t.id = ?
-      `).bind(classData.main_teacher_id).first();
+    `).bind(c.req.param('id')).first();
+    return teacher ? c.json(mapTeacher(teacher)) : c.json({ error: 'Not found' }, 404);
+});
 
-      if (teacherData) {
-        mainTeacher = teacherData;
-      }
-    }
-
-    // Get timetable for this class (try both table names for compatibility)
-    let timetable = [];
+app.post('/api/v1/teachers', async (c) => {
     try {
-      const result = await c.env.DB.prepare(`
-        SELECT 
-          ts.id,
-          ts.day_of_week as day,
-          ts.start_time as startTime,
-          ts.end_time as endTime,
-          ts.subject as subject,
-          ts.class_id as classId,
-          ts.teacher_id as teacherId,
-          ts.room
-        FROM timetable_slots ts
-        WHERE ts.class_id = ?
-        ORDER BY 
-          CASE ts.day_of_week
-            WHEN 'Lundi' THEN 1
-            WHEN 'Mardi' THEN 2
-            WHEN 'Mercredi' THEN 3
-            WHEN 'Jeudi' THEN 4
-            WHEN 'Vendredi' THEN 5
-            ELSE 6
-          END,
-          ts.start_time
-      `).bind(classId).all();
-      timetable = result.results || [];
-    } catch (e) {
-      // Table might not exist or be empty, that's okay
-      console.log('No timetable found:', e);
-      timetable = [];
-    }
+        const data = await c.req.json();
+        const id = data.id || crypto.randomUUID();
+        const userId = data.userId || `user-teacher-${id}`;
+        const isEntryActive = (data.status === 'Actif' || data.status === 'active');
 
-    // Return full class details
-    return c.json({
-      ...classData,
-      students: students,
-      mainTeacher: mainTeacher,
-      timetable: timetable || []
-    });
+        const statements = [];
 
-  } catch (error) {
-    console.error('Failed to fetch class details:', error);
-    return c.json({ error: 'Failed to fetch class details' }, 500);
-  }
-});
+        // Prepare User statement
+        statements.push(c.env.DB.prepare(`
+            INSERT INTO users (id, email, password_hash, role, first_name, last_name, is_active)
+            VALUES (?, ?, 'placeholder', 'teacher', ?, ?, 1)
+            ON CONFLICT(email) DO UPDATE SET is_active = 1
+        `).bind(userId, data.email || `t-${id}@ksp.ci`, data.firstName || '', data.lastName || ''));
 
-app.get('/api/v1/classes/stats/count', async (c) => {
-  try {
-    const result = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM classes WHERE is_active = 1
-    `).first();
+        // Prepare Teacher statement
+        statements.push(c.env.DB.prepare(`
+            INSERT INTO teachers (
+                id, user_id, registration_number, specialization, 
+                hire_date, status, qualifications, address, emergency_contact
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+            id, userId, data.registrationNumber || `KSP-T-${id.substring(0, 4)}`,
+            data.subject || data.specialization || 'Non spécifié',
+            data.hireDate || new Date().toISOString().split('T')[0],
+            isEntryActive ? 'active' : 'inactive',
+            data.qualifications || null,
+            data.address || null,
+            data.emergencyContact || null
+        ));
 
-    return c.json({ count: result?.count || 0 });
-  } catch (error) {
-    return c.json({ error: 'Failed to get count' }, 500);
-  }
-});
-
-// POST - Create class
-app.post('/api/v1/classes', async (c) => {
-  try {
-    const body = await c.req.json();
-    const classId = crypto.randomUUID();
-
-    await c.env.DB.prepare(`
-      INSERT INTO classes (id, name, level, academic_year, main_teacher_id, room_number, 
-        capacity, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-    `).bind(
-      classId,
-      body.name,
-      body.level,
-      body.academicYear || '2024-2025',
-      body.mainTeacherId || null,
-      body.roomNumber || null,
-      body.capacity || 30
-    ).run();
-
-    return c.json({ id: classId, message: 'Class created successfully' }, 201);
-  } catch (error) {
-    console.error('Create class error:', error);
-    return c.json({ error: 'Failed to create class' }, 500);
-  }
-});
-
-// PUT - Update class
-app.put('/api/v1/classes/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-
-    await c.env.DB.prepare(`
-      UPDATE classes SET
-        name = COALESCE(?, name),
-        level = COALESCE(?, level),
-        academic_year = COALESCE(?, academic_year),
-        main_teacher_id = COALESCE(?, main_teacher_id),
-        room_number = COALESCE(?, room_number),
-        capacity = COALESCE(?, capacity),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      body.name || null,
-      body.level || null,
-      body.academicYear || null,
-      body.mainTeacherId || null,
-      body.roomNumber || null,
-      body.capacity || null,
-      id
-    ).run();
-
-    return c.json({ message: 'Class updated successfully' });
-  } catch (error) {
-    console.error('Update class error:', error);
-    return c.json({ error: 'Failed to update class' }, 500);
-  }
-});
-
-// DELETE - Delete class (soft delete)
-app.delete('/api/v1/classes/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-
-    await c.env.DB.prepare(`
-      UPDATE classes SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    `).bind(id).run();
-
-    return c.json({ message: 'Class deleted successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to delete class' }, 500);
-  }
-});
-
-// ========================================================================
-// GRADES ROUTES
-// ========================================================================
-
-app.get('/api/v1/grades', async (c) => {
-  try {
-    const { studentId, subjectId } = c.req.query();
-
-    let query = `
-      SELECT g.*, u.first_name as student_first_name, u.last_name as student_last_name,
-             s.name as subject_name
-      FROM grades g
-      LEFT JOIN students st ON g.student_id = st.id
-      LEFT JOIN users u ON st.user_id = u.id
-      LEFT JOIN subjects s ON g.subject_id = s.id
-      WHERE 1=1
-    `;
-
-    const params: any[] = [];
-    if (studentId) {
-      query += ' AND g.student_id = ?';
-      params.push(studentId);
-    }
-    if (subjectId) {
-      query += ' AND g.subject_id = ?';
-      params.push(subjectId);
-    }
-
-    query += ' ORDER BY g.evaluation_date DESC';
-
-    const { results } = await c.env.DB.prepare(query).bind(...params).all();
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch grades' }, 500);
-  }
-});
-
-// POST - Create grade
-app.post('/api/v1/grades', async (c) => {
-  try {
-    const body = await c.req.json();
-    const gradeId = crypto.randomUUID();
-
-    await c.env.DB.prepare(`
-      INSERT INTO grades (id, student_id, subject_id, category_id, grade, max_grade, 
-        evaluation_date, comment, recorded_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      gradeId,
-      body.studentId,
-      body.subjectId,
-      body.categoryId || null,
-      body.grade,
-      body.maxGrade || 20,
-      body.evaluationDate || new Date().toISOString().split('T')[0],
-      body.comment || null,
-      body.recordedBy || null
-    ).run();
-
-    return c.json({ id: gradeId, message: 'Grade created successfully' }, 201);
-  } catch (error) {
-    console.error('Create grade error:', error);
-    return c.json({ error: 'Failed to create grade' }, 500);
-  }
-});
-
-// PUT - Update grade
-app.put('/api/v1/grades/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-
-    await c.env.DB.prepare(`
-      UPDATE grades SET
-        grade = COALESCE(?, grade),
-        max_grade = COALESCE(?, max_grade),
-        evaluation_date = COALESCE(?, evaluation_date),
-        comment = COALESCE(?, comment),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      body.grade || null,
-      body.maxGrade || null,
-      body.evaluationDate || null,
-      body.comment || null,
-      id
-    ).run();
-
-    return c.json({ message: 'Grade updated successfully' });
-  } catch (error) {
-    console.error('Update grade error:', error);
-    return c.json({ error: 'Failed to update grade' }, 500);
-  }
-});
-
-// DELETE - Delete grade
-app.delete('/api/v1/grades/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-
-    await c.env.DB.prepare(`DELETE FROM grades WHERE id = ?`).bind(id).run();
-
-    return c.json({ message: 'Grade deleted successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to delete grade' }, 500);
-  }
-});
-
-// ========================================================================
-// ATTENDANCE ROUTES
-// ========================================================================
-
-app.get('/api/v1/attendance', async (c) => {
-  try {
-    const { studentId, date } = c.req.query();
-
-    let query = `
-      SELECT a.*, s.first_name, s.last_name, s.student_code
-      FROM attendance a
-      LEFT JOIN students s ON a.student_id = s.id
-      WHERE 1=1
-    `;
-
-    const params: any[] = [];
-    if (studentId) {
-      query += ' AND a.student_id = ?';
-      params.push(studentId);
-    }
-    if (date) {
-      query += ' AND a.date = ?';
-      params.push(date);
-    }
-
-    query += ' ORDER BY a.date DESC, s.last_name, s.first_name';
-
-    const { results } = await c.env.DB.prepare(query).bind(...params).all();
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch attendance' }, 500);
-  }
-});
-
-// POST - Create attendance
-app.post('/api/v1/attendance', async (c) => {
-  try {
-    const body = await c.req.json();
-    const attendanceId = crypto.randomUUID();
-
-    await c.env.DB.prepare(`
-      INSERT INTO attendance (id, student_id, date, status, period, reason, recorded_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      attendanceId,
-      body.studentId,
-      body.date || new Date().toISOString().split('T')[0],
-      body.status,
-      body.period || null,
-      body.reason || null,
-      body.recordedBy || null
-    ).run();
-
-    return c.json({ id: attendanceId, message: 'Attendance recorded successfully' }, 201);
-  } catch (error) {
-    console.error('Create attendance error:', error);
-    return c.json({ error: 'Failed to record attendance' }, 500);
-  }
-});
-
-// POST - Bulk create/update attendance (for class attendance sheet)
-app.post('/api/v1/attendance/bulk', async (c) => {
-  try {
-    const body = await c.req.json();
-    const { date, classId, records } = body;
-
-    if (!date || !classId || !Array.isArray(records)) {
-      return c.json({ error: 'Invalid request: date, classId, and records array required' }, 400);
-    }
-
-    console.log(`Bulk attendance save: ${records.length} records for class ${classId} on ${date}`);
-
-    // Process each attendance record
-    const results = await Promise.all(
-      records.map(async (record: any) => {
-        try {
-          const attendanceId = crypto.randomUUID();
-
-          // Check if attendance already exists for this student/date
-          const existing = await c.env.DB.prepare(`
-            SELECT id FROM attendance 
-            WHERE student_id = ? AND date = ?
-            LIMIT 1
-          `).bind(record.studentId, date).first();
-
-          if (existing) {
-            // Update existing record
-            await c.env.DB.prepare(`
-              UPDATE attendance 
-              SET status = ?, reason = ?, recorded_by = ?, updated_at = CURRENT_TIMESTAMP
-              WHERE id = ?
-            `).bind(
-              record.status,
-              record.note || null,
-              record.recordedBy || null,
-              existing.id
-            ).run();
-            return { studentId: record.studentId, action: 'updated' };
-          } else {
-            // Insert new record
-            await c.env.DB.prepare(`
-              INSERT INTO attendance (id, student_id, date, status, reason, recorded_by, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            `).bind(
-              attendanceId,
-              record.studentId,
-              date,
-              record.status,
-              record.note || null,
-              record.recordedBy || null
-            ).run();
-            return { studentId: record.studentId, action: 'created' };
-          }
-        } catch (recordError) {
-          console.error(`Error processing record for student ${record.studentId}:`, recordError);
-          return { studentId: record.studentId, action: 'error', error: recordError };
+        // Update metrics if active
+        if (isEntryActive) {
+            statements.push(updateMetricSQL(c.env.DB, 'total_teachers', 1));
         }
-      })
-    );
 
-    const summary = {
-      total: records.length,
-      created: results.filter(r => r.action === 'created').length,
-      updated: results.filter(r => r.action === 'updated').length,
-      errors: results.filter(r => r.action === 'error').length
-    };
+        await c.env.DB.batch(statements);
 
-    console.log('Bulk attendance save complete:', summary);
+        // Persistence confirmation
+        const teacher = await c.env.DB.prepare(`
+            SELECT t.*, u.first_name, u.last_name, u.email, u.phone 
+            FROM teachers t 
+            JOIN users u ON t.user_id = u.id 
+            WHERE t.id = ?
+        `).bind(id).first();
 
-    return c.json({
-      success: true,
-      message: 'Attendance bulk save completed',
-      summary,
-      date,
-      classId
-    }, 201);
-  } catch (error) {
-    console.error('Bulk attendance save error:', error);
-    return c.json({ error: 'Failed to save bulk attendance' }, 500);
-  }
-});
-
-// PUT - Update attendance
-app.put('/api/v1/attendance/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-
-    await c.env.DB.prepare(`
-      UPDATE attendance SET
-        status = COALESCE(?, status),
-        period = COALESCE(?, period),
-        reason = COALESCE(?, reason)
-      WHERE id = ?
-    `).bind(
-      body.status || null,
-      body.period || null,
-      body.reason || null,
-      id
-    ).run();
-
-    return c.json({ message: 'Attendance updated successfully' });
-  } catch (error) {
-    console.error('Update attendance error:', error);
-    return c.json({ error: 'Failed to update attendance' }, 500);
-  }
-});
-
-// DELETE - Delete attendance
-app.delete('/api/v1/attendance/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-
-    await c.env.DB.prepare(`DELETE FROM attendance WHERE id = ?`).bind(id).run();
-
-    return c.json({ message: 'Attendance deleted successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to delete attendance' }, 500);
-  }
-});
-
-// ========================================================================
-// DASHBOARD/ANALYTICS ROUTES
-// ========================================================================
-
-app.get('/api/v1/analytics/dashboard', async (c) => {
-  try {
-    // Get all stats in parallel
-    const [students, teachers, classes, avgGrade, absences] = await Promise.all([
-      c.env.DB.prepare('SELECT COUNT(*) as count FROM students WHERE status = "active"').first(),
-      c.env.DB.prepare('SELECT COUNT(*) as count FROM teachers WHERE status = "active"').first(),
-      c.env.DB.prepare('SELECT COUNT(*) as count FROM classes WHERE is_active = 1').first(),
-      c.env.DB.prepare('SELECT AVG(grade) as avg FROM grades').first(),
-      c.env.DB.prepare('SELECT COUNT(*) as count FROM attendance WHERE status = "absent" AND date >= date("now", "-30 days")').first(),
-    ]);
-
-    return c.json({
-      studentsCount: students?.count || 0,
-      teachersCount: teachers?.count || 0,
-      classesCount: classes?.count || 0,
-      averageGrade: avgGrade?.avg || 0,
-      absencesCount: absences?.count || 0,
-    });
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch dashboard data' }, 500);
-  }
-});
-
-// ========================================================================
-// FINANCIAL TRANSACTIONS ROUTES
-// ========================================================================
-
-app.get('/api/v1/finance/transactions', async (c) => {
-  try {
-    const { studentId, status, type } = c.req.query();
-
-    let query = `
-      SELECT t.*, s.first_name, s.last_name, s.student_code
-      FROM transactions t
-      LEFT JOIN students s ON t.student_id = s.id
-      WHERE 1=1
-    `;
-
-    const params: any[] = [];
-    if (studentId) {
-      query += ' AND t.student_id = ?';
-      params.push(studentId);
+        return c.json(mapTeacher(teacher), 201);
+    } catch (error) {
+        console.error('Teacher creation error:', error);
+        return c.json({ error: 'Failed to create teacher', message: error instanceof Error ? error.message : 'Unknown' }, 500);
     }
-    if (status) {
-      query += ' AND t.status = ?';
-      params.push(status);
+});
+
+app.put('/api/v1/teachers/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const data = await c.req.json();
+
+        const result = await c.env.DB.prepare(`
+            UPDATE teachers SET 
+                registration_number = COALESCE(?, registration_number),
+                specialization = COALESCE(?, specialization),
+                hire_date = COALESCE(?, hire_date),
+                status = COALESCE(?, status),
+                qualifications = COALESCE(?, qualifications),
+                address = COALESCE(?, address),
+                emergency_contact = COALESCE(?, emergency_contact),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).bind(
+            data.registrationNumber || null,
+            data.subject || data.specialization || null,
+            data.hireDate || null,
+            (data.status === 'Actif' || data.status === 'active') ? 'active' : data.status === 'inactive' ? 'inactive' : null,
+            data.qualifications || null,
+            data.address || null,
+            data.emergencyContact || null,
+            id
+        ).run();
+
+        if (result.meta.changes === 0) {
+            return c.json({ error: 'Teacher not found or no changes made' }, 404);
+        }
+
+        // NEW: Sync metrics if status was updated
+        if (data.status) {
+            await syncMetricSQL(c.env.DB, 'total_teachers', "SELECT COUNT(*) FROM teachers WHERE LOWER(status) IN ('active', 'actif')").run();
+        }
+
+        // Return updated record
+        const updated = await c.env.DB.prepare(`
+            SELECT t.*, u.first_name, u.last_name, u.email, u.phone 
+            FROM teachers t 
+            JOIN users u ON t.user_id = u.id 
+            WHERE t.id = ?
+        `).bind(id).first();
+
+        return c.json(mapTeacher(updated));
+    } catch (error) {
+        console.error('Teacher update error:', error);
+        return c.json({ error: 'Failed to update teacher', message: error instanceof Error ? error.message : 'Unknown' }, 500);
     }
-    if (type) {
-      query += ' AND t.type = ?';
-      params.push(type);
+});
+
+app.delete('/api/v1/teachers/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        await c.env.DB.batch([
+            c.env.DB.prepare("UPDATE teachers SET status = 'inactive' WHERE id = ?").bind(id),
+            updateMetricSQL(c.env.DB, 'total_teachers', -1)
+        ]);
+        return c.json({ success: true });
+    } catch (error) {
+        return c.json({ error: 'Failed' }, 500);
     }
-
-    query += ' ORDER BY t.transaction_date DESC, t.created_at DESC';
-
-    const { results } = await c.env.DB.prepare(query).bind(...params).all();
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch transactions' }, 500);
-  }
 });
 
-app.post('/api/v1/finance/transactions', async (c) => {
-  try {
-    const body = await c.req.json();
-    const transactionId = crypto.randomUUID();
-
-    // Default values for fields not in body
-    const amountPaid = body.amountPaid || 0;
-    const amountRemaining = (body.amount || 0) - amountPaid;
-
-    await c.env.DB.prepare(`
-      INSERT INTO transactions (id, student_id, type, category, amount, amount_paid, amount_remaining,
-        status, transaction_date, due_date, description, reference_number, notes, recorded_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      transactionId,
-      body.studentId,
-      body.type, // 'Revenu' or 'Dépense'
-      body.category || 'Autre',
-      body.amount,
-      amountPaid,
-      amountRemaining,
-      body.status || 'En attente',
-      body.transactionDate || new Date().toISOString().split('T')[0],
-      body.dueDate || null,
-      body.description || null,
-      body.referenceNumber || `TXN${Date.now()}`,
-      body.notes || null,
-      body.recordedBy || null
-    ).run();
-
-    return c.json({ id: transactionId, message: 'Transaction created successfully' }, 201);
-  } catch (error) {
-    console.error('Create transaction error:', error);
-    return c.json({ error: 'Failed to create transaction' }, 500);
-  }
-});
-
-app.put('/api/v1/finance/transactions/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-
-    // Note: If amount or amountPaid changes, logic to update amountRemaining should be here,
-    // but for simple update we rely on client sending correct data or simple field updates.
-
-    await c.env.DB.prepare(`
-      UPDATE transactions SET
-        status = COALESCE(?, status),
-        amount_paid = COALESCE(?, amount_paid),
-        amount_remaining = COALESCE(?, amount_remaining),
-        description = COALESCE(?, description),
-        notes = COALESCE(?, notes),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      body.status || null,
-      body.amountPaid || null,
-      body.amountRemaining || null,
-      body.description || null,
-      body.notes || null,
-      id
-    ).run();
-
-    return c.json({ message: 'Transaction updated successfully' });
-  } catch (error) {
-    console.error('Update transaction error:', error);
-    return c.json({ error: 'Failed to update transaction' }, 500);
-  }
-});
-
-app.delete('/api/v1/finance/transactions/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    await c.env.DB.prepare(`DELETE FROM transactions WHERE id = ?`).bind(id).run();
-    return c.json({ message: 'Transaction deleted successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to delete transaction' }, 500);
-  }
+app.get('/api/v1/teachers/:id/classes', async (c) => {
+    const { results } = await c.env.DB.prepare('SELECT * FROM classes WHERE main_teacher_id = ? AND is_active = 1').bind(c.req.param('id')).all();
+    return c.json(results.map(mapClass));
 });
 
 // ========================================================================
@@ -1221,471 +1420,379 @@ app.delete('/api/v1/finance/transactions/:id', async (c) => {
 // ========================================================================
 
 app.get('/api/v1/timetable', async (c) => {
-  try {
-    const { classId, teacherId, dayOfWeek } = c.req.query();
+    const classId = c.req.query('classId');
+    const teacherId = c.req.query('teacherId');
 
     let query = `
-      SELECT ts.*, c.name as class_name, s.name as subject_name, 
-             u.first_name as teacher_first_name, u.last_name as teacher_last_name
-      FROM timetable_slots ts
-      LEFT JOIN classes c ON ts.class_id = c.id
-      LEFT JOIN subjects s ON ts.subject_id = s.id
-      LEFT JOIN teachers t ON ts.teacher_id = t.id
-      LEFT JOIN users u ON t.user_id = u.id
-      WHERE ts.is_active = 1
+        SELECT ts.*, sub.name as subject_name, sub.color as subject_color
+        FROM timetable_slots ts
+        LEFT JOIN subjects sub ON ts.subject_id = sub.id
+        WHERE 1=1
+    `;
+
+    const params = [];
+    if (classId) {
+        query += " AND ts.class_id = ?";
+        params.push(classId);
+    }
+    if (teacherId) {
+        query += " AND ts.teacher_id = ?";
+        params.push(teacherId);
+    }
+
+    query += " ORDER BY CASE day_of_week WHEN 'Lundi' THEN 1 WHEN 'Mardi' THEN 2 WHEN 'Mercredi' THEN 3 WHEN 'Jeudi' THEN 4 WHEN 'Vendredi' THEN 5 WHEN 'Samedi' THEN 6 WHEN 'Dimanche' THEN 7 ELSE 8 END, start_time";
+
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    return c.json(results);
+});
+
+// ========================================================================
+// ATTENDANCE ROUTES
+// ========================================================================
+
+app.get('/api/v1/attendance', async (c) => {
+    const classId = c.req.query('classId');
+    const date = c.req.query('date');
+    const studentId = c.req.query('studentId');
+
+    let query = `SELECT * FROM attendance WHERE 1=1`;
+    const params = [];
+
+    if (classId) {
+        query += " AND class_id = ?";
+        params.push(classId);
+    }
+    if (date) {
+        query += " AND date = ?";
+        params.push(date);
+    }
+    if (studentId) {
+        query += " AND student_id = ?";
+        params.push(studentId);
+    }
+
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    return c.json(results);
+});
+
+// ========================================================================
+// CLASSES ROUTES
+// ========================================================================
+
+app.get('/api/v1/classes', async (c) => {
+    const search = c.req.query('search');
+    const level = c.req.query('level');
+    const academicYear = c.req.query('academicYear');
+    const mainTeacherId = c.req.query('mainTeacherId');
+    const isActive = c.req.query('isActive');
+    const page = parseInt(c.req.query('page') || '1');
+    const limit = parseInt(c.req.query('limit') || '10');
+    const offset = (page - 1) * limit;
+
+    let query = `
+        SELECT c.*, 
+               COALESCE(u.first_name || ' ' || u.last_name, t.first_name || ' ' || t.last_name) as teacher_name,
+               (SELECT COUNT(*) FROM students s WHERE s.class_id = c.id AND LOWER(s.status) IN ('active', 'actif')) as student_count
+        FROM classes c 
+        LEFT JOIN teachers t ON c.main_teacher_id = t.id 
+        LEFT JOIN users u ON t.user_id = u.id 
+        WHERE 1=1
     `;
 
     const params: any[] = [];
-    if (classId) {
-      query += ' AND ts.class_id = ?';
-      params.push(classId);
-    }
-    if (teacherId) {
-      query += ' AND ts.teacher_id = ?';
-      params.push(teacherId);
-    }
-    if (dayOfWeek) {
-      query += ' AND ts.day_of_week = ?';
-      params.push(dayOfWeek);
+
+    if (level) {
+        query += ` AND c.level = ?`;
+        params.push(level);
     }
 
-    query += ' ORDER BY ts.day_of_week, ts.start_time';
-
-    const { results } = await c.env.DB.prepare(query).bind(...params).all();
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch timetable' }, 500);
-  }
-});
-
-app.post('/api/v1/timetable', async (c) => {
-  try {
-    const body = await c.req.json();
-    const slotId = crypto.randomUUID();
-
-    await c.env.DB.prepare(`
-      INSERT INTO timetable_slots (id, class_id, subject_id, teacher_id, room, 
-        day_of_week, start_time, end_time, recurrence_pattern, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-    `).bind(
-      slotId,
-      body.classId,
-      body.subjectId,
-      body.teacherId,
-      body.room || null,
-      body.dayOfWeek,
-      body.startTime,
-      body.endTime,
-      body.recurrencePattern || 'weekly'
-    ).run();
-
-    return c.json({ id: slotId, message: 'Timetable slot created successfully' }, 201);
-  } catch (error) {
-    console.error('Create timetable slot error:', error);
-    return c.json({ error: 'Failed to create timetable slot' }, 500);
-  }
-});
-
-app.put('/api/v1/timetable/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-
-    await c.env.DB.prepare(`
-      UPDATE timetable_slots SET
-        teacher_id = COALESCE(?, teacher_id),
-        room = COALESCE(?, room),
-        start_time = COALESCE(?, start_time),
-        end_time = COALESCE(?, end_time),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      body.teacherId || null,
-      body.room || null,
-      body.startTime || null,
-      body.endTime || null,
-      id
-    ).run();
-
-    return c.json({ message: 'Timetable slot updated successfully' });
-  } catch (error) {
-    console.error('Update timetable slot error:', error);
-    return c.json({ error: 'Failed to update timetable slot' }, 500);
-  }
-});
-
-app.delete('/api/v1/timetable/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    await c.env.DB.prepare(`
-      UPDATE timetable_slots SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    `).bind(id).run();
-    return c.json({ message: 'Timetable slot deleted successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to delete timetable slot' }, 500);
-  }
-});
-
-// ========================================================================
-// USERS/MANAGEMENT ROUTES
-// ========================================================================
-
-app.get('/api/v1/users', async (c) => {
-  try {
-    const { role, isActive } = c.req.query();
-
-    let query = 'SELECT id, email, role, first_name, last_name, phone, is_active, last_login_at, created_at FROM users WHERE 1=1';
-
-    const params: any[] = [];
-    if (role) {
-      query += ' AND role = ?';
-      params.push(role);
+    if (academicYear) {
+        query += ` AND c.academic_year = ?`;
+        params.push(academicYear);
     }
+
+    if (mainTeacherId) {
+        query += ` AND c.main_teacher_id = ?`;
+        params.push(mainTeacherId);
+    }
+
     if (isActive !== undefined) {
-      query += ' AND is_active = ?';
-      params.push(isActive === 'true' ? 1 : 0);
+        query += ` AND c.is_active = ?`;
+        params.push(isActive === 'true' || isActive === '1' ? 1 : 0);
+    } else {
+        query += ` AND c.is_active = 1`;
     }
 
-    query += ' ORDER BY created_at DESC';
+    if (search) {
+        query += ` AND (c.name LIKE ? OR c.level LIKE ? OR teacher_name LIKE ?)`;
+        const searchPattern = `%${search}%`;
+        params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    // Get total count for pagination
+    const countQuery = `SELECT COUNT(*) as count FROM (${query})`;
+    const countRes = await c.env.DB.prepare(countQuery).bind(...params).first();
+    const total = (countRes as any)?.count || 0;
+
+    query += ` ORDER BY c.level ASC, c.name ASC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
 
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch users' }, 500);
-  }
+
+    return c.json({
+        data: results.map(mapClass),
+        total,
+        page,
+        limit
+    });
 });
 
-app.post('/api/v1/users', async (c) => {
-  try {
-    const body = await c.req.json();
-    const userId = crypto.randomUUID();
+app.get('/api/v1/classes/:id', async (c) => {
+    const classId = c.req.param('id');
 
-    await c.env.DB.prepare(`
-      INSERT INTO users (id, email, password_hash, role, first_name, last_name, phone, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-    `).bind(
-      userId,
-      body.email,
-      body.password || 'hashed_password_placeholder',
-      body.role,
-      body.firstName,
-      body.lastName,
-      body.phone || null
-    ).run();
+    // Fetch class info with student count
+    const cls = await c.env.DB.prepare(`
+        SELECT c.*, 
+               COALESCE(u.first_name || ' ' || u.last_name, t.first_name || ' ' || t.last_name) as teacher_name,
+               (SELECT COUNT(*) FROM students s WHERE s.class_id = c.id AND LOWER(s.status) IN ('active', 'actif')) as student_count
+        FROM classes c 
+        LEFT JOIN teachers t ON c.main_teacher_id = t.id 
+        LEFT JOIN users u ON t.user_id = u.id 
+        WHERE c.id = ?
+    `).bind(classId).first();
 
-    return c.json({ id: userId, message: 'User created successfully' }, 201);
-  } catch (error) {
-    console.error('Create user error:', error);
-    return c.json({ error: 'Failed to create user' }, 500);
-  }
-});
+    if (!cls) return c.json({ error: 'Not found' }, 404);
 
-app.put('/api/v1/users/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
+    // Fetch students list
+    const { results: students } = await c.env.DB.prepare(`
+        SELECT s.*, u.first_name as user_first_name, u.last_name as user_last_name, u.email as user_email
+        FROM students s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.class_id = ? AND LOWER(s.status) IN ('active', 'actif')
+    `).bind(classId).all();
 
-    await c.env.DB.prepare(`
-      UPDATE users SET
-        email = COALESCE(?, email),
-        role = COALESCE(?, role),
-        first_name = COALESCE(?, first_name),
-        last_name = COALESCE(?, last_name),
-        phone = COALESCE(?, phone),
-        is_active = COALESCE(?, is_active),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      body.email || null,
-      body.role || null,
-      body.firstName || null,
-      body.lastName || null,
-      body.phone || null,
-      body.isActive !== undefined ? (body.isActive ? 1 : 0) : null,
-      id
-    ).run();
-
-    return c.json({ message: 'User updated successfully' });
-  } catch (error) {
-    console.error('Update user error:', error);
-    return c.json({ error: 'Failed to update user' }, 500);
-  }
-});
-
-app.delete('/api/v1/users/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    await c.env.DB.prepare(`
-      UPDATE users SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    `).bind(id).run();
-    return c.json({ message: 'User deactivated successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to deactivate user' }, 500);
-  }
-});
-
-// ========================================================================
-// SCHOOL EVENTS ROUTES (Vie Scolaire)
-// ========================================================================
-
-app.get('/api/v1/school-life/events', async (c) => {
-  try {
-    const { eventType, status, startDate, endDate } = c.req.query();
-
-    let query = 'SELECT * FROM school_events WHERE 1=1';
-
-    const params: any[] = [];
-    if (eventType) {
-      query += ' AND event_type = ?';
-      params.push(eventType);
-    }
-    if (status) {
-      query += ' AND status = ?';
-      params.push(status);
-    }
-    if (startDate) {
-      query += ' AND start_date >= ?';
-      params.push(startDate);
-    }
-    if (endDate) {
-      query += ' AND start_date <= ?';
-      params.push(endDate);
+    // Fetch teacher details
+    let teacher = null;
+    if (cls.main_teacher_id) {
+        teacher = await c.env.DB.prepare(`
+            SELECT t.*, 
+                   COALESCE(u.first_name, t.first_name) as first_name, 
+                   COALESCE(u.last_name, t.last_name) as last_name, 
+                   COALESCE(u.email, t.email) as email,
+                   COALESCE(u.phone, t.phone) as phone
+                FROM teachers t 
+                LEFT JOIN users u ON t.user_id = u.id 
+                WHERE t.id = ?
+            `).bind(cls.main_teacher_id).first();
     }
 
-    query += ' ORDER BY start_date DESC';
-
-    const { results } = await c.env.DB.prepare(query).bind(...params).all();
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch events' }, 500);
-  }
+    // Return flat enriched object for the frontend service to map
+    return c.json({
+        ...mapClass(cls),
+        students: students.map(mapStudent),
+        mainTeacher: teacher ? mapTeacher(teacher) : null,
+        // Also keep raw fields as fallback for service mapper
+        academic_year: cls.academic_year,
+        capacity: cls.capacity,
+        main_teacher_id: cls.main_teacher_id
+    });
 });
 
-app.post('/api/v1/school-life/events', async (c) => {
-  try {
-    const body = await c.req.json();
-    const eventId = crypto.randomUUID();
+app.post('/api/v1/classes', async (c) => {
+    try {
+        const data = await c.req.json();
+        const id = data.id || crypto.randomUUID();
+        const isActive = data.isActive === true || data.is_active === 1 || data.isActive === 'true';
 
-    await c.env.DB.prepare(`
-      INSERT INTO school_events (id, title, description, event_type, start_date, end_date, 
-        location, participants, status, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      eventId,
-      body.title,
-      body.description || null,
-      body.eventType,
-      body.startDate,
-      body.endDate || null,
-      body.location || null,
-      body.participants ? JSON.stringify(body.participants) : null,
-      body.status || 'scheduled',
-      body.createdBy || null
-    ).run();
+        const statements = [];
+        statements.push(c.env.DB.prepare(`
+            INSERT INTO classes (id, name, level, academic_year, main_teacher_id, room_number, capacity, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+            id, data.name, data.level, data.academicYear || '2025-2026',
+            data.teacherId || null, data.room || null, data.maxStudents || 40,
+            isActive ? 1 : 0
+        ));
 
-    return c.json({ id: eventId, message: 'Event created successfully' }, 201);
-  } catch (error) {
-    console.error('Create event error:', error);
-    return c.json({ error: 'Failed to create event' }, 500);
-  }
-});
+        if (isActive) {
+            statements.push(updateMetricSQL(c.env.DB, 'active_classes', 1));
+        }
 
-app.put('/api/v1/school-life/events/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
+        await c.env.DB.batch(statements);
 
-    await c.env.DB.prepare(`
-      UPDATE school_events SET
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        event_type = COALESCE(?, event_type),
-        start_date = COALESCE(?, start_date),
-        end_date = COALESCE(?, end_date),
-        location = COALESCE(?, location),
-        status = COALESCE(?, status),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      body.title || null,
-      body.description || null,
-      body.eventType || null,
-      body.startDate || null,
-      body.endDate || null,
-      body.location || null,
-      body.status || null,
-      id
-    ).run();
-
-    return c.json({ message: 'Event updated successfully' });
-  } catch (error) {
-    console.error('Update event error:', error);
-    return c.json({ error: 'Failed to update event' }, 500);
-  }
-});
-
-app.delete('/api/v1/school-life/events/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    await c.env.DB.prepare(`DELETE FROM school_events WHERE id = ?`).bind(id).run();
-    return c.json({ message: 'Event deleted successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to delete event' }, 500);
-  }
-});
-
-// ========================================================================
-// INVENTORY ROUTES
-// ========================================================================
-
-app.get('/api/v1/inventory', async (c) => {
-  try {
-    const { category, status } = c.req.query();
-
-    let query = 'SELECT * FROM inventory WHERE 1=1';
-
-    const params: any[] = [];
-    if (category) {
-      query += ' AND category = ?';
-      params.push(category);
+        return c.json({ success: true, id }, 201);
+    } catch (error) {
+        console.error('Class creation error:', error);
+        return c.json({ error: 'Failed to create class', message: error instanceof Error ? error.message : 'Unknown' }, 500);
     }
-    if (status) {
-      query += ' AND status = ?';
-      params.push(status);
+});
+
+app.put('/api/v1/classes/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const data = await c.req.json();
+        await c.env.DB.prepare(`
+            UPDATE classes SET 
+                name = COALESCE(?, name),
+                level = COALESCE(?, level),
+                main_teacher_id = COALESCE(?, main_teacher_id),
+                room_number = COALESCE(?, room_number),
+                capacity = COALESCE(?, capacity),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).bind(data.name || null, data.level || null, data.teacherId || null, data.room || null, data.maxStudents || null, id).run();
+        return c.json({ success: true });
+    } catch (error) {
+        return c.json({ error: 'Failed to update class' }, 500);
     }
-
-    query += ' ORDER BY name';
-
-    const { results } = await c.env.DB.prepare(query).bind(...params).all();
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch inventory' }, 500);
-  }
 });
 
-app.post('/api/v1/inventory', async (c) => {
-  try {
-    const body = await c.req.json();
-    const itemId = crypto.randomUUID();
-
-    await c.env.DB.prepare(`
-      INSERT INTO inventory (id, name, category, quantity, unit, location, status, 
-        purchase_date, purchase_price, condition, notes, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      itemId,
-      body.name,
-      body.category,
-      body.quantity || 0,
-      body.unit || null,
-      body.location || null,
-      body.status || 'available',
-      body.purchaseDate || null,
-      body.purchasePrice || null,
-      body.condition || null,
-      body.notes || null,
-      body.createdBy || null
-    ).run();
-
-    return c.json({ id: itemId, message: 'Inventory item created successfully' }, 201);
-  } catch (error) {
-    console.error('Create inventory item error:', error);
-    return c.json({ error: 'Failed to create inventory item' }, 500);
-  }
+app.delete('/api/v1/classes/:id', async (c) => {
+    try {
+        await c.env.DB.prepare('UPDATE classes SET is_active = 0 WHERE id = ?').bind(c.req.param('id')).run();
+        return c.json({ success: true });
+    } catch (error) {
+        return c.json({ error: 'Failed to delete class' }, 500);
+    }
 });
 
-app.put('/api/v1/inventory/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-
-    await c.env.DB.prepare(`
-      UPDATE inventory SET
-        name = COALESCE(?, name),
-        category = COALESCE(?, category),
-        quantity = COALESCE(?, quantity),
-        unit = COALESCE(?, unit),
-        location = COALESCE(?, location),
-        status = COALESCE(?, status),
-        condition = COALESCE(?, condition),
-        notes = COALESCE(?, notes),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      body.name || null,
-      body.category || null,
-      body.quantity !== undefined ? body.quantity : null,
-      body.unit || null,
-      body.location || null,
-      body.status || null,
-      body.condition || null,
-      body.notes || null,
-      id
-    ).run();
-
-    return c.json({ message: 'Inventory item updated successfully' });
-  } catch (error) {
-    console.error('Update inventory item error:', error);
-    return c.json({ error: 'Failed to update inventory item' }, 500);
-  }
-});
-
-app.delete('/api/v1/inventory/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    await c.env.DB.prepare(`DELETE FROM inventory WHERE id = ?`).bind(id).run();
-    return c.json({ message: 'Inventory item deleted successfully' });
-  } catch (error) {
-    return c.json({ error: 'Failed to delete inventory item' }, 500);
-  }
-});
-
-// ========================================================================
-// SUBJECTS ROUTES
-// ========================================================================
-
-app.get('/api/v1/subjects', async (c) => {
-  try {
+app.get('/api/v1/classes/:id/students', async (c) => {
     const { results } = await c.env.DB.prepare(`
-      SELECT * FROM subjects WHERE is_active = 1 ORDER BY name
+        SELECT s.*, u.first_name as user_first_name, u.last_name as user_last_name, u.email as user_email
+        FROM students s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.class_id = ? AND s.status = 'active'
+    `).bind(c.req.param('id')).all();
+    return c.json(results.map(mapStudent));
+});
+
+// ========================================================================
+// DOCUMENTS ROUTES
+// ========================================================================
+
+app.get('/api/v1/documents', async (c) => {
+    const { results } = await c.env.DB.prepare(`
+        SELECT d.*, u.first_name as user_first_name, u.last_name as user_last_name
+        FROM documents d
+        LEFT JOIN students s ON d.student_id = s.id
+        LEFT JOIN users u ON s.user_id = u.id
     `).all();
+    return c.json(results.map(mapDocument));
+});
 
-    return c.json(results);
-  } catch (error) {
-    return c.json({ error: 'Failed to fetch subjects' }, 500);
-  }
+app.get('/api/v1/students/:id/documents', async (c) => {
+    const { results } = await c.env.DB.prepare('SELECT * FROM documents WHERE student_id = ?').bind(c.req.param('id')).all();
+    return c.json(results.map(mapDocument));
 });
 
 // ========================================================================
-// HEALTH CHECK
+// ATTENDANCE & GRADES
 // ========================================================================
 
-app.get('/api/v1/health', (c) => {
-  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.post('/api/v1/attendance/bulk', async (c) => {
+    try {
+        const records = await c.req.json();
+        const statements = records.map((r: any) => {
+            const id = crypto.randomUUID();
+            return c.env.DB.prepare(`
+                INSERT INTO attendance (id, student_id, class_id, date, status, period, is_justified)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
+            `).bind(id, r.studentId, r.classId, r.date, r.status, r.period || null);
+        });
+
+        await c.env.DB.batch(statements);
+        return c.json({ success: true, count: records.length });
+    } catch (error) {
+        return c.json({ error: 'Failed to save attendance' }, 500);
+    }
+});
+
+app.post('/api/v1/grades/bulk', async (c) => {
+    try {
+        const records = await c.req.json();
+        const statements = records.map((r: any) => {
+            const id = crypto.randomUUID();
+            return c.env.DB.prepare(`
+                INSERT INTO grades (id, student_id, subject_id, teacher_id, evaluation_type, value, max_value, coefficient, trimester, academic_year, evaluation_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+                id, r.studentId, r.subjectId, r.teacherId, r.evaluationType,
+                r.value, r.maxValue || 20, r.coefficient || 1,
+                r.trimester || '1er Trimestre', r.academicYear || '2025-2026',
+                r.date || new Date().toISOString().split('T')[0]
+            );
+        });
+
+        await c.env.DB.batch(statements);
+        return c.json({ success: true, count: records.length });
+    } catch (error) {
+        return c.json({ error: 'Failed to save grades' }, 500);
+    }
 });
 
 // ========================================================================
-// HELPER FUNCTIONS
+// ACTIVITY LOG ROUTES
 // ========================================================================
 
-async function generateJWT(user: any, secret: string): Promise<string> {
-  const payload = {
-    sub: user.id,
-    email: user.email,
-    role: user.role,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days
-  };
+app.get('/api/v1/activities', async (c) => {
+    try {
+        const page = parseInt(c.req.query('page') || '1');
+        const limit = parseInt(c.req.query('limit') || '100');
+        const category = c.req.query('category');
+        const search = c.req.query('search');
+        const offset = (page - 1) * limit;
 
-  // Simple JWT generation (in production use proper library)
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body = btoa(JSON.stringify(payload));
-  const signature = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(`${header}.${body}.${secret}`)
-  );
+        let query = `SELECT * FROM activity_logs WHERE 1=1`;
+        const params: any[] = [];
 
-  return `${header}.${body}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
-}
+        if (category && category !== 'all') {
+            query += ` AND category = ?`;
+            params.push(category);
+        }
+
+        if (search) {
+            query += ` AND (user_name LIKE ? OR action LIKE ? OR details LIKE ?)`;
+            const pattern = `%${search}%`;
+            params.push(pattern, pattern, pattern);
+        }
+
+        query += ` ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
+        params.push(limit, offset);
+
+        const { results } = await c.env.DB.prepare(query).bind(...params).all();
+        return c.json(results.map(mapActivity));
+    } catch (error) {
+        return c.json({ error: 'Failed to fetch activities' }, 500);
+    }
+});
+
+app.post('/api/v1/activities', async (c) => {
+    try {
+        const body = await c.req.json();
+        const id = body.id || `act-${crypto.randomUUID()}`;
+        const timestamp = body.timestamp || new Date().toISOString();
+
+        await c.env.DB.prepare(`
+            INSERT INTO activity_logs (id, timestamp, user_id, user_name, user_role, action, category, details, class_id, student_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+            id,
+            timestamp,
+            body.userId,
+            body.userName,
+            body.userRole,
+            body.action,
+            body.category,
+            body.details || null,
+            body.classId || null,
+            body.studentId || null
+        ).run();
+
+        return c.json({ success: true, id }, 201);
+    } catch (error) {
+        console.error('Error logging activity:', error);
+        return c.json({ error: 'Failed to log activity' }, 500);
+    }
+});
 
 export default app;

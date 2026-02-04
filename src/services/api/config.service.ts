@@ -24,8 +24,8 @@ export interface APIConfiguration {
 
 class APIConfigServiceClass {
   private static instance: APIConfigServiceClass;
-  
-  private constructor() {}
+
+  private constructor() { }
 
   static getInstance(): APIConfigServiceClass {
     if (!APIConfigServiceClass.instance) {
@@ -38,7 +38,7 @@ class APIConfigServiceClass {
    * Get current API configuration
    */
   getConfiguration(): APIConfiguration {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api/v1';
     const useMockData = import.meta.env.VITE_USE_MOCK_DATA === 'true';
     const mode = import.meta.env.MODE || 'development';
 
@@ -69,7 +69,7 @@ class APIConfigServiceClass {
     }
 
     // Check if using local NestJS backend (development/functional data)
-    if (apiUrl.includes('localhost:3002')) {
+    if (apiUrl.includes('127.0.0.1:3001') || apiUrl.includes('localhost:3001')) {
       return {
         id: 'postgresql-local',
         name: 'PostgreSQL Local (Development)',
@@ -103,7 +103,7 @@ class APIConfigServiceClass {
         id: 'postgresql-local',
         name: 'PostgreSQL Local (Development)',
         type: 'postgresql',
-        url: 'http://localhost:3002/api/v1',
+        url: 'http://127.0.0.1:3001/api/v1',
         status: 'active',
         description: 'Base de données locale pour développement et données fonctionnelles (Active)',
         environment: 'development',
@@ -158,7 +158,7 @@ class APIConfigServiceClass {
     recordCounts?: Record<string, number>;
   }> {
     const config = this.getConfiguration();
-    
+
     try {
       // This would call a backend endpoint that provides database metadata
       const response = await fetch(`${config.apiBaseUrl}/system/database-info`, {

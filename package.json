@@ -1,8 +1,27 @@
 {
   "name": "ksp-school-management-system",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0-beta.1",
+  "description": "Karat School Project - School Management System for digitalization of educational processes",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Perissosdigitals/kds-school-management-system.git"
+  },
+  "keywords": [
+    "school",
+    "education",
+    "management",
+    "ivory-coast",
+    "karat",
+    "cloudflare"
+  ],
+  "author": "KSP Technical Team",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "vite --mode development",
     "dev:stable": "vite --mode development --port 5173",
@@ -33,6 +52,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
+    "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.22",

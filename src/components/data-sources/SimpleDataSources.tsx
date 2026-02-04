@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { APIConfigService } from '../../services/api/config.service';
 import DataBrowser from './DataBrowser';
-import { allStudents, schoolClasses, teacherDetails } from '../../../data/mockData';
 
 interface DataSource {
   id: string;
@@ -34,7 +33,7 @@ export default function SimpleDataSources() {
   const loadData = async () => {
     try {
       const apiUrl = config.apiBaseUrl;
-      
+
       // Fetch actual counts from NestJS endpoints
       const [studentsRes, teachersRes, classesRes] = await Promise.all([
         axios.get(`${apiUrl}/students/stats/count`).catch(() => ({ data: { count: -1 } })),
@@ -43,17 +42,16 @@ export default function SimpleDataSources() {
       ]);
 
       setStats({
-        students: studentsRes.data.count !== -1 ? studentsRes.data.count : allStudents.length,
-        teachers: teachersRes.data.count !== -1 ? teachersRes.data.count : teacherDetails.length,
-        classes: classesRes.data.count !== -1 ? classesRes.data.count : schoolClasses.length
+        students: studentsRes.data.count !== -1 ? studentsRes.data.count : 0,
+        teachers: teachersRes.data.count !== -1 ? teachersRes.data.count : 0,
+        classes: classesRes.data.count !== -1 ? classesRes.data.count : 0
       });
     } catch (error) {
       console.error('Error loading data:', error);
-      // Fallback to mock data
       setStats({
-        students: allStudents.length,
-        teachers: teacherDetails.length,
-        classes: schoolClasses.length
+        students: 0,
+        teachers: 0,
+        classes: 0
       });
     } finally {
       setLoading(false);
@@ -141,7 +139,7 @@ export default function SimpleDataSources() {
             </div>
             <h4 className="text-gray-600 font-medium">Élèves</h4>
             <p className="text-sm text-gray-500 mt-1">Total élèves inscrits</p>
-            <button 
+            <button
               onClick={() => setBrowserOpen('students')}
               className="mt-3 w-full text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded transition-colors flex items-center justify-center gap-1"
             >
@@ -159,7 +157,7 @@ export default function SimpleDataSources() {
             </div>
             <h4 className="text-gray-600 font-medium">Enseignants</h4>
             <p className="text-sm text-gray-500 mt-1">Personnel enseignant actif</p>
-            <button 
+            <button
               onClick={() => setBrowserOpen('teachers')}
               className="mt-3 w-full text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded transition-colors flex items-center justify-center gap-1"
             >
@@ -177,7 +175,7 @@ export default function SimpleDataSources() {
             </div>
             <h4 className="text-gray-600 font-medium">Classes</h4>
             <p className="text-sm text-gray-500 mt-1">Classes disponibles</p>
-            <button 
+            <button
               onClick={() => setBrowserOpen('classes')}
               className="mt-3 w-full text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded transition-colors flex items-center justify-center gap-1"
             >
@@ -194,7 +192,7 @@ export default function SimpleDataSources() {
           <h3 className="text-xl font-bold text-gray-800">Architecture 3-Tiers</h3>
           <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">PostgreSQL → D1 → CSV</span>
         </div>
-        
+
         {/* Architecture Flow Diagram */}
         <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
           <div className="flex items-center justify-between text-sm">
@@ -225,15 +223,15 @@ export default function SimpleDataSources() {
               if (source.type === 'cloudflare-d1') return 'bxs-cloud';
               return 'bx-file-blank';
             };
-            
+
             const getColor = () => {
               if (source.type === 'postgresql') return 'blue';
               if (source.type === 'cloudflare-d1') return 'purple';
               return 'green';
             };
-            
+
             const color = getColor();
-            
+
             return (
               <div
                 key={source.id}
@@ -258,7 +256,7 @@ export default function SimpleDataSources() {
                           <span><strong>URL:</strong> <code className="bg-white px-1 rounded">{source.url.split('/api')[0]}</code></span>
                         )}
                       </div>
-                      
+
                       {/* Migration Actions */}
                       {source.id === 'postgresql-local' && (
                         <div className="mt-3 flex gap-2">
@@ -272,7 +270,7 @@ export default function SimpleDataSources() {
                           </button>
                         </div>
                       )}
-                      
+
                       {source.id === 'cloudflare-d1-prod' && (
                         <div className="mt-3 flex gap-2">
                           <button className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors flex items-center gap-1">
@@ -285,7 +283,7 @@ export default function SimpleDataSources() {
                           </button>
                         </div>
                       )}
-                      
+
                       {source.id === 'csv-export-import' && (
                         <div className="mt-3 flex gap-2">
                           <button className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors flex items-center gap-1">
@@ -326,7 +324,7 @@ export default function SimpleDataSources() {
             </div>
             <p className="text-xs text-gray-600">Export PostgreSQL → D1 (schéma normalisé)</p>
           </div>
-          
+
           <div className="p-3 border border-gray-200 rounded-lg hover:border-purple-300 transition-colors">
             <div className="flex items-center gap-2 mb-1">
               <i className='bx bx-import text-purple-600'></i>
@@ -334,7 +332,7 @@ export default function SimpleDataSources() {
             </div>
             <p className="text-xs text-gray-600">Import direct PostgreSQL → D1</p>
           </div>
-          
+
           <div className="p-3 border border-gray-200 rounded-lg hover:border-green-300 transition-colors">
             <div className="flex items-center gap-2 mb-1">
               <i className='bx bx-export text-green-600'></i>
@@ -342,7 +340,7 @@ export default function SimpleDataSources() {
             </div>
             <p className="text-xs text-gray-600">Export tables ou DB complète en CSV</p>
           </div>
-          
+
           <div className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
             <div className="flex items-center gap-2 mb-1">
               <i className='bx bx-refresh text-blue-600'></i>
@@ -355,7 +353,7 @@ export default function SimpleDataSources() {
           <p className="text-sm text-blue-900 flex items-start gap-2">
             <i className='bx bx-info-circle text-blue-600 mt-0.5'></i>
             <span>
-              <strong>Note:</strong> Les scripts sont disponibles dans le dossier <code className="bg-white px-1 rounded">/scripts</code>. 
+              <strong>Note:</strong> Les scripts sont disponibles dans le dossier <code className="bg-white px-1 rounded">/scripts</code>.
               Exécutez-les avec <code className="bg-white px-1 rounded">npm run</code> ou directement avec <code className="bg-white px-1 rounded">tsx</code>.
             </span>
           </p>
@@ -430,7 +428,7 @@ export default function SimpleDataSources() {
 
       {/* DataBrowser Modal */}
       {browserOpen && (
-        <DataBrowser 
+        <DataBrowser
           tableName={browserOpen}
           apiUrl={config.apiBaseUrl}
           onClose={() => setBrowserOpen(null)}

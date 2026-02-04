@@ -1,7 +1,7 @@
-import type { UserRole, Page } from '../types';
+import type { User, UserRole, Page } from '../types';
 
 const permissions: Record<UserRole, Page[]> = {
-  Fondatrice: [
+  fondatrice: [
     'dashboard',
     'student-registration',
     'student-management',
@@ -15,8 +15,10 @@ const permissions: Record<UserRole, Page[]> = {
     'grades-management',
     'class-management',
     'data-management',
+    'activity-log',
+    'module-management',
   ],
-  Directrice: [
+  directrice: [
     'dashboard',
     'student-registration',
     'student-management',
@@ -30,17 +32,62 @@ const permissions: Record<UserRole, Page[]> = {
     'grades-management',
     'class-management',
     'data-management',
+    'activity-log',
+    'module-management',
   ],
-  Comptable: [
+  admin: [
+    'dashboard',
+    'student-registration',
+    'student-management',
+    'teacher-management',
+    'finances',
+    'inventory',
+    'reports',
+    'documentation',
+    'user-management',
+    'school-life',
+    'grades-management',
+    'class-management',
+    'data-management',
+    'activity-log',
+    'module-management',
+  ],
+  director: [
+    'dashboard',
+    'student-registration',
+    'student-management',
+    'teacher-management',
+    'finances',
+    'inventory',
+    'reports',
+    'documentation',
+    'user-management',
+    'school-life',
+    'grades-management',
+    'class-management',
+    'data-management',
+    'activity-log',
+    'module-management',
+  ],
+  accountant: [
     'dashboard',
     'finances',
     'reports'
   ],
-  Gestionnaire: [
+  manager: [
     'dashboard',
     'inventory'
   ],
-  'Agent Administratif': [
+  agent_admin: [
+    'dashboard',
+    'student-registration',
+    'student-management',
+    'school-life',
+    'grades-management',
+    'class-management',
+    'documentation',
+  ],
+  agent: [
     'dashboard',
     'student-registration',
     'student-management',
@@ -48,15 +95,34 @@ const permissions: Record<UserRole, Page[]> = {
     'grades-management',
     'class-management',
   ],
-  'Enseignant': [
+  teacher: [
     'dashboard',
     'school-life',
     'student-management',
     'grades-management',
     'class-management',
   ],
+  student: [
+    'dashboard',
+    'school-life',
+  ],
+  parent: [
+    'dashboard',
+    'school-life',
+  ],
 };
 
-export const hasPermission = (role: UserRole, page: Page): boolean => {
-  return permissions[role]?.includes(page) ?? false;
+export const hasPermission = (user: User | UserRole, page: Page): boolean => {
+  // If only role is provided, check default permissions
+  if (typeof user === 'string') {
+    return permissions[user]?.includes(page) ?? false;
+  }
+
+  // Check custom overrides first
+  if (user.custom_permissions && user.custom_permissions[page] !== undefined) {
+    return user.custom_permissions[page];
+  }
+
+  // Fallback to default role permissions
+  return permissions[user.role]?.includes(page) ?? false;
 };

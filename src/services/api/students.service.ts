@@ -5,7 +5,6 @@
 
 import axios, { AxiosInstance } from 'axios';
 import type { Student, CreateStudentDto, UpdateStudentDto } from '../../types';
-import { allStudents } from '../../../data/mockData';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
@@ -40,8 +39,8 @@ class StudentsServiceClass {
       });
       return response.data;
     } catch (error) {
-      console.warn('StudentsService: API error, using mock data', error);
-      return allStudents;
+      console.error('StudentsService: Error fetching students', error);
+      throw error;
     }
   }
 
@@ -53,10 +52,8 @@ class StudentsServiceClass {
       const response = await this.api.get(`/${id}`);
       return response.data;
     } catch (error) {
-      console.warn('StudentsService: API error, using mock data', error);
-      const student = allStudents.find(s => s.id === id);
-      if (!student) throw new Error('Student not found in mock data');
-      return student;
+      console.error(`StudentsService: Error fetching student ${id}`, error);
+      throw error;
     }
   }
 
@@ -68,16 +65,8 @@ class StudentsServiceClass {
       const response = await this.api.post('/', data);
       return response.data;
     } catch (error) {
-      console.warn('StudentsService: API error, simulating creation', error);
-      // Simulate creation
-      const newStudent: Student = {
-        id: `student-${Date.now()}`,
-        ...data,
-        registrationDate: new Date().toISOString(),
-        status: 'En attente'
-      } as any;
-      allStudents.push(newStudent);
-      return newStudent;
+      console.error('StudentsService: Error creating student', error);
+      throw error;
     }
   }
 
@@ -89,12 +78,7 @@ class StudentsServiceClass {
       const response = await this.api.put(`/${id}`, data);
       return response.data;
     } catch (error) {
-      console.warn('StudentsService: API error, simulating update', error);
-      const index = allStudents.findIndex(s => s.id === id);
-      if (index !== -1) {
-        allStudents[index] = { ...allStudents[index], ...data };
-        return allStudents[index];
-      }
+      console.error(`StudentsService: Error updating student ${id}`, error);
       throw error;
     }
   }
@@ -106,11 +90,8 @@ class StudentsServiceClass {
     try {
       await this.api.delete(`/${id}`);
     } catch (error) {
-      console.warn('StudentsService: API error, simulating delete', error);
-      const index = allStudents.findIndex(s => s.id === id);
-      if (index !== -1) {
-        allStudents.splice(index, 1);
-      }
+      console.error(`StudentsService: Error deleting student ${id}`, error);
+      throw error;
     }
   }
 
@@ -124,8 +105,8 @@ class StudentsServiceClass {
       });
       return response.data;
     } catch (error) {
-      console.warn('StudentsService: API error, using mock data', error);
-      return allStudents.filter(s => s.classId === classId);
+      console.error(`StudentsService: Error fetching students for class ${classId}`, error);
+      return [];
     }
   }
 
@@ -137,8 +118,8 @@ class StudentsServiceClass {
       const response = await this.api.get('/stats/count');
       return response.data.count;
     } catch (error) {
-      console.warn('StudentsService: API error, using mock data', error);
-      return allStudents.length;
+      console.error('StudentsService: Error fetching student count', error);
+      return 0;
     }
   }
 
@@ -152,13 +133,8 @@ class StudentsServiceClass {
       });
       return response.data;
     } catch (error) {
-      console.warn('StudentsService: API error, using mock data', error);
-      const lowerQuery = query.toLowerCase();
-      return allStudents.filter(s => 
-        s.firstName.toLowerCase().includes(lowerQuery) || 
-        s.lastName.toLowerCase().includes(lowerQuery) ||
-        s.registrationNumber.toLowerCase().includes(lowerQuery)
-      );
+      console.error('StudentsService: Error searching students', error);
+      return [];
     }
   }
 }

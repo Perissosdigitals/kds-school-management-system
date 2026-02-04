@@ -73,4 +73,9 @@ export class CreateTeacherDto {
   @IsOptional()
   @IsEnum(['Actif', 'Inactif'])
   status?: TeacherStatus;
+
+  @ApiPropertyOptional({ type: [String], example: ['uuid-1', 'uuid-2'] })
+  @IsOptional()
+  @IsString({ each: true })
+  classIds?: string[];
 }

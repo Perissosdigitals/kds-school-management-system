@@ -1,4 +1,4 @@
-name = "ksp-backend-api"
+name = "kds-backend-api"
 main = "src/index.ts"
 compatibility_date = "2025-11-18"
 compatibility_flags = ["nodejs_compat"]
@@ -6,8 +6,20 @@ compatibility_flags = ["nodejs_compat"]
 [observability]
 enabled = true
 
-# Database binding (Cloudflare D1)
 [[d1_databases]]
 binding = "DB"
 database_name = "kds-school-db"
 database_id = "d293f4d0-fb4d-4f99-a45c-783fcd374a6e"
+
+[[r2_buckets]]
+binding = "DOCUMENTS"
+bucket_name = "ksp-documents"
+
+[env.production]
+name = "kds-backend-api-production"
+d1_databases = [
+  { binding = "DB", database_name = "ksp-production-db", database_id = "704fbd5c-6338-4ec7-b612-aba48142b558" }
+]
+r2_buckets = [
+  { binding = "DOCUMENTS", bucket_name = "ksp-documents" }
+]

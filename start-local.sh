@@ -56,7 +56,7 @@ echo "   Logs: /tmp/ksp-backend.log"
 # Attendre que le backend démarre
 echo "   ⏳ Attente du démarrage..."
 WAIT=0
-MAX_WAIT=30
+MAX_WAIT=60
 
 while [ $WAIT -lt $MAX_WAIT ]; do
     if curl -s http://localhost:3002/api/v1/health 2>/dev/null | grep -q "ok"; then

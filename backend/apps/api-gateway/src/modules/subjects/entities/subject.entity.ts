@@ -12,8 +12,13 @@ export class Subject {
   name: string;
 
   @ApiProperty({ description: 'Subject code', example: 'MATH101' })
+  @ApiProperty({ description: 'Subject code', example: 'MATH101' })
   @Column({ type: 'varchar', length: 20, unique: true })
   code: string;
+
+  @ApiProperty({ description: 'Registration number', example: 'SUB-001' })
+  @Column({ name: 'registration_number', type: 'varchar', length: 20, unique: true, nullable: true })
+  registrationNumber: string;
 
   @ApiPropertyOptional({ description: 'Subject description', example: 'Algèbre et géométrie' })
   @Column({ type: 'text', nullable: true })

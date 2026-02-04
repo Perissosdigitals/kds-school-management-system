@@ -3,51 +3,50 @@ import type { User, ImportBatch, ImportBatchStatus } from '../types';
 import { getImportBatches, submitImportBatch, approveImportBatch, rejectImportBatch } from '../services/api/dataManagement.service';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { ImportBatchModal } from './ui/ImportBatchModal';
-import { DataSourceSelector } from './DataSourceSelector';
 import SimpleDataSources from '../src/components/data-sources/SimpleDataSources';
 
 const getStatusChip = (status: ImportBatchStatus) => {
-    switch(status) {
-        case 'pending': return 'bg-amber-100 text-amber-800';
-        case 'applied': return 'bg-green-100 text-green-800';
-        case 'rejected': return 'bg-red-100 text-red-800';
-        case 'approved': return 'bg-blue-100 text-blue-800'; // Intermediate state
-        default: return 'bg-gray-100 text-gray-800';
-    }
+  switch (status) {
+    case 'pending': return 'bg-amber-100 text-amber-800';
+    case 'applied': return 'bg-green-100 text-green-800';
+    case 'rejected': return 'bg-red-100 text-red-800';
+    case 'approved': return 'bg-blue-100 text-blue-800'; // Intermediate state
+    default: return 'bg-gray-100 text-gray-800';
+  }
 };
 
 const BatchRow = React.memo(({ batch, onApprove, onReject, canReview }: { batch: ImportBatch; onApprove: (id: string) => void; onReject: (id: string) => void; canReview: boolean }) => (
-    <tr className="bg-white border-b">
-        <td className="px-6 py-4">{new Date(batch.submittedAt).toLocaleString('fr-FR')}</td>
-        <td className="px-6 py-4 font-medium text-slate-800">{batch.submittedBy}</td>
-        <td className="px-6 py-4">{batch.dataType}</td>
-        <td className="px-6 py-4 text-sm text-slate-600 truncate max-w-xs" title={batch.fileName}>{batch.fileName}</td>
-        <td className="px-6 py-4">
-            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusChip(batch.status)}`}>
-                {batch.status}
-            </span>
-        </td>
-        <td className="px-6 py-4">
-            {batch.status === 'pending' && canReview ? (
-                <div className="flex gap-2">
-                    <button onClick={() => onApprove(batch.id)} className="text-green-600 hover:text-green-800 font-semibold text-xs">Approuver</button>
-                    <button onClick={() => onReject(batch.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs">Rejeter</button>
-                </div>
-            ) : (
-                <div className="text-xs text-slate-500">
-                    {batch.reviewedBy && <p>Par: {batch.reviewedBy}</p>}
-                    {batch.reviewedAt && <p>{new Date(batch.reviewedAt).toLocaleDateString('fr-FR')}</p>}
-                </div>
-            )}
-        </td>
-    </tr>
+  <tr className="bg-white border-b">
+    <td className="px-6 py-4">{new Date(batch.submittedAt).toLocaleString('fr-FR')}</td>
+    <td className="px-6 py-4 font-medium text-slate-800">{batch.submittedBy}</td>
+    <td className="px-6 py-4">{batch.dataType}</td>
+    <td className="px-6 py-4 text-sm text-slate-600 truncate max-w-xs" title={batch.fileName}>{batch.fileName}</td>
+    <td className="px-6 py-4">
+      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusChip(batch.status)}`}>
+        {batch.status}
+      </span>
+    </td>
+    <td className="px-6 py-4">
+      {batch.status === 'pending' && canReview ? (
+        <div className="flex gap-2">
+          <button onClick={() => onApprove(batch.id)} className="text-green-600 hover:text-green-800 font-semibold text-xs">Approuver</button>
+          <button onClick={() => onReject(batch.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs">Rejeter</button>
+        </div>
+      ) : (
+        <div className="text-xs text-slate-500">
+          {batch.reviewedBy && <p>Par: {batch.reviewedBy}</p>}
+          {batch.reviewedAt && <p>{new Date(batch.reviewedAt).toLocaleDateString('fr-FR')}</p>}
+        </div>
+      )}
+    </td>
+  </tr>
 ));
 
 export const DataManagement: React.FC<{ currentUser: User }> = ({ currentUser }) => {
   const [batches, setBatches] = useState<ImportBatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const canReview = ['Fondatrice', 'Directrice'].includes(currentUser.role);
+  const canReview = ['fondatrice', 'directrice', 'admin'].includes(currentUser.role);
 
   const fetchBatches = useCallback(async () => {
     setIsLoading(true);
@@ -66,14 +65,14 @@ export const DataManagement: React.FC<{ currentUser: User }> = ({ currentUser })
     await submitImportBatch(dataType, file.name, fileContent, userName);
     fetchBatches(); // Refresh list
   }, [currentUser.first_name, currentUser.last_name, fetchBatches]);
-  
+
   const handleApprove = useCallback(async (batchId: string) => {
     const userName = `${currentUser.first_name} ${currentUser.last_name}`;
     await approveImportBatch(batchId, userName);
     fetchBatches();
     alert('Importation approuvée et appliquée !');
   }, [currentUser.first_name, currentUser.last_name, fetchBatches]);
-  
+
   const handleReject = useCallback(async (batchId: string) => {
     const userName = `${currentUser.first_name} ${currentUser.last_name}`;
     await rejectImportBatch(batchId, userName);
@@ -94,22 +93,20 @@ export const DataManagement: React.FC<{ currentUser: User }> = ({ currentUser })
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('sources')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'sources'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'sources'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
           >
             <i className='bx bx-data mr-2'></i>
             Sources de Données
           </button>
           <button
             onClick={() => setActiveTab('imports')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'imports'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'imports'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
           >
             <i className='bx bx-upload mr-2'></i>
             Gestion des Imports
@@ -125,52 +122,50 @@ export const DataManagement: React.FC<{ currentUser: User }> = ({ currentUser })
       {/* Imports Management Tab */}
       {activeTab === 'imports' && (
         <>
-          {canReview && <DataSourceSelector />}
-
-      <div className="bg-white p-6 rounded-xl shadow-lg">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
               <h3 className="text-xl font-semibold text-slate-800">Historique des Imports et Mises à Jour</h3>
               <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg transition-all w-full sm:w-auto">
-                  <i className='bx bx-upload'></i> <span>Nouvel Import</span>
+                <i className='bx bx-upload'></i> <span>Nouvel Import</span>
               </button>
-          </div>
-          {isLoading ? <LoadingSpinner /> : (
+            </div>
+            {isLoading ? <LoadingSpinner /> : (
               <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left text-gray-500">
-                      <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                          <tr>
-                              <th scope="col" className="px-6 py-3">Date Soumission</th>
-                              <th scope="col" className="px-6 py-3">Soumis Par</th>
-                              <th scope="col" className="px-6 py-3">Type de Données</th>
-                              <th scope="col" className="px-6 py-3">Fichier</th>
-                              <th scope="col" className="px-6 py-3">Statut</th>
-                              <th scope="col" className="px-6 py-3">Actions / Validation</th>
-                          </tr>
-                      </thead>
-                      <tbody>
-                          {batches.map(batch => (
-                              <BatchRow key={batch.id} batch={batch} onApprove={handleApprove} onReject={handleReject} canReview={canReview} />
-                          ))}
-                          {batches.length === 0 && (
-                            <tr>
-                                <td colSpan={6} className="text-center py-10 text-slate-500">
-                                    <i className='bx bx-cloud-upload text-4xl mb-2'></i>
-                                    <p>Aucun lot d'importation à afficher.</p>
-                                    <p className="text-xs">Cliquez sur "Nouvel Import" pour commencer.</p>
-                                </td>
-                            </tr>
-                          )}
-                      </tbody>
-                  </table>
+                <table className="w-full text-sm text-left text-gray-500">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3">Date Soumission</th>
+                      <th scope="col" className="px-6 py-3">Soumis Par</th>
+                      <th scope="col" className="px-6 py-3">Type de Données</th>
+                      <th scope="col" className="px-6 py-3">Fichier</th>
+                      <th scope="col" className="px-6 py-3">Statut</th>
+                      <th scope="col" className="px-6 py-3">Actions / Validation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {batches.map(batch => (
+                      <BatchRow key={batch.id} batch={batch} onApprove={handleApprove} onReject={handleReject} canReview={canReview} />
+                    ))}
+                    {batches.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="text-center py-10 text-slate-500">
+                          <i className='bx bx-cloud-upload text-4xl mb-2'></i>
+                          <p>Aucun lot d'importation à afficher.</p>
+                          <p className="text-xs">Cliquez sur "Nouvel Import" pour commencer.</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-          )}
-      </div>
-      
-      <ImportBatchModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleSubmitImport}
-      />
+            )}
+          </div>
+
+          <ImportBatchModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSubmit={handleSubmitImport}
+          />
         </>
       )}
     </div>

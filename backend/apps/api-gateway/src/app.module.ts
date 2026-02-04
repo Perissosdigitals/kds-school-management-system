@@ -23,6 +23,11 @@ import { SchoolLifeModule } from './modules/school-life/school-life.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { EnrollmentModule } from './modules/enrollment/enrollment.module';
 import { DataManagementModule } from './modules/data-management/data-management.module';
+import { StorageModule } from './common/services/storage.module';
+import { ParentsModule } from './modules/parents/parents.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { MonitoringModule } from './monitoring.module';
+import { ActivityLogModule } from './modules/activity-log/activity-log.module';
 
 @Module({
   imports: [
@@ -31,6 +36,9 @@ import { DataManagementModule } from './modules/data-management/data-management.
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // Cron jobs
+    ScheduleModule.forRoot(),
 
     // Rate Limiting (60 requêtes par minute par défaut)
     ThrottlerModule.forRoot([{
@@ -74,8 +82,12 @@ import { DataManagementModule } from './modules/data-management/data-management.
     EnrollmentModule,
     SeedModule,
     DataManagementModule,
+    ParentsModule,
+    StorageModule,
+    MonitoringModule,
+    ActivityLogModule,
   ],
-  controllers: [HealthController, EnhancedHealthController],
+  controllers: [],
   providers: [
     {
       provide: APP_GUARD,

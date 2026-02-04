@@ -3,12 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
-import { ModernLogin } from './components/ModernLogin';
-import type { Page, User } from './types';
+import type { Page, User, UserRole } from './types';
 import { hasPermission } from './utils/permissions';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
-import { allUsers as mockUsers } from './data/mockData';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ToastProvider } from './context/ToastContext';
+import { ToastContainer } from './components/ui/Toast';
 
 const StudentRegistration = lazy(() => import('./components/StudentRegistration'));
 const StudentManagement = lazy(() => import('./components/StudentManagement'));
@@ -22,7 +22,11 @@ const Inventory = lazy(() => import('./components/Inventory'));
 const Reports = lazy(() => import('./components/Reports').then(m => ({ default: m.Reports })));
 const Documentation = lazy(() => import('./components/Documentation').then(m => ({ default: m.Documentation })));
 const UserManagement = lazy(() => import('./components/UserManagement'));
+const ModuleManagement = lazy(() => import('./components/ModuleManagement'));
 const DataManagement = lazy(() => import('./components/DataManagement'));
+const ActivityLog = lazy(() => import('./components/ActivityLog').then(m => ({ default: m.ActivityLog })));
+const UserProfileSettings = lazy(() => import('./components/UserProfileSettings').then(m => ({ default: m.UserProfileSettings })));
+const SecurePortal = lazy(() => import('./components/SecurePortal').then(m => ({ default: m.SecurePortal })));
 
 // ProtectedRoute Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; isAuthenticated: boolean }> = ({
@@ -39,12 +43,12 @@ const AppContent: React.FC<{
   currentUser: User;
   activePage: Page;
   handleSetPage: (page: Page) => void;
-  handleUserChange: (userId: string) => void;
-}> = ({ currentUser, activePage, handleSetPage, handleUserChange }) => {
+  onUserUpdate: (updatedUser: User) => void;
+}> = ({ currentUser, activePage, handleSetPage, onUserUpdate }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
   const renderContent = () => {
-    if (!hasPermission(currentUser.role, activePage)) {
+    if (!hasPermission(currentUser, activePage)) {
       return (
         <div className="text-center p-10">
           <i className='bx bxs-lock-alt text-6xl text-red-400 mb-4'></i>
@@ -76,45 +80,67 @@ const AppContent: React.FC<{
       case 'reports':
         return <Reports />;
       case 'documentation':
-        return <Documentation />;
+        return <Documentation currentUser={currentUser} />;
       case 'user-management':
         return <UserManagement />;
+      case 'module-management':
+        return <ModuleManagement />;
       case 'data-management':
         return <DataManagement currentUser={currentUser} />;
+      case 'activity-log':
+        return <ActivityLog />;
+      case 'user-profile':
+        return <UserProfileSettings user={currentUser} onUpdate={(updatedUser) => {
+          onUserUpdate(updatedUser);
+          const storedUser = localStorage.getItem('ksp_user');
+          if (storedUser) {
+            const backendUser = JSON.parse(storedUser);
+            backendUser.avatar_url = updatedUser.avatar_url;
+            localStorage.setItem('ksp_user', JSON.stringify(backendUser));
+          }
+        }} />;
       default:
         return <Dashboard setActivePage={handleSetPage} currentUser={currentUser} />;
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans">
-      <Sidebar 
-        activePage={activePage} 
-        setActivePage={handleSetPage} 
-        userRole={currentUser.role}
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-      />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header 
+    <div className="flex min-h-screen font-sans relative overflow-hidden bg-slate-50">
+      {/* Dynamic Background Elements */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-100/30 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-100/30 rounded-full blur-[120px]"></div>
+      </div>
+
+      <div className="relative z-10 flex w-full">
+        <Sidebar
+          activePage={activePage}
+          setActivePage={handleSetPage}
+          user={currentUser}
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+        />
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header
             currentUser={currentUser}
-            users={mockUsers}
-            onUserChange={handleUserChange}
             onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            onProfileClick={() => handleSetPage('user-profile')}
             onLogout={() => {
               localStorage.removeItem('ksp_token');
               localStorage.removeItem('ksp_user');
               window.location.href = '/login';
             }}
-        />
-        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto">
-          <ErrorBoundary>
-            <Suspense fallback={<LoadingSpinner />}>
-              {renderContent()}
-            </Suspense>
-          </ErrorBoundary>
-        </main>
+          />
+          <main className="flex-1 p-3 sm:p-4 md:p-5 lg:p-6 overflow-y-auto">
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingSpinner />}>
+                {renderContent()}
+              </Suspense>
+            </ErrorBoundary>
+          </main>
+        </div>
       </div>
+      <ToastContainer />
     </div>
   );
 };
@@ -128,38 +154,49 @@ const App: React.FC = () => {
   useEffect(() => {
     const storedUser = localStorage.getItem('ksp_user');
     const storedToken = localStorage.getItem('ksp_token');
-    
+
     console.log('[App] Checking authentication...', { hasUser: !!storedUser, hasToken: !!storedToken });
-    
+
     if (storedUser && storedToken) {
       try {
         const backendUser = JSON.parse(storedUser);
         console.log('[App] Backend user:', backendUser);
-        
+
         // Map backend user to app user format
         const roleMap: { [key: string]: UserRole } = {
-          'founder': 'Fondatrice',
-          'fondatrice': 'Fondatrice',
-          'admin': 'Fondatrice', // Admin has full access like Fondatrice
-          'director': 'Directrice',
-          'directrice': 'Directrice',
-          'comptable': 'Comptable',
-          'accountant': 'Comptable',
-          'gestionnaire': 'Gestionnaire',
-          'manager': 'Gestionnaire',
-          'agent': 'Agent Administratif',
-          'teacher': 'Enseignant',
-          'enseignant': 'Enseignant'
+          'founder': 'fondatrice',
+          'fondatrice': 'fondatrice',
+          'admin': 'admin',
+          'director': 'directrice',
+          'directrice': 'directrice',
+          'comptable': 'accountant',
+          'accountant': 'accountant',
+          'gestionnaire': 'manager',
+          'manager': 'manager',
+          'agent': 'agent',
+          'agent_admin': 'agent_admin',
+          'teacher': 'teacher',
+          'enseignant': 'teacher',
+          'student': 'student',
+          'parent': 'parent'
         };
-        
-        const mappedRole = roleMap[backendUser.role.toLowerCase()] || 'Agent Administratif';
+
+        const mappedRole = roleMap[backendUser.role.toLowerCase()] || 'agent';
         const mappedUser: User = {
           id: backendUser.id,
+          email: backendUser.email || '',
           name: `${backendUser.firstName} ${backendUser.lastName}`,
+          first_name: backendUser.firstName,
+          last_name: backendUser.lastName,
           role: mappedRole,
-          avatar: `${backendUser.firstName?.charAt(0) || ''}${backendUser.lastName?.charAt(0) || ''}`
+          avatar_url: backendUser.avatar_url || null,
+          phone: backendUser.phone || null,
+          is_active: backendUser.is_active ?? true,
+          last_login_at: backendUser.last_login_at || null,
+          created_at: backendUser.created_at || new Date().toISOString(),
+          custom_permissions: backendUser.custom_permissions || {}
         };
-        
+
         setCurrentUser(mappedUser);
         console.log('[App] User authenticated:', mappedUser);
       } catch (err) {
@@ -177,25 +214,20 @@ const App: React.FC = () => {
   useEffect(() => {
     // When user changes, check if they can access the current page.
     // If not, redirect to their default page (dashboard).
-    if (currentUser && !hasPermission(currentUser.role, activePage)) {
+    if (currentUser && !hasPermission(currentUser, activePage)) {
       setActivePage('dashboard');
     }
   }, [currentUser, activePage]);
 
   const handleSetPage = useCallback((page: Page) => {
-    if (currentUser && hasPermission(currentUser.role, page)) {
+    if (currentUser && hasPermission(currentUser, page)) {
       setActivePage(page);
     } else {
       alert("Accès non autorisé.");
     }
   }, [currentUser]);
 
-  const handleUserChange = useCallback((userId: string) => {
-    const user = mockUsers.find(u => u.id === userId);
-    if (user) {
-      setCurrentUser(user);
-    }
-  }, []);
+
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -205,55 +237,62 @@ const App: React.FC = () => {
   const hasToken = !!localStorage.getItem('ksp_token');
   const hasStoredUser = !!localStorage.getItem('ksp_user');
   const isAuthenticated = !!currentUser && hasToken;
-  
-  console.log('[App] Render state:', { 
-    hasToken, 
-    hasStoredUser, 
-    hasCurrentUser: !!currentUser, 
+
+  console.log('[App] Render state:', {
+    hasToken,
+    hasStoredUser,
+    hasCurrentUser: !!currentUser,
     isAuthenticated,
-    currentUser: currentUser?.name 
+    currentUser: currentUser?.name
   });
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={
-          // Redirige si on a un token valide (même si currentUser n'est pas encore chargé)
-          (hasToken && hasStoredUser) ? <Navigate to="/dashboard" replace /> : <ModernLogin />
-        } />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute isAuthenticated={isAuthenticated}>
-              {currentUser && (
-                <AppContent
-                  currentUser={currentUser}
-                  activePage={activePage}
-                  handleSetPage={handleSetPage}
-                  handleUserChange={handleUserChange}
-                />
-              )}
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/*"
-          element={
-            <ProtectedRoute isAuthenticated={isAuthenticated}>
-              {currentUser && (
-                <AppContent
-                  currentUser={currentUser}
-                  activePage={activePage}
-                  handleSetPage={handleSetPage}
-                  handleUserChange={handleUserChange}
-                />
-              )}
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
-      </Routes>
-    </BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={
+            (hasToken && hasStoredUser) ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Suspense fallback={<div className="flex h-screen items-center justify-center bg-slate-50"><LoadingSpinner size="lg" /></div>}>
+                <SecurePortal />
+              </Suspense>
+            )
+          } />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute isAuthenticated={isAuthenticated}>
+                {currentUser && (
+                  <AppContent
+                    currentUser={currentUser}
+                    activePage={activePage}
+                    handleSetPage={handleSetPage}
+                    onUserUpdate={setCurrentUser}
+                  />
+                )}
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute isAuthenticated={isAuthenticated}>
+                {currentUser && (
+                  <AppContent
+                    currentUser={currentUser}
+                    activePage={activePage}
+                    handleSetPage={handleSetPage}
+                    onUserUpdate={setCurrentUser}
+                  />
+                )}
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import type { Teacher } from '../types';
+import type { Teacher, SchoolClass } from '../types';
 import { TeachersService } from '../services/api/teachers.service';
+import { ClassesService } from '../services/api/classes.service';
 
 interface TeacherEditFormProps {
   teacher: Teacher;
@@ -11,8 +12,24 @@ interface TeacherEditFormProps {
 export const TeacherEditForm: React.FC<TeacherEditFormProps> = ({ teacher, onSave, onCancel }) => {
   const [formData, setFormData] = useState(teacher);
   const [isLoading, setIsLoading] = useState(false);
+  const [availableClasses, setAvailableClasses] = useState<SchoolClass[]>([]);
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>(
+    teacher.classes?.map(c => c.id) || []
+  );
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const response = await ClassesService.getClasses();
+        setAvailableClasses(response.data);
+      } catch (err) {
+        console.error('Erreur lors du chargement des classes:', err);
+      }
+    };
+    fetchClasses();
+  }, []);
 
   const isCreateMode = !teacher.id || teacher.id === '';
 
@@ -34,22 +51,32 @@ export const TeacherEditForm: React.FC<TeacherEditFormProps> = ({ teacher, onSav
     try {
       if (isCreateMode) {
         console.log('TeacherEditForm: Création d\'un nouvel enseignant...', formData);
-        const newTeacher = await TeachersService.createTeacher(formData);
+        const newTeacher = await TeachersService.createTeacher({
+          ...formData,
+          classIds: selectedClassIds
+        });
         setSuccessMessage('Enseignant créé avec succès!');
         setTimeout(() => {
           onSave(newTeacher);
         }, 1500);
       } else {
         console.log('TeacherEditForm: Mise à jour de l\'enseignant...', formData);
-        const updatedTeacher = await TeachersService.updateTeacher(teacher.id, formData);
+        const updatedTeacher = await TeachersService.updateTeacher(teacher.id, {
+          ...formData,
+          classIds: selectedClassIds
+        });
         setSuccessMessage('Enseignant mis à jour avec succès!');
         setTimeout(() => {
           onSave(updatedTeacher);
         }, 1500);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erreur lors de la sauvegarde:', err);
-      setError(`Erreur lors de ${isCreateMode ? 'la création' : 'la mise à jour'} de l'enseignant. Veuillez réessayer.`);
+      const apiErrorMessage = err.response?.data?.message;
+      const displayMessage = Array.isArray(apiErrorMessage)
+        ? apiErrorMessage.join(', ')
+        : apiErrorMessage || `Erreur lors de ${isCreateMode ? 'la création' : 'la mise à jour'} de l'enseignant. Veuillez réessayer.`;
+      setError(displayMessage);
     } finally {
       setIsLoading(false);
     }
@@ -213,6 +240,34 @@ export const TeacherEditForm: React.FC<TeacherEditFormProps> = ({ teacher, onSav
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Listez les diplômes et certifications..."
               />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Classes Assignées</label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 border rounded-lg bg-gray-50">
+                {availableClasses.map(cls => (
+                  <label key={cls.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedClassIds.includes(cls.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedClassIds(prev => [...prev, cls.id]);
+                        } else {
+                          setSelectedClassIds(prev => prev.filter(id => id !== cls.id));
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{cls.name} ({cls.level})</span>
+                  </label>
+                ))}
+                {availableClasses.length === 0 && (
+                  <p className="text-sm text-gray-500 italic pb-2">Aucune classe disponible</p>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1 italic">
+                Cochez les classes dont cet enseignant est le professeur principal.
+              </p>
             </div>
           </div>
         </div>

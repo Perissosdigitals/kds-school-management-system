@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
 import type { SchoolClass, Student } from '../../types';
-import { schoolClasses, allStudents } from '../../../data/mockData';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
@@ -29,8 +28,8 @@ class ClassesServiceClass {
       const response = await this.api.get<SchoolClass[]>('/', { params: filters });
       return response.data;
     } catch (error) {
-      console.warn('ClassesService: API error, using mock data', error);
-      return schoolClasses;
+      console.error('ClassesService: Error fetching classes', error);
+      throw error;
     }
   }
 
@@ -39,10 +38,8 @@ class ClassesServiceClass {
       const response = await this.api.get<SchoolClass>(`/${id}`);
       return response.data;
     } catch (error) {
-      console.warn('ClassesService: API error, using mock data', error);
-      const schoolClass = schoolClasses.find(c => c.id === id);
-      if (!schoolClass) throw new Error('Class not found in mock data');
-      return schoolClass;
+      console.error(`ClassesService: Error fetching class ${id}`, error);
+      throw error;
     }
   }
 
@@ -51,12 +48,7 @@ class ClassesServiceClass {
       const response = await this.api.get<Student[]>(`/${classId}/students`);
       return response.data;
     } catch (error) {
-      console.warn('ClassesService: API error, using mock data', error);
-      // Try to find class to get its level
-      const schoolClass = schoolClasses.find(c => c.id === classId);
-      if (schoolClass) {
-         return allStudents.filter(s => s.gradeLevel === schoolClass.level);
-      }
+      console.error(`ClassesService: Error fetching students for class ${classId}`, error);
       return [];
     }
   }

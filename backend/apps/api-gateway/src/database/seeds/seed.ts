@@ -13,11 +13,11 @@ async function bootstrap() {
     console.log('\n📊 Seeding Summary:');
     console.log('═══════════════════════════════════');
     console.log(`👤 Users: ${result.users}`);
-    console.log(`👨‍🏫 Teachers: ${result.teachers}`);
-    console.log(`🏫 Classes: ${result.classes}`);
-    console.log(`📚 Subjects: ${result.subjects}`);
-    console.log(`👨‍🎓 Students: ${result.students}`);
-    console.log(`📅 Timetable Slots: ${result.timetableSlots}`);
+    // console.log(`👨‍🏫 Teachers: ${result.teachers}`);
+    // console.log(`🏫 Classes: ${result.classes}`);
+    // console.log(`📚 Subjects: ${result.subjects}`);
+    // console.log(`👨‍🎓 Students: ${result.students}`);
+    // console.log(`📅 Timetable Slots: ${result.timetableSlots}`);
     console.log(`📊 Grades: ${result.grades}`);
     console.log(`✅ Attendance Records: ${result.attendance}`);
     console.log(`💰 Transactions: ${result.transactions}`);

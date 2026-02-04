@@ -14,52 +14,52 @@ interface UserRole {
 
 const TEST_USERS: UserRole[] = [
   {
-    email: 'admin@ksp-school.ci',
-    password: 'admin123',
-    role: 'admin',
+    email: 'ekeomian@theksp.org',
+    password: 'Fondatrice',
+    role: 'fondatrice',
     label: 'Fondatrice',
-    description: 'Accès complet - Gestion stratégique',
+    description: 'Evelyne Keomian - Accès Stratégique',
     icon: '👑',
   },
   {
-    email: 'admin@ksp-school.ci',
-    password: 'admin123',
-    role: 'admin',
-    label: 'Administrateur',
-    description: 'Gestion complète du système',
-    icon: '⚙️',
-  },
-  {
-    email: 'admin@ksp-school.ci',
-    password: 'admin123',
-    role: 'admin',
+    email: 'mtieoulou@theksp.org',
+    password: 'Fondatrice',
+    role: 'directrice',
     label: 'Directrice',
-    description: 'Gestion pédagogique et administrative',
+    description: 'Marie Yvette Tieoulou - Gestion Pédagogique',
     icon: '📋',
   },
   {
-    email: 'acoulibaly@ksp-school.ci',
-    password: 'teacher123',
-    role: 'teacher',
-    label: 'Comptable',
-    description: 'Gestion des finances',
-    icon: '💰',
+    email: 'hynterprince@gmail.com',
+    password: 'Fondatrice',
+    role: 'agent_admin',
+    label: 'Agent Administratif',
+    description: 'Prince Cedrick Hunter - Support Système',
+    icon: '👤',
   },
   {
-    email: 'mkone@ksp-school.ci',
-    password: 'teacher123',
+    email: 'perissosdigitals@gmail.com',
+    password: 'Fondatrice',
+    role: 'admin',
+    label: 'Super Admin',
+    description: 'Support Technique Perissos',
+    icon: '⚙️',
+  },
+  {
+    email: 'teacher1@kds.ci',
+    password: 'password',
     role: 'teacher',
-    label: 'Enseignant',
+    label: 'Ensignant',
     description: 'Gestion des classes et notes',
     icon: '👨‍🏫',
   },
   {
-    email: 'parent1@example.ci',
-    password: 'parent123',
+    email: 'parent1@famille.ci',
+    password: 'password',
     role: 'parent',
-    label: 'Personnel Administratif',
-    description: 'Support administratif',
-    icon: '👤',
+    label: 'Compte Parent',
+    description: 'Suivi des élèves',
+    icon: '👪',
   },
 ];
 
@@ -98,7 +98,7 @@ export const EnhancedLogin: React.FC = () => {
       if (response.access_token) {
         localStorage.setItem('ksp_token', response.access_token);
         localStorage.setItem('ksp_user', JSON.stringify(response.user));
-        
+
         // Force un rechargement complet pour que App.tsx détecte l'authentification
         window.location.href = '/dashboard';
       }
@@ -131,9 +131,8 @@ export const EnhancedLogin: React.FC = () => {
               {TEST_USERS.map((user) => (
                 <button
                   key={user.role}
-                  className={`role-card ${selectedRole?.role === user.role ? 'selected' : ''} ${
-                    loading && selectedRole?.role === user.role ? 'loading' : ''
-                  }`}
+                  className={`role-card ${selectedRole?.role === user.role ? 'selected' : ''} ${loading && selectedRole?.role === user.role ? 'loading' : ''
+                    }`}
                   onClick={() => handleRoleSelect(user)}
                   disabled={loading}
                 >

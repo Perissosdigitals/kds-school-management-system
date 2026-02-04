@@ -1,11 +1,8 @@
 import axios from 'axios';
 
 const httpClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://ksp-backend-api.perissosdigitals.workers.dev/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api/v1',
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  }
 });
 
 // Intercepteur pour l'authentification
@@ -31,15 +28,15 @@ httpClient.interceptors.response.use(
       data: error.response?.data,
       message: error.message
     });
-    
+
     if (error.response?.status === 401) {
       // Only show alert if we have a token (actual session expired)
       // Don't show for initial failed requests without auth
-      const hasToken = localStorage.getItem('kds_token');
+      const hasToken = localStorage.getItem('ksp_token');
       if (hasToken) {
         console.warn('[httpClient] 401 with token - session expired');
-        localStorage.removeItem('kds_token');
-        localStorage.removeItem('kds_user');
+        localStorage.removeItem('ksp_token');
+        localStorage.removeItem('ksp_user');
         alert("Session expirée. Veuillez vous reconnecter.");
         window.location.href = '/login';
       } else {
