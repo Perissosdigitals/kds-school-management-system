@@ -7,6 +7,7 @@ import { ClassEditForm } from './ClassEditForm';
 import { ClassDetailView as NewClassDetailView } from './ClassDetailView';
 import { TeachersService } from '../services/api/teachers.service';
 import { StudentsService } from '../services/api/students.service';
+import { Modal } from './ui/Modal';
 
 // --- Types ---
 
@@ -578,23 +579,40 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
         return <LoadingSpinner />;
     }
 
-    // Show edit form
-    if (viewMode === 'edit' && selectedClass) {
-        return <ClassEditForm schoolClass={selectedClass} onSave={handleSaveClass} onCancel={handleBack} />;
+    // Show detail view
+    if (viewMode === 'detail' && selectedClassId) {
+        return <NewClassDetailView classId={selectedClassId} onBack={handleBack} currentUser={currentUser} />;
     }
 
-    // Show create form (we need to update ClassEditForm to support create mode)
-    if (viewMode === 'create') {
-        return (
-            <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                    <button onClick={handleBack} className="bg-white p-2 rounded-full shadow-md hover:bg-slate-100 transition-colors">
-                        <i className='bx bx-arrow-back text-2xl text-slate-700'></i>
-                    </button>
-                    <h2 className="text-3xl font-bold text-slate-800">Créer une Nouvelle Classe</h2>
-                </div>
+    // Show list view
+    return (
+        <>
+            <ClassListView
+                classes={availableClasses}
+                teachers={data.teachers}
+                students={data.students}
+                totalClasses={totalClasses}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                onSelectClass={(id) => {
+                    setSelectedClassId(id);
+                    setSelectedClass(data.classes.find(c => c.id === id) || null);
+                    setViewMode('detail');
+                }}
+                onEditClass={handleEditClass}
+                onDeleteClass={handleDeleteClass}
+                onCreateClass={handleCreateClass}
+            />
+
+            {/* Modal pour Création/Édition */}
+            <Modal
+                isOpen={viewMode === 'edit' || viewMode === 'create'}
+                onClose={handleBack}
+                title={viewMode === 'edit' ? 'Modifier la classe' : 'Créer une nouvelle classe'}
+                size="md"
+            >
                 <ClassEditForm
-                    schoolClass={{
+                    schoolClass={selectedClass || {
                         id: '',
                         name: '',
                         level: '',
@@ -606,32 +624,8 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
                     onSave={handleSaveClass}
                     onCancel={handleBack}
                 />
-            </div>
-        );
-    }
-
-    // Show detail view
-    if (viewMode === 'detail' && selectedClassId) {
-        return <NewClassDetailView classId={selectedClassId} onBack={handleBack} currentUser={currentUser} />;
-    }
-
-    // Show list view
-    return (
-        <ClassListView
-            classes={availableClasses}
-            teachers={data.teachers}
-            students={data.students}
-            totalClasses={totalClasses}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            onSelectClass={(id) => {
-                setSelectedClassId(id);
-                setViewMode('detail');
-            }}
-            onEditClass={handleEditClass}
-            onDeleteClass={handleDeleteClass}
-            onCreateClass={handleCreateClass}
-        />
+            </Modal>
+        </>
     );
 };
 

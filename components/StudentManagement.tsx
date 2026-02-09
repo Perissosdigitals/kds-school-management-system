@@ -16,6 +16,7 @@ import { useToast } from '../context/ToastContext';
 import { FilterGuide } from './ui/FilterGuide';
 import { Button } from './ui/Button';
 import { Card, CardHeader } from './ui/Card';
+import { Modal } from './ui/Modal';
 
 const StudentPedagogicalFile = lazy(() => import('./StudentPedagogicalFile'));
 
@@ -383,73 +384,9 @@ export const StudentManagement: React.FC<{ currentUser: User }> = ({ currentUser
     return <LoadingSpinner />;
   }
 
-  if (view === 'edit' && selectedStudent) {
-    return (
-      <StudentEditForm
-        student={selectedStudent}
-        onSave={handleStudentSaved}
-        onCancel={handleBackToList}
-      />
-    );
-  }
-
-  if (view === 'documents' && selectedStudent) {
-    return (
-      <StudentDocuments
-        student={selectedStudent}
-        currentUser={currentUser}
-        onUpdateStudent={handleStudentUpdateWithToast}
-        onBack={handleBackToDetail}
-      />
-    );
-  }
-
-  if (view === 'detail' && selectedStudent) {
-    return (
-      <StudentDetail
-        student={selectedStudent}
-        onBack={handleBackToList}
-        onViewDocuments={handleViewDocuments}
-        onViewPedagogicalFile={handleViewPedagogicalFile}
-        currentUser={currentUser}
-        onNavigateToTeacher={(teacherId) => {
-          console.log('Navigate to teacher:', teacherId);
-          // TODO: Implement navigation to teacher detail
-          alert('Navigation vers le professeur - À implémenter dans App.tsx');
-        }}
-        onNavigateToClass={(classId) => {
-          console.log('Navigate to class:', classId);
-          // TODO: Implement navigation to class detail
-          alert('Navigation vers la classe - À implémenter dans App.tsx');
-        }}
-        onNavigateToTimetable={() => {
-          console.log('Navigate to timetable');
-          // TODO: Implement navigation to timetable
-          alert('Navigation vers l\'emploi du temps - À implémenter');
-        }}
-        onNavigateToGrades={() => {
-          console.log('Navigate to grades');
-          // TODO: Implement navigation to grades
-          alert('Navigation vers les notes - À implémenter');
-        }}
-      />
-    );
-  }
-
-  if (view === 'pedagogical' && selectedStudent) {
-    return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <StudentPedagogicalFile
-          student={selectedStudent}
-          currentUser={currentUser}
-          onBack={handleBackToDetail}
-        />
-      </Suspense>
-    );
-  }
-
   return (
     <div className="space-y-8">
+      {/* List View Content */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Gestion des Élèves</h2>
@@ -600,6 +537,83 @@ export const StudentManagement: React.FC<{ currentUser: User }> = ({ currentUser
         title="Importer des Élèves depuis un CSV"
         expectedHeaders={studentHeaders}
       />
+
+      {/* Modal pour Édition Étudiant */}
+      <Modal
+        isOpen={view === 'edit' && !!selectedStudent}
+        onClose={handleBackToList}
+        title="Modifier l'Élève"
+        size="lg"
+      >
+        {selectedStudent && (
+          <StudentEditForm
+            student={selectedStudent}
+            onSave={handleStudentSaved}
+            onCancel={handleBackToList}
+          />
+        )}
+      </Modal>
+
+      {/* Modal pour Détails Étudiant */}
+      <Modal
+        isOpen={view === 'detail' && !!selectedStudent}
+        onClose={handleBackToList}
+        title="Détails de l'Élève"
+        size="xl"
+      >
+        {selectedStudent && (
+          <StudentDetail
+            student={selectedStudent}
+            onBack={handleBackToList}
+            onViewDocuments={handleViewDocuments}
+            onViewPedagogicalFile={handleViewPedagogicalFile}
+            currentUser={currentUser}
+            onNavigateToTeacher={(teacherId) => {
+              console.log('Navigate to teacher:', teacherId);
+              alert('Navigation vers le professeur - À implémenter');
+            }}
+            onNavigateToClass={(classId) => {
+              console.log('Navigate to class:', classId);
+              alert('Navigation vers la classe - À implémenter');
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Modal pour Documents */}
+      <Modal
+        isOpen={view === 'documents' && !!selectedStudent}
+        onClose={handleBackToDetail}
+        title="Gestion des Documents"
+        size="lg"
+      >
+        {selectedStudent && (
+          <StudentDocuments
+            student={selectedStudent}
+            currentUser={currentUser}
+            onUpdateStudent={handleStudentUpdateWithToast}
+            onBack={handleBackToDetail}
+          />
+        )}
+      </Modal>
+
+      {/* Modal pour Dossier Pédagogique */}
+      <Modal
+        isOpen={view === 'pedagogical' && !!selectedStudent}
+        onClose={handleBackToDetail}
+        title="Dossier Pédagogique"
+        size="xl"
+      >
+        {selectedStudent && (
+          <Suspense fallback={<LoadingSpinner />}>
+            <StudentPedagogicalFile
+              student={selectedStudent}
+              currentUser={currentUser}
+              onBack={handleBackToDetail}
+            />
+          </Suspense>
+        )}
+      </Modal>
     </div>
   );
 };
