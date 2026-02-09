@@ -1,0 +1,30 @@
+{
+  "critical": {
+    "description": "Must pass for beta launch",
+    "tests": [
+      "cycle-students",
+      "cycle-attendance",
+      "cycle-auth --grep='AUTH-001|AUTH-002'"
+    ],
+    "min_coverage": 95
+  },
+  "important": {
+    "description": "Should pass for good UX",
+    "tests": [
+      "cycle-teachers --grep='T-002|T-003'",
+      "cycle-classes --grep='C-002|C-003'",
+      "cycle-notes --grep='N-004'"
+    ],
+    "min_coverage": 70
+  },
+  "nice_to_have": {
+    "description": "Can be fixed post-beta",
+    "tests": [
+      "cycle-auth --grep='AUTH-003|AUTH-004|AUTH-005'",
+      "cycle-teachers --grep='T-001|T-004|T-005'",
+      "cycle-classes --grep='C-001|C-004|C-005|C-006'",
+      "cycle-notes --grep='N-001|N-002|N-003'"
+    ],
+    "min_coverage": 30
+  }
+}

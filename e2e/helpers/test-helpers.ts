@@ -20,7 +20,7 @@ export class TestHelpers {
      * Get auth token from localStorage
      */
     static async getAuthToken(page: Page): Promise<string> {
-        return await page.evaluate(() => localStorage.getItem('access_token') || '');
+        return await page.evaluate(() => localStorage.getItem('ksp_token') || '');
     }
 
     /**
@@ -28,7 +28,7 @@ export class TestHelpers {
      */
     static async apiRequest(page: Page, endpoint: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: any) {
         const token = await this.getAuthToken(page);
-        const baseURL = 'http://localhost:3001';
+        const baseURL = process.env.API_URL || 'http://localhost:3002';
 
         return await page.request[method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](
             `${baseURL}${endpoint}`,
@@ -74,8 +74,12 @@ export class TestHelpers {
      * Verify success message
      */
     static async verifySuccessMessage(page: Page, expectedText?: string) {
-        const successMessage = page.locator('.bg-green-50, .alert-success, [role="alert"][class*="success"]').first();
-        await successMessage.waitFor({ state: 'visible', timeout: 5000 });
+        // Support both on-page alerts and toast notifications
+        const successMessage = page.locator(
+            '.bg-green-100, .bg-emerald-50, .alert-success, [role="alert"][class*="success"], .toast-success'
+        ).first();
+
+        await successMessage.waitFor({ state: 'visible', timeout: 8000 });
 
         if (expectedText) {
             await expect(successMessage).toContainText(expectedText);
@@ -88,7 +92,10 @@ export class TestHelpers {
      * Verify error message
      */
     static async verifyErrorMessage(page: Page, expectedText?: string) {
-        const errorMessage = page.locator('.bg-red-50, .alert-error, [role="alert"][class*="error"]').first();
+        const errorMessage = page.locator(
+            '.bg-red-100, .bg-rose-50, .alert-error, [role="alert"][class*="error"], .toast-error, .portal-error'
+        ).first();
+
         await errorMessage.waitFor({ state: 'visible', timeout: 5000 });
 
         if (expectedText) {
@@ -110,14 +117,16 @@ export class TestHelpers {
         return {
             firstName: randomFirst,
             lastName: randomLast,
-            dateOfBirth: '2015-03-15',
-            placeOfBirth: 'Abidjan',
-            gender: Math.random() > 0.5 ? 'Masculin' : 'Féminin',
+            dob: '2015-03-15',
+            birthPlace: 'Abidjan',
+            gender: Math.random() > 0.5 ? 'M' : 'F',
             nationality: 'Ivoirienne',
             address: '123 Rue de la Paix, Abidjan',
-            parentName: `Parent de ${randomFirst}`,
-            parentPhone: '+225 07 12 34 56 78',
-            parentEmail: `parent.${randomFirst.toLowerCase()}@example.com`,
+            phone: '+225 07 12 34 56 78',
+            email: `student.${randomFirst.toLowerCase()}@example.com`,
+            emergencyContactName: `Parent de ${randomFirst}`,
+            emergencyContactPhone: '+225 07 00 00 00 00',
+            gradeLevel: 'CP'
         };
     }
 

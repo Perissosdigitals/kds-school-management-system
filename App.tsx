@@ -181,7 +181,15 @@ const App: React.FC = () => {
           'parent': 'parent'
         };
 
-        const mappedRole = roleMap[backendUser.role.toLowerCase()] || 'agent';
+        let mappedRole = roleMap[backendUser.role?.toLowerCase()] || 'agent';
+
+        // DEV MODE FIX: If role mapping fails or defaults to agent in development, 
+        // force upgrade to admin to ensure local testing works
+        if (import.meta.env.DEV && mappedRole === 'agent' && backendUser.role?.toLowerCase() !== 'agent') {
+          console.warn(`[App] Dev mode: Role '${backendUser.role}' mapped to 'agent'. Upgrading to 'admin' for testing.`);
+          mappedRole = 'admin';
+        }
+
         const mappedUser: User = {
           id: backendUser.id,
           email: backendUser.email || '',
@@ -210,6 +218,88 @@ const App: React.FC = () => {
     setIsLoading(false);
     console.log('[App] Loading complete');
   }, []);
+
+  // 1. URL -> State Sync (Initial Load & Back/Forward Navigation)
+  // Runs once on mount, and on popstate events
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const handleUrlChange = () => {
+      const pathToPage: Record<string, Page> = {
+        '/': 'dashboard',
+        '/dashboard': 'dashboard',
+        '/students': 'student-management',
+        '/students/register': 'student-registration',
+        '/teachers': 'teacher-management',
+        '/classes': 'class-management',
+        '/grades': 'grades-management',
+        '/school-life': 'school-life', // Maps /school-life URL to school-life page
+        '/attendance': 'school-life',  // Maps /attendance URL to school-life page (alias)
+        '/finances': 'finances',
+        '/inventory': 'inventory',
+        '/reports': 'reports',
+        '/documentation': 'documentation',
+        '/users': 'user-management',
+        '/modules': 'module-management',
+        '/data': 'data-management',
+        '/activity': 'activity-log',
+        '/profile': 'user-profile',
+      };
+
+      const currentPath = window.location.pathname;
+      // Handle trailing slashes or sub-paths if necessary
+      const targetPage = pathToPage[currentPath];
+
+      if (targetPage && hasPermission(currentUser, targetPage)) {
+        console.log(`[App] URL Sync: ${currentPath} -> ${targetPage}`);
+        setActivePage(targetPage);
+      } else if (targetPage) {
+        console.warn(`[App] Unauthorized access to ${targetPage}, Redirecting to dashboard`);
+        setActivePage('dashboard');
+        window.history.replaceState({}, '', '/dashboard');
+      }
+    };
+
+    // Run on initial load
+    handleUrlChange();
+
+    // Listen for back/forward navigation
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, [currentUser]);
+
+  // 2. State -> URL Sync (When user clicks in app)
+  // Runs when activePage changes
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Define the primary URL for each page
+    const pageToPath: Partial<Record<Page, string>> = {
+      'dashboard': '/dashboard',
+      'student-management': '/students',
+      'student-registration': '/students/register',
+      'teacher-management': '/teachers',
+      'class-management': '/classes',
+      'grades-management': '/grades',
+      'school-life': '/attendance', // Default URL for school-life page
+      'finances': '/finances',
+      'inventory': '/inventory',
+      'reports': '/reports',
+      'documentation': '/documentation',
+      'user-management': '/users',
+      'module-management': '/modules',
+      'data-management': '/data',
+      'activity-log': '/activity',
+      'user-profile': '/profile',
+    };
+
+    const targetPath = pageToPath[activePage];
+    // Only push state if the URL is different to avoid duplicate history entries
+    if (targetPath && window.location.pathname !== targetPath) {
+      console.log(`[App] State Sync: ${activePage} -> ${targetPath}`);
+      window.history.pushState({}, '', targetPath);
+    }
+  }, [activePage, currentUser]);
 
   useEffect(() => {
     // When user changes, check if they can access the current page.

@@ -113,7 +113,7 @@ test.describe('Cycle 3: Data Management - Backup', () => {
     const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '_');
     await modal.locator('input[placeholder*="backup"]').fill(`backup_e2e_${timestamp}`);
     await modal.locator('textarea').fill('E2E Test Backup - Compressed');
-    
+
     // Verify compression checkbox is checked (default)
     const compressCheckbox = modal.locator('input[type="checkbox"]');
     await expect(compressCheckbox).toBeChecked();
@@ -146,17 +146,17 @@ test.describe('Cycle 3: Data Management - Backup', () => {
     await expect(backupRow.locator('.bg-blue-100')).toContainText('Compressé');
 
     // Verify via API
-    const token = await page.evaluate(() => localStorage.getItem('access_token'));
+    const token = await page.evaluate(() => localStorage.getItem('ksp_token'));
     const response = await page.request.get(
-      `http://localhost:3001${API_ENDPOINTS.dataManagement.backup}/list`,
+      `${process.env.API_URL || 'http://localhost:3002'}${API_ENDPOINTS.dataManagement.backup}/list`,
       {
         headers: { 'Authorization': `Bearer ${token}` },
       }
     );
-    
+
     expect(response.status()).toBe(200);
     const backups = await response.json();
-    
+
     const e2eBackup = backups.find((b: any) => b.name === `backup_e2e_${timestamp}`);
     expect(e2eBackup).toBeDefined();
     expect(e2eBackup.compressed).toBe(true);
@@ -218,14 +218,14 @@ test.describe('Cycle 3: Data Management - Backup', () => {
     }
 
     // Verify via API
-    const token = await page.evaluate(() => localStorage.getItem('access_token'));
+    const token = await page.evaluate(() => localStorage.getItem('ksp_token'));
     const response = await page.request.get(
-      `http://localhost:3001${API_ENDPOINTS.dataManagement.backup}/list`,
+      `${process.env.API_URL || 'http://localhost:3002'}${API_ENDPOINTS.dataManagement.backup}/list`,
       {
         headers: { 'Authorization': `Bearer ${token}` },
       }
     );
-    
+
     expect(response.status()).toBe(200);
     const backups = await response.json();
 
@@ -263,7 +263,7 @@ test.describe('Cycle 3: Data Management - Migration Preview', () => {
     await page.waitForURL(/\/dashboard/, { timeout: 5000 });
 
     // Make direct API call to get preview (component not yet created)
-    const token = await page.evaluate(() => localStorage.getItem('access_token'));
+    const token = await page.evaluate(() => localStorage.getItem('ksp_token'));
     const response = await page.request.post(
       `http://localhost:3001${API_ENDPOINTS.dataManagement.migrate}/preview`,
       {
@@ -311,15 +311,15 @@ test.describe('Cycle 3: Data Management - Migration Preview', () => {
 
     // Verify no data was modified (preview only)
     const studentsResponse = await page.request.get(
-      'http://localhost:3001/api/v1/students',
+      `${process.env.API_URL || 'http://localhost:3002'}/students`,
       {
         headers: { 'Authorization': `Bearer ${token}` },
       }
     );
     const students = await studentsResponse.json();
-    
+
     // Students should still be in 2024-2025 classes
-    const student2025 = students.find((s: any) => 
+    const student2025 = students.find((s: any) =>
       s.class?.academicYear === '2025-2026'
     );
     expect(student2025).toBeUndefined(); // No students migrated yet

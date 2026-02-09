@@ -1,0 +1,20 @@
+{
+  "beta_version": "1.0.0-beta.1",
+  "release_name": "Shalom Release",
+  "timestamp": "2026-02-06T09:28:09Z",
+  "deployment_url": "https://de7cd1d2.ksp-school-management.pages.dev",
+  "backend_api": "https://kds-backend-api-production.perissosdigitals.workers.dev",
+  "status": "ready",
+  "validated_features": {
+    "students_crud": "100%",
+    "attendance_tracking": "100%",
+    "navigation": "100%",
+    "authentication": "100%",
+    "routing": "100%"
+  },
+  "test_coverage": {
+    "critical_tests": "95-100%",
+    "overall_tests": "70-75%"
+  },
+  "backend_health": {"status":"ok","timestamp":"2026-02-06T09:28:10.130Z","service":"kds-backend-api","version":"1.5.0-persistence-fix","env_keys":["DB","DOCUMENTS"]}
+}

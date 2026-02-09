@@ -1,0 +1,86 @@
+--- STARTING PLAYWRIGHT ---
+
+Running 9 tests using 2 workers
+
+[1A[2K[1/9] [setup] › e2e/auth.setup.ts:27:7 › authenticate as teacher
+[1A[2K[2/9] [setup] › e2e/auth.setup.ts:39:7 › authenticate as parent
+[1A[2K[3/9] [setup] › e2e/auth.setup.ts:51:7 › authenticate as student
+[1A[2K[4/9] [setup] › e2e/auth.setup.ts:12:1 › authenticate as admin
+[1A[2K[setup] › e2e/auth.setup.ts:12:1 › authenticate as admin
+✅ Admin auth saved to e2e/.auth/admin.json
+
+[1A[2K[5/9] [cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:81:5 › Students Module - CRUD Operations › S-002: Admin views student details
+[1A[2K[6/9] [cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:12:5 › Students Module - CRUD Operations › S-001: Admin creates new student successfully
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:81:5 › Students Module - CRUD Operations › S-002: Admin views student details
+--- S-002 START ---
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:12:5 › Students Module - CRUD Operations › S-001: Admin creates new student successfully
+--- S-001 START ---
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:81:5 › Students Module - CRUD Operations › S-002: Admin views student details
+Waiting for students table...
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:12:5 › Students Module - CRUD Operations › S-001: Admin creates new student successfully
+Clicking Inscription Élève sidebar link...
+
+[1A[2KWaiting for Inscription heading or form...
+
+[1A[2KFilling form for student: Yao Coulibaly
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:81:5 › Students Module - CRUD Operations › S-002: Admin views student details
+Clicking on first student link...
+
+[1A[2KWaiting for detail view...
+
+[1A[2K[7/9] [cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:101:5 › Students Module - CRUD Operations › S-003: Admin updates student information
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:101:5 › Students Module - CRUD Operations › S-003: Admin updates student information
+--- S-003 START ---
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:12:5 › Students Module - CRUD Operations › S-001: Admin creates new student successfully
+Selecting first available class...
+
+[1A[2KSubmitting form...
+
+[1A[2KAPI Response status: [33m201[39m
+
+[1A[2KVerifying success message...
+
+[1A[2K[8/9] [cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:140:5 › Students Module - CRUD Operations › S-004: Admin searches for students
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:101:5 › Students Module - CRUD Operations › S-003: Admin updates student information
+Clicking edit button...
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:140:5 › Students Module - CRUD Operations › S-004: Admin searches for students
+--- S-004 START ---
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:101:5 › Students Module - CRUD Operations › S-003: Admin updates student information
+Waiting for edit form...
+
+[1A[2KUpdating address to: 456 Avenue de la République, Abidjan
+
+[1A[2KAPI Update status: [33m200[39m
+
+[1A[2KVerifying update success message...
+
+[1A[2K[9/9] [cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:162:5 › Students Module - CRUD Operations › S-005: Admin deletes student (soft delete)
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:162:5 › Students Module - CRUD Operations › S-005: Admin deletes student (soft delete)
+--- S-005 START ---
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:140:5 › Students Module - CRUD Operations › S-004: Admin searches for students
+Performing search for "Test"...
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:162:5 › Students Module - CRUD Operations › S-005: Admin deletes student (soft delete)
+Clicking delete button...
+
+[1A[2KSetting up dialog handler...
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:140:5 › Students Module - CRUD Operations › S-004: Admin searches for students
+Search results count: [33m1[39m
+
+[1A[2K[cycle-students] › e2e/cycles/cycle-students/students-crud.spec.ts:162:5 › Students Module - CRUD Operations › S-005: Admin deletes student (soft delete)
+API Delete status: [33m200[39m
+
+[1A[2KNew count after delete: [33m10[39m
+
+[1A[2K  3 skipped
+  6 passed (15.8s)
+--- PLAYWRIGHT FINISHED with exit code 0 ---

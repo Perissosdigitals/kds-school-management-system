@@ -11,22 +11,22 @@ export async function loginAs(
   role: 'admin' | 'teacher' | 'parent' | 'student'
 ): Promise<void> {
   const user = TEST_USERS[role];
-  
+
   // Navigate to login page
   await page.goto('/login');
-  
+
   // Fill credentials
-  await page.fill('input[name="email"]', user.email);
-  await page.fill('input[name="password"]', user.password);
-  
+  await page.fill('input[type="email"]', user.email || process.env.ADMIN_EMAIL || '');
+  await page.fill('input[type="password"]', user.password || process.env.ADMIN_PASSWORD || '');
+
   // Submit
   await page.click('button[type="submit"]');
-  
+
   // Wait for redirect to dashboard
   await page.waitForURL(/\/(dashboard|home)/, { timeout: 5000 });
-  
+
   // Verify token stored
-  const token = await page.evaluate(() => localStorage.getItem('access_token'));
+  const token = await page.evaluate(() => localStorage.getItem('ksp_token'));
   expect(token).toBeTruthy();
 }
 
@@ -40,10 +40,10 @@ export async function apiRequest(
   endpoint: string,
   data?: any
 ): Promise<any> {
-  const token = await page.evaluate(() => localStorage.getItem('access_token'));
-  
+  const token = await page.evaluate(() => localStorage.getItem('ksp_token'));
+
   const response = await page.request.fetch(
-    `http://localhost:3001${endpoint}`,
+    `${process.env.API_URL || 'http://localhost:3002'}${endpoint}`,
     {
       method,
       headers: {
@@ -53,7 +53,7 @@ export async function apiRequest(
       data: data ? JSON.stringify(data) : undefined,
     }
   );
-  
+
   return {
     status: response.status(),
     data: response.ok() ? await response.json() : null,
@@ -63,7 +63,14 @@ export async function apiRequest(
 /**
  * Extended Test with Fixtures
  */
-export const test = base.extend({
+export interface KSPFixtures {
+  adminPage: Page;
+  teacherPage: Page;
+  parentPage: Page;
+  studentPage: Page;
+}
+
+export const test = base.extend<KSPFixtures>({
   // Authenticated pages for each role
   adminPage: async ({ browser }, use) => {
     const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
@@ -71,21 +78,21 @@ export const test = base.extend({
     await use(page);
     await context.close();
   },
-  
+
   teacherPage: async ({ browser }, use) => {
     const context = await browser.newContext({ storageState: 'e2e/.auth/teacher.json' });
     const page = await context.newPage();
     await use(page);
     await context.close();
   },
-  
+
   parentPage: async ({ browser }, use) => {
     const context = await browser.newContext({ storageState: 'e2e/.auth/parent.json' });
     const page = await context.newPage();
     await use(page);
     await context.close();
   },
-  
+
   studentPage: async ({ browser }, use) => {
     const context = await browser.newContext({ storageState: 'e2e/.auth/student.json' });
     const page = await context.newPage();

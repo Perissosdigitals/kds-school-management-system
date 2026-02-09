@@ -82,6 +82,7 @@ const permissions: Record<UserRole, Page[]> = {
     'dashboard',
     'student-registration',
     'student-management',
+    'teacher-management', // Fixed in v1.1
     'school-life',
     'grades-management',
     'class-management',
@@ -119,10 +120,15 @@ export const hasPermission = (user: User | UserRole, page: Page): boolean => {
   }
 
   // Check custom overrides first
-  if (user.custom_permissions && user.custom_permissions[page] !== undefined) {
-    return user.custom_permissions[page];
+  const customPerms = typeof user === 'object' && user.custom_permissions
+    ? (typeof user.custom_permissions === 'string' ? JSON.parse(user.custom_permissions) : user.custom_permissions)
+    : {};
+
+  if (customPerms[page] !== undefined) {
+    return customPerms[page] === true || customPerms[page] === 1;
   }
 
   // Fallback to default role permissions
-  return permissions[user.role]?.includes(page) ?? false;
+  const role = typeof user === 'string' ? user : user.role;
+  return permissions[role]?.includes(page) ?? false;
 };

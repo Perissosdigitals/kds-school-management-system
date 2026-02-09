@@ -22,6 +22,29 @@ export interface Student {
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
+  documents?: StudentDocument[];
+}
+
+export type DocumentType = 'Extrait de naissance' | 'Carnet de vaccination' | 'Autorisation parentale' | 'Fiche scolaire';
+export type DocumentStatus = 'pending' | 'approved' | 'rejected' | 'missing' | 'Validé' | 'En attente' | 'Rejeté' | 'Manquant' | 'Document validé' | 'En attente de validation' | 'Document rejeté' | 'Document manquant';
+
+export interface DocumentHistoryLog {
+  timestamp: string;
+  user: string;
+  action: string;
+  docType?: string;
+}
+
+export interface StudentDocument {
+  id?: string;
+  type: DocumentType | string;
+  status: DocumentStatus;
+  fileName?: string;
+  fileData?: string; // URL or base64
+  rejectionReason?: string;
+  updatedAt?: string;
+  registrationNumber?: string;
+  history?: DocumentHistoryLog[];
 }
 
 // ===== CLASSES =====

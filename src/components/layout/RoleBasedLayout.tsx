@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 interface User {
   id: string;
   email: string;
-  role: 'admin' | 'teacher' | 'parent' | 'student';
+  role: 'admin' | 'teacher' | 'parent' | 'student' | 'agent_admin';
   firstName: string;
   lastName: string;
 }
@@ -64,19 +64,19 @@ export const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) =>
         label: 'Tableau de Bord',
         icon: '📊',
         path: '/',
-        roles: ['admin', 'teacher', 'parent', 'student'],
+        roles: ['admin', 'teacher', 'parent', 'student', 'agent_admin'],
       },
       {
         id: 'grades',
         label: 'Notes',
         icon: '📝',
         path: '/grades',
-        roles: ['admin', 'teacher'],
+        roles: ['admin', 'teacher', 'agent_admin'],
         children: [
           { label: 'Saisie notes', path: '/grades/entry', roles: ['teacher'] },
-          { label: 'Bulletins', path: '/grades/reports', roles: ['admin', 'teacher'] },
+          { label: 'Bulletins', path: '/grades/reports', roles: ['admin', 'teacher', 'agent_admin'] },
           { label: 'Dashboard professeur', path: '/grades/teacher', roles: ['teacher'] },
-          { label: 'Dashboard admin', path: '/grades/admin', roles: ['admin'] },
+          { label: 'Dashboard admin', path: '/grades/admin', roles: ['admin', 'agent_admin'] },
         ],
       },
       {
@@ -91,11 +91,11 @@ export const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) =>
         label: 'Présences',
         icon: '📅',
         path: '/attendance',
-        roles: ['admin', 'teacher'],
+        roles: ['admin', 'teacher', 'agent_admin'],
         children: [
           { label: 'Appel journalier', path: '/attendance/daily', roles: ['teacher'] },
-          { label: 'Vue classe', path: '/attendance/class', roles: ['admin', 'teacher'] },
-          { label: 'Statistiques', path: '/attendance/stats', roles: ['admin'] },
+          { label: 'Vue classe', path: '/attendance/class', roles: ['admin', 'teacher', 'agent_admin'] },
+          { label: 'Statistiques', path: '/attendance/stats', roles: ['admin', 'agent_admin'] },
         ],
       },
       {
@@ -117,21 +117,21 @@ export const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) =>
         label: 'Classes',
         icon: '🏫',
         path: '/classes',
-        roles: ['admin', 'teacher'],
+        roles: ['admin', 'teacher', 'agent_admin'],
       },
       {
         id: 'students',
         label: 'Élèves',
         icon: '👨‍🎓',
         path: '/students',
-        roles: ['admin', 'teacher'],
+        roles: ['admin', 'teacher', 'agent_admin'],
       },
       {
         id: 'teachers',
         label: 'Professeurs',
         icon: '👨‍🏫',
         path: '/teachers',
-        roles: ['admin'],
+        roles: ['admin', 'agent_admin'],
       },
       {
         id: 'data-management',
@@ -239,7 +239,8 @@ export const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) =>
                   {user.role === 'admin' ? 'Administrateur' :
                     user.role === 'teacher' ? 'Professeur' :
                       user.role === 'parent' ? 'Parent' :
-                        'Élève'}
+                        user.role === 'agent_admin' ? 'Agent Administratif' :
+                          'Élève'}
                 </span>
               </div>
               <button
@@ -263,8 +264,8 @@ export const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) =>
                   <button
                     onClick={() => navigateTo(item.path)}
                     className={`w-full group flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors ${currentPath === item.path
-                        ? 'bg-blue-100 text-blue-900'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-blue-100 text-blue-900'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                       }`}
                   >
                     <span className="mr-3 text-xl">{item.icon}</span>
@@ -279,8 +280,8 @@ export const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) =>
                           key={idx}
                           onClick={() => navigateTo(child.path)}
                           className={`w-full group flex items-center px-4 py-2 text-xs font-medium rounded-md transition-colors ${currentPath === child.path
-                              ? 'bg-blue-50 text-blue-900'
-                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            ? 'bg-blue-50 text-blue-900'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                             }`}
                         >
                           • {child.label}
@@ -326,8 +327,8 @@ export const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) =>
                     <button
                       onClick={() => navigateTo(item.path)}
                       className={`w-full group flex items-center px-4 py-3 text-sm font-medium rounded-md ${currentPath === item.path
-                          ? 'bg-blue-100 text-blue-900'
-                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'bg-blue-100 text-blue-900'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                         }`}
                     >
                       <span className="mr-3 text-xl">{item.icon}</span>
@@ -341,8 +342,8 @@ export const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) =>
                             key={idx}
                             onClick={() => navigateTo(child.path)}
                             className={`w-full group flex items-center px-4 py-2 text-xs font-medium rounded-md ${currentPath === child.path
-                                ? 'bg-blue-50 text-blue-900'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                              ? 'bg-blue-50 text-blue-900'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                               }`}
                           >
                             • {child.label}
@@ -363,7 +364,8 @@ export const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) =>
                   {user.role === 'admin' ? 'Administrateur' :
                     user.role === 'teacher' ? 'Professeur' :
                       user.role === 'parent' ? 'Parent' :
-                        'Élève'}
+                        user.role === 'agent_admin' ? 'Agent Administratif' :
+                          'Élève'}
                 </p>
               </div>
             </div>

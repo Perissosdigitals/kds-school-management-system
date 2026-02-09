@@ -9,7 +9,7 @@ interface SidebarProps {
 }
 
 const mainNavLinks: { id: Page; icon: string; label: string }[] = [
-  { id: 'dashboard', icon: 'bxs-dashboard', label: 'Tableau de Bord' },
+  { id: 'dashboard', icon: 'bxs-dashboard', label: 'Tableau de Bord V1.1' },
   { id: 'student-registration', icon: 'bxs-user-plus', label: 'Inscription Élève' },
   { id: 'student-management', icon: 'bxs-graduation', label: 'Gestion Élèves' },
   { id: 'teacher-management', icon: 'bxs-user-detail', label: 'Gestion Professeurs' },

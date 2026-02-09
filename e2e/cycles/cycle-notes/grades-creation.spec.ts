@@ -20,8 +20,8 @@ test.describe('Cycle 1: Notes - Single Grade Creation', () => {
   test('N-001: Teacher creates single grade successfully', async ({ page }) => {
     // Step 1: Login as teacher
     await page.goto('/login');
-    await page.fill('input[name="email"]', 'teacher@kds.ci');
-    await page.fill('input[name="password"]', 'Test123!');
+    await page.fill('input[type="email"], input[name="email"]', 'teacher@kds.ci');
+    await page.fill('input[type="password"], input[name="password"]', 'Test123!');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/dashboard/, { timeout: 5000 });
 
@@ -38,7 +38,7 @@ test.describe('Cycle 1: Notes - Single Grade Creation', () => {
     await page.waitForTimeout(500); // Wait for students to load
 
     // Step 5: Verify students loaded (30 students)
-    const studentsTable = page.locator('table tbody tr');
+    const studentsTable = page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr');
     await expect(studentsTable).toHaveCount(30);
 
     // Step 6: Fill evaluation details
@@ -65,18 +65,18 @@ test.describe('Cycle 1: Notes - Single Grade Creation', () => {
     await expect(successMessage).toContainText('1 note(s) enregistrée(s) avec succès');
 
     // Step 10: Verify via API
-    const token = await page.evaluate(() => localStorage.getItem('access_token'));
+    const token = await page.evaluate(() => localStorage.getItem('ksp_token'));
     const response = await page.request.get(
-      `http://localhost:3001${API_ENDPOINTS.grades.getByClass}?classId=${TEST_CLASSES.cp.id}`,
+      `${process.env.API_URL || 'http://localhost:3002'}${API_ENDPOINTS.grades.getByClass}?classId=${TEST_CLASSES.cp.id}`,
       {
         headers: { 'Authorization': `Bearer ${token}` },
       }
     );
-    
+
     expect(response.status()).toBe(200);
     const grades = await response.json();
     expect(grades.length).toBeGreaterThan(0);
-    
+
     const lastGrade = grades[grades.length - 1];
     expect(lastGrade.value).toBe(16);
     expect(lastGrade.maxValue).toBe(20);
@@ -104,8 +104,8 @@ test.describe('Cycle 1: Notes - Bulk Grade Creation', () => {
   test('N-002: Teacher creates bulk grades for 30 students', async ({ page }) => {
     // Login
     await page.goto('/login');
-    await page.fill('input[name="email"]', 'teacher@kds.ci');
-    await page.fill('input[name="password"]', 'Test123!');
+    await page.fill('input[type="email"], input[name="email"]', 'teacher@kds.ci');
+    await page.fill('input[type="password"], input[name="password"]', 'Test123!');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/dashboard/, { timeout: 5000 });
 
@@ -125,9 +125,9 @@ test.describe('Cycle 1: Notes - Bulk Grade Creation', () => {
     await page.fill('input[name="coefficient"]', '3');
 
     // Enter grades for all 30 students
-    const studentsTable = page.locator('table tbody tr');
+    const studentsTable = page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr');
     const studentCount = await studentsTable.count();
-    
+
     expect(studentCount).toBe(30);
 
     // Fill grades (varying from 10 to 20)
@@ -157,22 +157,22 @@ test.describe('Cycle 1: Notes - Bulk Grade Creation', () => {
     console.log(`Bulk creation took ${duration}ms`);
 
     // Verify all grades via API
-    const token = await page.evaluate(() => localStorage.getItem('access_token'));
+    const token = await page.evaluate(() => localStorage.getItem('ksp_token'));
     const response = await page.request.get(
       `http://localhost:3001${API_ENDPOINTS.grades.getByClass}?classId=${TEST_CLASSES.ce1.id}&trimester=Trimestre 1`,
       {
         headers: { 'Authorization': `Bearer ${token}` },
       }
     );
-    
+
     expect(response.status()).toBe(200);
     const grades = await response.json();
-    
+
     // Should have at least 30 grades for this class/trimester
-    const compositionGrades = grades.filter((g: any) => 
+    const compositionGrades = grades.filter((g: any) =>
       g.title === 'Composition Trimestre 1' && g.subjectId === TEST_SUBJECTS.mathematiques.id
     );
-    
+
     expect(compositionGrades.length).toBe(30);
   });
 });
@@ -195,8 +195,8 @@ test.describe('Cycle 1: Notes - Validation', () => {
   test('N-003: System rejects grade > maxValue', async ({ page }) => {
     // Login
     await page.goto('/login');
-    await page.fill('input[name="email"]', 'teacher@kds.ci');
-    await page.fill('input[name="password"]', 'Test123!');
+    await page.fill('input[type="email"], input[name="email"]', 'teacher@kds.ci');
+    await page.fill('input[type="password"], input[name="password"]', 'Test123!');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/dashboard/, { timeout: 5000 });
 
@@ -214,7 +214,7 @@ test.describe('Cycle 1: Notes - Validation', () => {
     await page.fill('input[name="maxValue"]', '20');
 
     // Enter INVALID grade (25 > 20)
-    const firstRow = page.locator('table tbody tr').first();
+    const firstRow = page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr').first();
     await firstRow.locator('input[type="number"]').first().fill('25');
 
     // Submit
@@ -228,17 +228,17 @@ test.describe('Cycle 1: Notes - Validation', () => {
     await expect(errorMessage).toContainText('entre 0 et 20');
 
     // Verify grade NOT saved via API
-    const token = await page.evaluate(() => localStorage.getItem('access_token'));
+    const token = await page.evaluate(() => localStorage.getItem('ksp_token'));
     const response = await page.request.get(
-      `http://localhost:3001${API_ENDPOINTS.grades.getByClass}?classId=${TEST_CLASSES.cp.id}`,
+      `${process.env.API_URL || 'http://localhost:3002'}${API_ENDPOINTS.grades.getByClass}?classId=${TEST_CLASSES.cp.id}`,
       {
         headers: { 'Authorization': `Bearer ${token}` },
       }
     );
-    
+
     const grades = await response.json();
     const testValidationGrades = grades.filter((g: any) => g.title === 'Test Validation');
-    
+
     expect(testValidationGrades.length).toBe(0); // No grades with this title
   });
 });

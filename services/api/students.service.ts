@@ -255,8 +255,12 @@ export const StudentsService = {
       const response = await httpClient.patch<any>(`/students/${id}/documents`, { documents });
       const student = mapApiStudentToFrontend(response.data);
       return enrichStudentWithRelations(student);
-    } catch (error) {
-      console.error(`StudentsService: Erreur lors de la mise à jour des documents`, error);
+    } catch (error: any) {
+      console.error(`StudentsService: Erreur lors de la mise à jour des documents`, {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       throw error;
     }
   },

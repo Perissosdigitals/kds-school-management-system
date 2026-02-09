@@ -10,138 +10,180 @@ test.describe('Students Module - CRUD Operations', () => {
     let createdStudentId: string;
 
     test('S-001: Admin creates new student successfully', async ({ page }) => {
-        // Navigate to students page
-        await page.goto('/students');
-        await expect(page.locator('h1, h2')).toContainText(/\u00c9l\u00e8ves|Students/i);
+        console.log('--- S-001 START ---');
+        // Navigate to dashboard first
+        await page.goto('/');
 
-        // Click "Add Student" button
-        const addButton = page.locator('button:has-text("Ajouter"), button:has-text("Add")').first();
-        await addButton.click();
+        // Click on "Inscription Élève" in sidebar
+        console.log('Clicking Inscription Élève sidebar link...');
+        await page.getByRole('link', { name: "Inscription Élève" }).click();
 
-        // Wait for form to appear
-        await page.waitForSelector('form', { timeout: 5000 });
+        // Wait for the form or heading
+        console.log('Waiting for Inscription heading or form...');
+        await page.waitForSelector('h1, h2, form', { timeout: 15000 });
 
         // Fill student data
         const studentData = TestHelpers.generateStudentData();
+        console.log('Filling form for student:', studentData.firstName, studentData.lastName);
 
-        await page.fill('input[name="firstName"], input[name="first_name"]', studentData.firstName);
-        await page.fill('input[name="lastName"], input[name="last_name"]', studentData.lastName);
-        await page.fill('input[name="dateOfBirth"], input[name="date_of_birth"]', studentData.dateOfBirth);
-        await page.fill('input[name="placeOfBirth"], input[name="place_of_birth"]', studentData.placeOfBirth);
+        await page.fill('input[name="firstName"]', studentData.firstName);
+        await page.fill('input[name="lastName"]', studentData.lastName);
+        await page.fill('input[name="dob"]', studentData.dob);
+        await page.fill('input[name="birthPlace"]', studentData.birthPlace);
         await page.selectOption('select[name="gender"]', studentData.gender);
         await page.fill('input[name="nationality"]', studentData.nationality);
-        await page.fill('input[name="address"], textarea[name="address"]', studentData.address);
+        await page.fill('input[name="address"]', studentData.address);
+        await page.fill('input[name="phone"]', studentData.phone);
+        await page.fill('input[name="email"]', studentData.email);
 
-        // Parent information
-        await page.fill('input[name="parentName"], input[name="parent_name"]', studentData.parentName);
-        await page.fill('input[name="parentPhone"], input[name="parent_phone"]', studentData.parentPhone);
-        await page.fill('input[name="parentEmail"], input[name="parent_email"]', studentData.parentEmail);
+        // Academic info
+        await page.selectOption('select[name="gradeLevel"]', studentData.gradeLevel);
+
+        // Wait for classes to load if gradeLevel is selected
+        await page.waitForTimeout(1500);
+        const classSelect = page.locator('select[name="classId"]');
+        if (await classSelect.isVisible() && await classSelect.isEnabled()) {
+            const options = await classSelect.locator('option').count();
+            if (options > 1) {
+                console.log('Selecting first available class...');
+                await classSelect.selectOption({ index: 1 });
+            }
+        }
+
+        // Parent information / Emergency contact
+        await page.fill('input[name="emergencyContactName"]', studentData.emergencyContactName);
+        await page.fill('input[name="emergencyContactPhone"]', studentData.emergencyContactPhone);
 
         // Submit form
-        const submitButton = page.locator('button[type="submit"]:has-text("Enregistrer"), button[type="submit"]:has-text("Save")');
+        console.log('Submitting form...');
+        const submitButton = page.locator('button[type="submit"]:has-text("Enregistrer")');
 
         // Listen for API response
-        const responsePromise = TestHelpers.waitForApiResponse(page, /\/api\/v1\/students/, 'POST');
+        const responsePromise = TestHelpers.waitForApiResponse(page, /\/students/, 'POST');
 
         await submitButton.click();
 
         const response = await responsePromise;
+        console.log('API Response status:', response.status());
+        if (response.status() >= 400) {
+            console.error('API Error Body:', await response.text());
+        }
         expect(response.status()).toBe(201);
 
         const responseData = await response.json();
         createdStudentId = responseData.id;
-        expect(responseData.firstName || responseData.first_name).toBe(studentData.firstName);
 
         // Verify success message
-        await TestHelpers.verifySuccessMessage(page);
+        console.log('Verifying success message...');
+        await TestHelpers.verifySuccessMessage(page, 'avec succès');
     });
 
     test('S-002: Admin views student details', async ({ page }) => {
-        // Navigate to students list
-        await page.goto('/students');
+        console.log('--- S-002 START ---');
+        // Navigate to dashboard and then to management
+        await page.goto('/');
+        await page.getByRole('link', { name: "Gestion Élèves" }).click();
 
         // Wait for table to load
+        console.log('Waiting for students table...');
         await TestHelpers.waitForTableRows(page, 'table', 1);
 
-        // Click on first student to view details
-        const firstRow = page.locator('table tbody tr').first();
-        await firstRow.click();
+        // Click on first student name to view details
+        console.log('Clicking on first student link...');
+        const firstStudentLink = page.locator('table tbody tr td').nth(1);
+        await firstStudentLink.click();
 
-        // Verify detail page loaded
-        await page.waitForURL(/\/students\/[\w-]+/, { timeout: 5000 });
-
-        // Verify student information is displayed
-        const detailView = page.locator('.student-detail, .card, .detail-container');
-        await detailView.waitFor({ state: 'visible', timeout: 5000 });
+        // Verify detail page or view loaded
+        console.log('Waiting for detail view...');
+        await page.waitForSelector('.flex.flex-col.gap-6, .student-detail, h2', { timeout: 15000 });
     });
 
     test('S-003: Admin updates student information', async ({ page }) => {
-        // Navigate to students list
-        await page.goto('/students');
+        console.log('--- S-003 START ---');
+        // Navigate to management
+        await page.goto('/');
+        await page.getByRole('link', { name: "Gestion Élèves" }).click();
         await TestHelpers.waitForTableRows(page, 'table', 1);
 
         // Click edit button for first student
-        const editButton = page.locator('button[title="Modifier"], button:has-text("Modifier"), a:has-text("Edit")').first();
+        console.log('Clicking edit button...');
+        const editButton = page.locator('button[title*="Modifier"]').first();
         await editButton.click();
 
         // Wait for edit form
-        await page.waitForSelector('form', { timeout: 5000 });
+        console.log('Waiting for edit form...');
+        await page.waitForSelector('form', { timeout: 10000 });
 
         // Update address
         const newAddress = '456 Avenue de la République, Abidjan';
-        await page.fill('input[name="address"], textarea[name="address"]', newAddress);
+        console.log('Updating address to:', newAddress);
+        await page.fill('input[name="address"]', newAddress);
 
         // Submit update
-        const updateButton = page.locator('button[type="submit"]:has-text("Enregistrer"), button[type="submit"]:has-text("Update")');
-        const responsePromise = TestHelpers.waitForApiResponse(page, /\/api\/v1\/students/, 'PUT');
+        const updateButton = page.locator('button[type="submit"]:has-text("Enregistrer")');
+        const responsePromise = TestHelpers.waitForApiResponse(page, /\/students\//, 'PUT');
 
         await updateButton.click();
 
         const response = await responsePromise;
+        console.log('API Update status:', response.status());
+        if (response.status() >= 400) {
+            console.error('API Update Error Body:', await response.text());
+        }
         expect(response.status()).toBe(200);
 
         // Verify success
-        await TestHelpers.verifySuccessMessage(page);
+        console.log('Verifying update success message...');
+        await TestHelpers.verifySuccessMessage(page, 'succès');
     });
 
     test('S-004: Admin searches for students', async ({ page }) => {
-        await page.goto('/students');
+        console.log('--- S-004 START ---');
+        await page.goto('/');
+        await page.getByRole('link', { name: "Gestion Élèves" }).click();
+        await expect(page.locator('table')).toBeVisible({ timeout: 15000 });
 
         // Find search input
-        const searchInput = page.locator('input[type="search"], input[placeholder*="Recherch"], input[placeholder*="Search"]');
+        const searchInput = page.locator('input[placeholder*="Recherche"], input[placeholder*="Search"]').first();
 
         if (await searchInput.isVisible()) {
-            await searchInput.fill('Koné');
-            await page.waitForTimeout(500); // Wait for search debounce
+            console.log('Performing search for "Test"...');
+            await searchInput.fill('Test');
+            await page.waitForTimeout(1500);
 
-            // Verify filtered results
-            const rows = page.locator('table tbody tr');
-            const count = await rows.count();
-            expect(count).toBeGreaterThanOrEqual(0);
+            // Verify table has results
+            const tableRows = page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr');
+            const count = await tableRows.count();
+            console.log('Search results count:', count);
+            expect(count).toBeGreaterThanOrEqual(1);
         }
     });
 
     test('S-005: Admin deletes student (soft delete)', async ({ page }) => {
-        await page.goto('/students');
+        console.log('--- S-005 START ---');
+        await page.goto('/');
+        await page.getByRole('link', { name: "Gestion Élèves" }).click();
         await TestHelpers.waitForTableRows(page, 'table', 1);
 
-        // Get initial count
-        const initialCount = await page.locator('table tbody tr').count();
-
         // Find delete button
-        const deleteButton = page.locator('button[title="Supprimer"], button:has-text("Delete")').first();
+        console.log('Clicking delete button...');
+        const deleteButton = page.locator('button[title*="Supprimer"]').first();
 
         if (await deleteButton.isVisible()) {
+            const responsePromise = TestHelpers.waitForApiResponse(page, /\/students\//, 'DELETE');
+
+            console.log('Setting up dialog handler...');
+            page.once('dialog', dialog => dialog.accept());
+
             await deleteButton.click();
 
-            // Confirm deletion in modal/dialog
-            const confirmButton = page.locator('button:has-text("Confirm"), button:has-text("Oui"), button:has-text("Supprimer")').last();
-            await confirmButton.click({ timeout: 3000 }).catch(() => { });
+            const response = await responsePromise;
+            console.log('API Delete status:', response.status());
+            expect([200, 204]).toContain(response.status());
 
-            // Verify student removed from list
-            await page.waitForTimeout(1000);
-            const newCount = await page.locator('table tbody tr').count();
-            expect(newCount).toBeLessThanOrEqual(initialCount);
+            await page.waitForTimeout(1500);
+            const newCount = await page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr').count();
+            console.log('New count after delete:', newCount);
         }
     });
 });

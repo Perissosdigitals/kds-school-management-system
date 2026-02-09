@@ -58,7 +58,7 @@ test.describe('Enrollment Module - Workflow', () => {
         await TestHelpers.waitForTableRows(page, 'table', 1);
 
         // Click on first student
-        const firstStudent = page.locator('table tbody tr').first();
+        const firstStudent = page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr').first();
         await firstStudent.click();
 
         await page.waitForURL(/\/students\/[\w-]+/);
@@ -77,7 +77,7 @@ test.describe('Enrollment Module - Workflow', () => {
         await TestHelpers.waitForTableRows(page, 'table', 1);
 
         // Click on first student
-        const firstStudent = page.locator('table tbody tr').first();
+        const firstStudent = page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr').first();
         const studentRowText = await firstStudent.textContent();
         await firstStudent.click();
 
@@ -112,7 +112,7 @@ test.describe('Enrollment Module - Workflow', () => {
         await TestHelpers.waitForTableRows(page, 'table', 1);
 
         // Get last student (to avoid affecting other tests)
-        const lastStudent = page.locator('table tbody tr').last();
+        const lastStudent = page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr').last();
         await lastStudent.click();
 
         await page.waitForURL(/\/students\/[\w-]+/);

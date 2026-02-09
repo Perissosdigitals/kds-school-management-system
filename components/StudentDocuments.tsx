@@ -62,7 +62,7 @@ const StudentDocuments: React.FC<StudentDocumentsProps> = ({ student, currentUse
                 fileName: fileName || '',
                 fileData: fileData || '',
                 rejectionReason: rejectionReason || '',
-                updatedAt: new Date().toLocaleDateString('fr-FR'),
+                updatedAt: new Date().toISOString(),
                 history: [newHistoryEntry]
             });
         } else {

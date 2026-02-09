@@ -1,0 +1,12 @@
+HTTP/2 201 
+date: Mon, 09 Feb 2026 11:52:04 GMT
+content-type: application/json
+content-length: 1190
+access-control-allow-origin: *
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=KXZddU0So80GMFOKz3dZjAQotkfk3yfhkRH1MmD21dZmjAOCRoA7YHCQ47H2IWuLx8yOS%2FrBiCoEMAochiZViRJldcNCfvDXSJfki10vZBYmLplL2VCebopVrt66zAZbLX8lxgnDzUf1gScsV6qhsbwuVIw2EX13q1WfwBD9CpDdjFA%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-ray: 9cb328933bcb6ee1-CDG
+alt-svc: h3=":443"; ma=86400
+
+{"id":"85ec8463-4c17-4a68-9665-aa5acefd9115","user_id":"user-student-85ec8463-4c17-4a68-9665-aa5acefd9115","nationality":"Ivoirienne","address":"Test Address","class_id":null,"student_code":"KSP-S-85ec","enrollment_date":"2026-02-09 11:52:04","last_name":"Test","first_name":"Antigravity","birth_date":"2010-01-01","phone":"+22501020304","email":"s-85ec8463-4c17-4a68-9665-aa5acefd9115@ksp.ci","academic_level":"CM2","emergency_contact_name":"Support Team","emergency_contact_phone":"+22505060708","documents":[],"gender":"Masculin","birth_place":"Abidjan","previous_school":null,"medical_info":null,"status":"inactive","created_at":"2026-02-09 11:52:04","updated_at":"2026-02-09 11:52:04","photo_url":null,"sync_status":"synced","validation_state":"valid","document_count":0,"pending_docs":0,"last_synced_at":null,"user_first_name":"Antigravity","user_last_name":"Test","user_email":"s-85ec8463-4c17-4a68-9665-aa5acefd9115@ksp.ci","class_name":null,"firstName":"Antigravity","lastName":"Test","dob":"2010-01-01","gradeLevel":"CM2","registrationDate":"2026-02-09 11:52:04","registrationNumber":"KSP-S-85ec","classId":null,"createdAt":"2026-02-09 11:52:04","updatedAt":"2026-02-09 11:52:04"}

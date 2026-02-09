@@ -39,7 +39,10 @@
     "test:cycle1": "playwright test --project=cycle-notes",
     "test:cycle2": "playwright test --project=cycle-attendance",
     "test:cycle3": "playwright test --project=cycle-data-management",
-    "test:cycle4": "playwright test --project=cycle-multi-roles"
+    "test:cycle4": "playwright test --project=cycle-multi-roles",
+    "test:beta": "playwright test --project=cycle-students --project=cycle-attendance --project=cycle-auth --grep=\"AUTH-001|AUTH-002\" --reporter=html",
+    "test:critical": "playwright test --project=cycle-students --project=cycle-attendance --reporter=line",
+    "test:important": "playwright test --project=cycle-teachers --project=cycle-classes --grep=\"T-002|T-003|C-002|C-003\" --reporter=line"
   },
   "dependencies": {
     "@jest/globals": "^30.2.0",

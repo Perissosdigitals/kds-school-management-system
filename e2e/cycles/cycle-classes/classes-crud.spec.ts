@@ -10,7 +10,7 @@ test.describe('Classes Module - CRUD Operations', () => {
 
     test('C-001: Admin creates new class', async ({ page }) => {
         await page.goto('/classes');
-        await expect(page.locator('h1, h2')).toContainText(/Classes|Salles/i);
+        await expect(page.locator('main h1, main h2').first()).toContainText(/Classes|Salles/i);
 
         // Click add class button
         const addButton = page.locator('button:has-text("Ajouter"), button:has-text("Add"), button:has-text("Créer")').first();

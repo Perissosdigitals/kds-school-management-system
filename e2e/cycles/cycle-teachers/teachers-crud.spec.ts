@@ -10,14 +10,14 @@ test.describe('Teachers Module - CRUD Operations', () => {
 
     test('T-001: Admin creates new teacher', async ({ page }) => {
         await page.goto('/teachers');
-        await expect(page.locator('h1, h2')).toContainText(/Enseignants|Teachers/i);
+        await expect(page.locator('main h1, main h2').first()).toContainText(/Gestion des Professeurs|Enseignants|Teachers/i);
 
         // Click add teacher button
-        const addButton = page.locator('button:has-text("Ajouter"), button:has-text("Add")').first();
+        const addButton = page.locator('button:has-text("Nouveau Professeur"), button:has-text("Ajouter"), button:has-text("Add")').first();
         await addButton.click();
 
         // Wait for form
-        await page.waitForSelector('form');
+        await page.waitForSelector('form, [data-testid="teacher-form"]');
 
         // Fill teacher data
         const teacherData = {
@@ -43,6 +43,9 @@ test.describe('Teachers Module - CRUD Operations', () => {
         await submitButton.click();
 
         const response = await responsePromise;
+        if (response.status() >= 400) {
+            console.log('API Error Body:', await response.text());
+        }
         expect(response.status()).toBe(201);
 
         //Verify success message
@@ -56,7 +59,7 @@ test.describe('Teachers Module - CRUD Operations', () => {
         await TestHelpers.waitForTableRows(page, 'table', 1);
 
         // Verify table has data
-        const rows = await page.locator('table tbody tr').count();
+        const rows = await page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr').count();
         expect(rows).toBeGreaterThan(0);
     });
 
@@ -70,7 +73,7 @@ test.describe('Teachers Module - CRUD Operations', () => {
             await page.waitForTimeout(500);
 
             // Verify filtered results
-            const rows = page.locator('table tbody tr');
+            const rows = page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr');
             const count = await rows.count();
             expect(count).toBeGreaterThanOrEqual(0);
         }
@@ -93,7 +96,14 @@ test.describe('Teachers Module - CRUD Operations', () => {
 
         // Submit
         const updateButton = page.locator('button[type="submit"]');
+        const responsePromise = TestHelpers.waitForApiResponse(page, /\/api\/v1\/teachers\//, 'PUT');
         await updateButton.click();
+
+        const response = await responsePromise;
+        if (response.status() >= 400) {
+            console.log('API Update Error Body:', await response.text());
+        }
+        expect(response.status()).toBe(200);
 
         // Verify success
         await TestHelpers.verifySuccessMessage(page);
@@ -104,7 +114,7 @@ test.describe('Teachers Module - CRUD Operations', () => {
         await TestHelpers.waitForTableRows(page, 'table', 1);
 
         // Click on first teacher
-        const firstRow = page.locator('table tbody tr').first();
+        const firstRow = page.locator('table tbody tr, .data-table tbody tr, [data-testid*="table"] tbody tr').first();
         await firstRow.click();
 
         // Wait for detail page
