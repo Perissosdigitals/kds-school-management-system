@@ -34,15 +34,34 @@ body {
 
 @layer components {
   .glass-card {
-    @apply bg-white/70 backdrop-blur-md border border-white/40 shadow-lg rounded-2xl;
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border-radius: 1rem;
   }
 
   .glass-panel {
-    @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-2xl;
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   }
 
   .glass-backdrop {
-    @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-[12px] transition-all duration-500 ease-in-out;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background-color: rgba(15, 23, 42, 0.3);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 500ms ease-in-out;
   }
 
   .btn-primary-ksp {

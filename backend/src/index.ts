@@ -1725,15 +1725,24 @@ app.post('/api/v1/classes', async (c) => {
     try {
         const data = await c.req.json();
         const id = data.id || crypto.randomUUID();
-        const isActive = data.isActive === true || data.is_active === 1 || data.isActive === 'true';
+
+        // Handle both naming styles: isActive (camelCase) or is_active (snake_case)
+        // Default to TRUE (1) for new classes unless explicitly set to false
+        const isActiveRaw = data.isActive !== undefined ? data.isActive : data.is_active;
+        const isActive = isActiveRaw === undefined ? true : (isActiveRaw === true || isActiveRaw === 1 || isActiveRaw === 'true');
 
         const statements = [];
         statements.push(c.env.DB.prepare(`
             INSERT INTO classes (id, name, level, academic_year, main_teacher_id, room_number, capacity, is_active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
-            id, data.name, data.level, data.academicYear || '2025-2026',
-            data.teacherId || null, data.room || null, data.maxStudents || 40,
+            id,
+            data.name,
+            data.level,
+            data.academicYear || data.academic_year || '2025-2026',
+            data.mainTeacherId || data.teacherId || null,
+            data.roomNumber || data.room || null,
+            data.capacity || data.maxStudents || 40,
             isActive ? 1 : 0
         ));
 
@@ -1758,14 +1767,24 @@ app.put('/api/v1/classes/:id', async (c) => {
             UPDATE classes SET 
                 name = COALESCE(?, name),
                 level = COALESCE(?, level),
+                academic_year = COALESCE(?, academic_year),
                 main_teacher_id = COALESCE(?, main_teacher_id),
                 room_number = COALESCE(?, room_number),
                 capacity = COALESCE(?, capacity),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        `).bind(data.name || null, data.level || null, data.teacherId || null, data.room || null, data.maxStudents || null, id).run();
+        `).bind(
+            data.name || null,
+            data.level || null,
+            data.academicYear || data.academic_year || null,
+            data.mainTeacherId || data.teacherId || null,
+            data.roomNumber || data.room || null,
+            data.capacity || data.maxStudents || null,
+            id
+        ).run();
         return c.json({ success: true });
     } catch (error) {
+        console.error('Class update error:', error);
         return c.json({ error: 'Failed to update class' }, 500);
     }
 });

@@ -580,10 +580,6 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
     }
 
     // Show detail view
-    if (viewMode === 'detail' && selectedClassId) {
-        return <NewClassDetailView classId={selectedClassId} onBack={handleBack} currentUser={currentUser} />;
-    }
-
     // Show list view
     return (
         <>
@@ -603,6 +599,22 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
                 onDeleteClass={handleDeleteClass}
                 onCreateClass={handleCreateClass}
             />
+
+            {/* Modal for Detail View */}
+            <Modal
+                isOpen={viewMode === 'detail' && !!selectedClassId}
+                onClose={handleBack}
+                title={`Détails de la Classe: ${selectedClass?.name || ''}`}
+                size="xl"
+            >
+                {selectedClassId && (
+                    <NewClassDetailView
+                        classId={selectedClassId}
+                        onBack={handleBack}
+                        currentUser={currentUser}
+                    />
+                )}
+            </Modal>
 
             {/* Modal pour Création/Édition */}
             <Modal
