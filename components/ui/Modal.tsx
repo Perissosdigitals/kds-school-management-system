@@ -50,6 +50,26 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         .animate-modal-in {
           animation: modal-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
+        .glass-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1rem;
+          background-color: rgba(15, 23, 42, 0.3);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          transition: all 500ms ease-in-out;
+        }
+        .glass-panel {
+          background-color: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid rgba(255, 255, 255, 0.5);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }
