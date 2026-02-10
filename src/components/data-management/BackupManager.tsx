@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DataManagementService } from '../../services/api/data-management.service';
 import type { Backup, CreateBackupDto } from '../../types';
+import { Modal } from '@/components/ui/Modal';
 
 export const BackupManager: React.FC = () => {
   const [backups, setBackups] = useState<Backup[]>([]);
@@ -8,17 +9,17 @@ export const BackupManager: React.FC = () => {
   const [loadingBackups, setLoadingBackups] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
-  
+
   // Create backup modal state
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [backupName, setBackupName] = useState<string>('');
   const [backupDescription, setBackupDescription] = useState<string>('');
   const [compress, setCompress] = useState<boolean>(true);
-  
+
   // Restore confirmation modal state
   const [showRestoreModal, setShowRestoreModal] = useState<boolean>(false);
   const [restoreBackupId, setRestoreBackupId] = useState<string>('');
-  
+
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [deleteBackupId, setDeleteBackupId] = useState<string>('');
@@ -27,7 +28,7 @@ export const BackupManager: React.FC = () => {
   const loadBackups = async () => {
     setLoadingBackups(true);
     setError('');
-    
+
     try {
       const response = await DataManagementService.listBackups();
       setBackups(response);
@@ -63,13 +64,13 @@ export const BackupManager: React.FC = () => {
       };
 
       await DataManagementService.createBackup(createDto);
-      
+
       setSuccess('Sauvegarde créée avec succès!');
       setShowCreateModal(false);
       setBackupName('');
       setBackupDescription('');
       setCompress(true);
-      
+
       // Reload backups
       await loadBackups();
     } catch (err: any) {
@@ -89,7 +90,7 @@ export const BackupManager: React.FC = () => {
 
     try {
       const blob = await DataManagementService.downloadBackup(backupId);
-      
+
       // Download file
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -118,7 +119,7 @@ export const BackupManager: React.FC = () => {
 
     try {
       await DataManagementService.restoreBackup(restoreBackupId);
-      
+
       setSuccess('Restauration réussie! Base de données restaurée.');
       setShowRestoreModal(false);
       setRestoreBackupId('');
@@ -139,11 +140,11 @@ export const BackupManager: React.FC = () => {
 
     try {
       await DataManagementService.deleteBackup(deleteBackupId);
-      
+
       setSuccess('Sauvegarde supprimée avec succès!');
       setShowDeleteModal(false);
       setDeleteBackupId('');
-      
+
       // Reload backups
       await loadBackups();
     } catch (err: any) {
@@ -180,7 +181,7 @@ export const BackupManager: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-800">
           Gestion des Sauvegardes
         </h2>
-        
+
         <button
           type="button"
           onClick={() => setShowCreateModal(true)}
@@ -201,7 +202,7 @@ export const BackupManager: React.FC = () => {
           <p>{error}</p>
         </div>
       )}
-      
+
       {success && (
         <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-500 text-green-700">
           <p className="font-medium">Succès</p>
@@ -279,11 +280,10 @@ export const BackupManager: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      backup.compressed 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${backup.compressed
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-100 text-gray-800'
+                      }`}>
                       {backup.compressed ? 'Compressé' : 'Standard'}
                     </span>
                   </td>
@@ -299,7 +299,7 @@ export const BackupManager: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                       </button>
-                      
+
                       <button
                         type="button"
                         onClick={() => {
@@ -313,7 +313,7 @@ export const BackupManager: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                       </button>
-                      
+
                       <button
                         type="button"
                         onClick={() => {
@@ -337,172 +337,174 @@ export const BackupManager: React.FC = () => {
       )}
 
       {/* Create Backup Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Créer une sauvegarde
-              </h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nom *
-                  </label>
-                  <input
-                    type="text"
-                    value={backupName}
-                    onChange={(e) => setBackupName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="backup_2024_11_24"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={backupDescription}
-                    onChange={(e) => setBackupDescription(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                    placeholder="Sauvegarde avant migration..."
-                  />
-                </div>
-                
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={compress}
-                    onChange={(e) => setCompress(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label className="ml-2 block text-sm text-gray-900">
-                    Compresser (.sql.gz) - Recommandé
-                  </label>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setBackupName('');
-                    setBackupDescription('');
-                    setCompress(true);
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                  disabled={loading}
-                >
-                  Annuler
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={handleCreateBackup}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-                  disabled={loading}
-                >
-                  {loading ? 'Création...' : 'Créer'}
-                </button>
-              </div>
-            </div>
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setBackupName('');
+          setBackupDescription('');
+          setCompress(true);
+        }}
+        title="Créer une sauvegarde"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nom *
+            </label>
+            <input
+              type="text"
+              value={backupName}
+              onChange={(e) => setBackupName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="backup_2024_11_24"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              value={backupDescription}
+              onChange={(e) => setBackupDescription(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
+              placeholder="Sauvegarde avant migration..."
+            />
+          </div>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={compress}
+              onChange={(e) => setCompress(e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label className="ml-2 block text-sm text-gray-900">
+              Compresser (.sql.gz) - Recommandé
+            </label>
           </div>
         </div>
-      )}
+
+        <div className="mt-6 flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowCreateModal(false);
+              setBackupName('');
+              setBackupDescription('');
+              setCompress(true);
+            }}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            disabled={loading}
+          >
+            Annuler
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCreateBackup}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? 'Création...' : 'Créer'}
+          </button>
+        </div>
+      </Modal>
 
       {/* Restore Confirmation Modal */}
-      {showRestoreModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
-                <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mt-4 text-center">
-                Confirmer la restauration
-              </h3>
-              <p className="text-sm text-gray-500 mt-2 text-center">
-                Cette action remplacera toutes les données actuelles par celles de la sauvegarde. 
-                Cette opération est <strong>irréversible</strong>.
-              </p>
-              
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRestoreModal(false);
-                    setRestoreBackupId('');
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                  disabled={loading}
-                >
-                  Annuler
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={handleRestoreBackup}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-                  disabled={loading}
-                >
-                  {loading ? 'Restauration...' : 'Confirmer'}
-                </button>
-              </div>
-            </div>
+      <Modal
+        isOpen={showRestoreModal}
+        onClose={() => {
+          setShowRestoreModal(false);
+          setRestoreBackupId('');
+        }}
+        title="Confirmer la restauration"
+        size="md"
+      >
+        <div className="flex flex-col items-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+            <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           </div>
+          <p className="text-sm text-gray-500 text-center">
+            Cette action remplacera toutes les données actuelles par celles de la sauvegarde.
+            Cette opération est <strong>irréversible</strong>.
+          </p>
         </div>
-      )}
+
+        <div className="mt-6 flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowRestoreModal(false);
+              setRestoreBackupId('');
+            }}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            disabled={loading}
+          >
+            Annuler
+          </button>
+
+          <button
+            type="button"
+            onClick={handleRestoreBackup}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? 'Restauration...' : 'Confirmer'}
+          </button>
+        </div>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mt-4 text-center">
-                Confirmer la suppression
-              </h3>
-              <p className="text-sm text-gray-500 mt-2 text-center">
-                Cette action supprimera définitivement la sauvegarde. 
-                Vous ne pourrez plus la restaurer.
-              </p>
-              
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setDeleteBackupId('');
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                  disabled={loading}
-                >
-                  Annuler
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={handleDeleteBackup}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                  disabled={loading}
-                >
-                  {loading ? 'Suppression...' : 'Supprimer'}
-                </button>
-              </div>
-            </div>
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteBackupId('');
+        }}
+        title="Confirmer la suppression"
+        size="md"
+      >
+        <div className="flex flex-col items-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           </div>
+          <p className="text-sm text-gray-500 text-center">
+            Cette action supprimera définitivement la sauvegarde.
+            Vous ne pourrez plus la restaurer.
+          </p>
         </div>
-      )}
+
+        <div className="mt-6 flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowDeleteModal(false);
+              setDeleteBackupId('');
+            }}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            disabled={loading}
+          >
+            Annuler
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDeleteBackup}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? 'Suppression...' : 'Supprimer'}
+          </button>
+        </div>
+      </Modal>
 
       {/* Info Box */}
       <div className="mt-6 p-4 bg-blue-50 rounded-md">
