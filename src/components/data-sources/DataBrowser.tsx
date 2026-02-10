@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Modal } from '@/components/ui/Modal';
 
 interface TableData {
   columns: string[];
@@ -173,8 +174,8 @@ export default function DataBrowser({ tableName, apiUrl, onClose }: DataBrowserP
 
   if (loading && !data) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl p-8">
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-[60]">
+        <div className="bg-white/70 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-white/50">
           <i className='bx bx-loader-alt bx-spin text-4xl text-blue-600'></i>
         </div>
       </div>
@@ -182,72 +183,61 @@ export default function DataBrowser({ tableName, apiUrl, onClose }: DataBrowserP
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <i className='bx bx-table text-blue-600'></i>
-              Table: {tableName}
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {data?.total || 0} enregistrements • Page {page} sur {totalPages}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <i className='bx bx-x text-2xl text-gray-600'></i>
-          </button>
-        </div>
-
-        {/* Search Bar */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex gap-3">
-            <div className="flex-1 relative">
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={`Table: ${tableName}`}
+      size="xl"
+    >
+      <div className="flex flex-col h-full max-h-[85vh]">
+        {/* Sub-Header */}
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            {data?.total || 0} enregistrements • Page {page} sur {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <div className="relative">
               <i className='bx bx-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'></i>
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
               />
             </div>
             <button
               onClick={() => loadData()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+              className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+              title="Actualiser"
             >
-              <i className='bx bx-refresh'></i>
-              Actualiser
+              <i className='bx bx-refresh text-xl'></i>
             </button>
           </div>
         </div>
 
-        {/* Data Table */}
-        <div className="flex-1 overflow-auto p-6">
+        {/* Data Table Container */}
+        <div className="flex-1 overflow-auto border border-gray-100 rounded-xl">
           {data && data.rows.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
+            <table className="w-full text-xs text-left">
+              <thead className="bg-gray-50/50 sticky top-0 z-10">
+                <tr className="border-b border-gray-200">
                   {data.columns.map((col) => (
                     <th
                       key={col}
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-200"
+                      className="px-4 py-3 font-bold text-gray-700 uppercase tracking-wider"
                     >
                       {col}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-200">
+                  <th className="px-4 py-3 text-center font-bold text-gray-700 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100">
                 {data.rows.map((row, rowIndex) => (
-                  <tr key={rowIndex} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={rowIndex} className="hover:bg-blue-50/30 transition-colors">
                     {data.columns.map((col) => (
                       <td key={col} className="px-4 py-3 text-gray-800">
                         {editingRow === rowIndex ? (
@@ -257,10 +247,10 @@ export default function DataBrowser({ tableName, apiUrl, onClose }: DataBrowserP
                             onChange={(e) =>
                               setEditedData({ ...editedData, [col]: e.target.value })
                             }
-                            className="w-full px-2 py-1 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-2 py-1 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                           />
                         ) : (
-                          <span className="truncate block max-w-xs">
+                          <span className="truncate block max-w-xs" title={row[col]?.toString()}>
                             {row[col]?.toString() || '-'}
                           </span>
                         )}
@@ -271,30 +261,32 @@ export default function DataBrowser({ tableName, apiUrl, onClose }: DataBrowserP
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleSave(rowIndex)}
-                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                            className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold rounded shadow-sm"
                           >
-                            <i className='bx bx-check'></i> Sauver
+                            Sauver
                           </button>
                           <button
                             onClick={handleCancel}
-                            className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
+                            className="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white text-[10px] font-bold rounded shadow-sm"
                           >
-                            <i className='bx bx-x'></i> Annuler
+                            Annuler
                           </button>
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleEdit(rowIndex)}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Éditer"
                           >
-                            <i className='bx bx-edit'></i> Éditer
+                            <i className='bx bx-edit text-base'></i>
                           </button>
                           <button
                             onClick={() => handleDelete(rowIndex)}
-                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Supprimer"
                           >
-                            <i className='bx bx-trash'></i> Supprimer
+                            <i className='bx bx-trash text-base'></i>
                           </button>
                         </div>
                       )}
@@ -304,16 +296,16 @@ export default function DataBrowser({ tableName, apiUrl, onClose }: DataBrowserP
               </tbody>
             </table>
           ) : (
-            <div className="text-center py-12 text-gray-500">
-              <i className='bx bx-data text-4xl mb-2'></i>
+            <div className="text-center py-20 text-gray-400">
+              <i className='bx bx-data text-5xl mb-2 opacity-20'></i>
               <p>Aucune donnée disponible</p>
             </div>
           )}
         </div>
 
         {/* Pagination */}
-        <div className="p-4 border-t border-gray-200 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+          <div className="text-xs text-gray-500">
             Affichage {Math.min((page - 1) * limit + 1, data?.total || 0)} à{' '}
             {Math.min(page * limit, data?.total || 0)} sur {data?.total || 0}
           </div>
@@ -321,20 +313,20 @@ export default function DataBrowser({ tableName, apiUrl, onClose }: DataBrowserP
             <button
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 text-gray-700 rounded-lg transition-colors"
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-lg text-xs font-bold transition-all"
             >
               <i className='bx bx-chevron-left'></i> Précédent
             </button>
             <button
               onClick={() => setPage(Math.min(totalPages, page + 1))}
               disabled={page === totalPages || totalPages === 0}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 text-gray-700 rounded-lg transition-colors"
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-lg text-xs font-bold transition-all"
             >
               Suivant <i className='bx bx-chevron-right'></i>
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

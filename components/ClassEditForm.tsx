@@ -43,7 +43,7 @@ export const ClassEditForm: React.FC<ClassEditFormProps> = ({ schoolClass, onSav
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -77,91 +77,101 @@ export const ClassEditForm: React.FC<ClassEditFormProps> = ({ schoolClass, onSav
   };
 
   return (
-    <div className="bg-white p-8 rounded-xl shadow-lg">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">
-          {isCreateMode ? 'Créer une nouvelle classe' : 'Modifier la classe'}
-        </h2>
-        <button
-          onClick={onCancel}
-          className="text-gray-500 hover:text-gray-700 text-2xl"
-        >
-          ✕
-        </button>
-      </div>
-
+    <div className="space-y-6">
       {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
+        <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg animate-shake">
+          <p className="font-bold flex items-center gap-2">
+            <i className='bx bx-error-circle'></i>
+            Erreur
+          </p>
+          <p className="text-sm">{error}</p>
         </div>
       )}
 
       {successMessage && (
-        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-          {successMessage}
+        <div className="p-4 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-lg animate-bounce-subtle">
+          <p className="font-bold flex items-center gap-2">
+            <i className='bx bx-check-circle'></i>
+            Succès
+          </p>
+          <p className="text-sm">{successMessage}</p>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold text-blue-700 mb-4 pb-2 border-b">Informations de la Classe</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nom de la classe</label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2 block">Nom de la classe *</span>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                placeholder="Ex: 6ème A, CM2 B..."
+                className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-medium"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Niveau</label>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2 block">Niveau Scolaire *</span>
               <input
                 type="text"
                 name="level"
                 value={formData.level}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                placeholder="Ex: Primaire, Secondaire..."
+                className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-medium"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Année académique</label>
+            </label>
+          </div>
+
+          <div className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2 block">Année Académique *</span>
               <input
                 type="text"
                 name="academicYear"
                 value={formData.academicYear}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-medium"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Capacité</label>
-              <input
-                type="number"
-                name="capacity"
-                value={formData.capacity}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2 block">Capacité maximale *</span>
+              <div className="relative">
+                <input
+                  type="number"
+                  name="capacity"
+                  value={formData.capacity}
+                  onChange={handleInputChange}
+                  required
+                  min="1"
+                  className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-medium pl-10"
+                />
+                <i className='bx bx-group absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg'></i>
+              </div>
+            </label>
           </div>
         </div>
 
-        <div className="flex gap-3 justify-end pt-6 border-t">
+        <div className="flex gap-4 pt-6 border-t border-slate-100">
           <button
             type="button"
             onClick={onCancel}
             disabled={isLoading}
-            className="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="flex-1 px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-2xl transition-all active:scale-95 text-sm"
           >
             Annuler
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="flex-[2] px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
             {isLoading ? (
               <>
@@ -170,13 +180,33 @@ export const ClassEditForm: React.FC<ClassEditFormProps> = ({ schoolClass, onSav
               </>
             ) : (
               <>
-                <i className='bx bxs-save'></i>
-                Enregistrer
+                <i className='bx bxs-save text-lg'></i>
+                Enregistrer la Classe
               </>
             )}
           </button>
         </div>
       </form>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-4px); }
+          75% { transform: translateX(4px); }
+        }
+        .animate-shake {
+          animation: shake 0.4s ease-in-out;
+        }
+        @keyframes bounce-subtle {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-2px); }
+        }
+        .animate-bounce-subtle {
+          animation: bounce-subtle 2s infinite;
+        }
+      `}} />
     </div>
   );
 };
+

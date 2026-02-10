@@ -13,6 +13,7 @@ import { StudentDetail } from './StudentDetail';
 import { ClassEditForm } from './ClassEditForm';
 import { IMPORT_TEMPLATES } from '../src/constants/import-templates';
 import { LocalErrorBoundary } from './ui/LocalErrorBoundary';
+import { Modal } from './ui/Modal';
 
 interface ClassDetailViewProps {
     classId: string;
@@ -284,93 +285,54 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
                     </div>
                 </div >
 
-                {/* Modal pour ajouter un élève */}
-                {
-                    showStudentForm && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                                    <h2 className="text-xl font-bold text-gray-900">
-                                        <i className='bx bx-user-plus mr-2'></i>
-                                        Ajouter un élève à {classData?.name}
-                                    </h2>
-                                    <button
-                                        onClick={() => setShowStudentForm(false)}
-                                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                        <i className='bx bx-x text-2xl'></i>
-                                    </button>
-                                </div>
-                                <div className="p-6">
-                                    <StudentRegistrationForm
-                                        onSuccess={(newStudent) => {
-                                            setShowStudentForm(false);
-                                            loadClassDetails(); // Recharger les données
-                                        }}
-                                        onCancel={() => setShowStudentForm(false)}
-                                        prefilledClassId={classId}
-                                        prefilledGradeLevel={classData?.level}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )
-                }
+                <Modal
+                    isOpen={showStudentForm}
+                    onClose={() => setShowStudentForm(false)}
+                    title={`Ajouter un élève à ${classData?.name}`}
+                    size="xl"
+                >
+                    <StudentRegistrationForm
+                        onSuccess={(newStudent) => {
+                            setShowStudentForm(false);
+                            loadClassDetails();
+                        }}
+                        onCancel={() => setShowStudentForm(false)}
+                        prefilledClassId={classId}
+                        prefilledGradeLevel={classData?.level}
+                    />
+                </Modal>
 
-                {/* Modal pour afficher la fiche élève */}
-                {
-                    selectedStudent && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-                                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                                            {selectedStudent.firstName?.[0]}{selectedStudent.lastName?.[0]}
-                                        </div>
-                                        <div>
-                                            <h2 className="text-xl font-bold text-gray-900">
-                                                {selectedStudent.firstName} {selectedStudent.lastName}
-                                            </h2>
-                                            <p className="text-sm text-gray-500">
-                                                {selectedStudent.registrationNumber || selectedStudent.studentCode || 'ID non attribué'} • {classData?.name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => setSelectedStudent(null)}
-                                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                        <i className='bx bx-x text-2xl'></i>
-                                    </button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto p-6">
-                                    <StudentDetail
-                                        student={selectedStudent}
-                                        onClose={() => setSelectedStudent(null)}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )
-                }
+                <Modal
+                    isOpen={!!selectedStudent}
+                    onClose={() => setSelectedStudent(null)}
+                    title={selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : ''}
+                    size="xl"
+                >
+                    {selectedStudent && (
+                        <StudentDetail
+                            student={selectedStudent}
+                            onClose={() => setSelectedStudent(null)}
+                        />
+                    )}
+                </Modal>
 
-                {/* Modal pour éditer la classe */}
-                {
-                    showEditForm && classData && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                                <ClassEditForm
-                                    schoolClass={classData}
-                                    onSave={() => {
-                                        setShowEditForm(false);
-                                        loadClassDetails();
-                                    }}
-                                    onCancel={() => setShowEditForm(false)}
-                                />
-                            </div>
-                        </div>
-                    )
-                }
+                <Modal
+                    isOpen={showEditForm}
+                    onClose={() => setShowEditForm(false)}
+                    title="Modifier la classe"
+                    size="md"
+                >
+                    {classData && (
+                        <ClassEditForm
+                            schoolClass={classData}
+                            onSave={() => {
+                                setShowEditForm(false);
+                                loadClassDetails();
+                            }}
+                            onCancel={() => setShowEditForm(false)}
+                        />
+                    )}
+                </Modal>
             </div >
         </LocalErrorBoundary >
     );
@@ -2536,104 +2498,94 @@ const GradesTab: React.FC<{
                 </div>
             </div>
 
-            {/* Add grade modal */}
-            {showAddGradeForm && selectedStudentForGrade && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-                        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-gray-900">
-                                Ajouter une note
-                            </h3>
+            <Modal
+                isOpen={showAddGradeForm && !!selectedStudentForGrade}
+                onClose={() => {
+                    setShowAddGradeForm(false);
+                    setSelectedStudentForGrade(null);
+                }}
+                title="Ajouter une note"
+                size="md"
+            >
+                {selectedStudentForGrade && (
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.currentTarget);
+                            const subject = formData.get('subject') as string;
+                            const grade = parseFloat(formData.get('grade') as string);
+
+                            if (grade < 0 || grade > 20) {
+                                alert('La note doit être entre 0 et 20');
+                                return;
+                            }
+
+                            handleAddGrade(selectedStudentForGrade.id, subject, grade);
+                        }}
+                        className="space-y-4"
+                    >
+                        <div>
+                            <p className="text-sm text-gray-600 mb-2">
+                                Élève: <strong>{selectedStudentForGrade.firstName} {selectedStudentForGrade.lastName}</strong>
+                            </p>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Période: <strong>Trimestre {selectedPeriod.substring(1)}</strong>
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Matière <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                name="subject"
+                                required
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                {subjects.map(subject => (
+                                    <option key={subject} value={subject}>{subject}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Note /20 <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="number"
+                                name="grade"
+                                min="0"
+                                max="20"
+                                step="0.25"
+                                required
+                                placeholder="15.5"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
                             <button
+                                type="button"
                                 onClick={() => {
                                     setShowAddGradeForm(false);
                                     setSelectedStudentForGrade(null);
                                 }}
-                                className="text-gray-400 hover:text-gray-600"
+                                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                             >
-                                <i className='bx bx-x text-2xl'></i>
+                                Annuler
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            >
+                                <i className='bx bx-check'></i>
+                                Enregistrer
                             </button>
                         </div>
-
-                        <form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                const formData = new FormData(e.currentTarget);
-                                const subject = formData.get('subject') as string;
-                                const grade = parseFloat(formData.get('grade') as string);
-
-                                if (grade < 0 || grade > 20) {
-                                    alert('La note doit être entre 0 et 20');
-                                    return;
-                                }
-
-                                handleAddGrade(selectedStudentForGrade.id, subject, grade);
-                            }}
-                            className="p-6 space-y-4"
-                        >
-                            <div>
-                                <p className="text-sm text-gray-600 mb-2">
-                                    Élève: <strong>{selectedStudentForGrade.firstName} {selectedStudentForGrade.lastName}</strong>
-                                </p>
-                                <p className="text-sm text-gray-600 mb-4">
-                                    Période: <strong>Trimestre {selectedPeriod.substring(1)}</strong>
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Matière <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    name="subject"
-                                    required
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    {subjects.map(subject => (
-                                        <option key={subject} value={subject}>{subject}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Note /20 <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    name="grade"
-                                    min="0"
-                                    max="20"
-                                    step="0.25"
-                                    required
-                                    placeholder="15.5"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowAddGradeForm(false);
-                                        setSelectedStudentForGrade(null);
-                                    }}
-                                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                                >
-                                    Annuler
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                                >
-                                    <i className='bx bx-check'></i>
-                                    Enregistrer
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                    </form>
+                )}
+            </Modal>
         </div>
     );
 };

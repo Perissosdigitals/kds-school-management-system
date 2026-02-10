@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../config';
 import { httpClient } from '../../services/httpClient';
+import { Modal } from './Modal';
 
 interface DocumentPreviewModalProps {
   isOpen: boolean;
@@ -69,24 +70,14 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = React.m
     : fileData);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 transition-opacity" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-5xl h-[92vh] flex flex-col m-4 transform transition-all border border-white/20"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-              <i className={`bx ${isPdf ? 'bxs-file-pdf' : 'bxs-image'} text-2xl`}></i>
-            </div>
-            <h2 className="text-xl font-black text-slate-800 truncate max-w-[500px]" title={fileName}>{fileName}</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
-            <i className="bx bx-x text-3xl"></i>
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-hidden bg-slate-50 rounded-xl relative">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={fileName}
+      size="xl"
+    >
+      <div className="flex flex-col h-[75vh] md:h-[80vh]">
+        <div className="flex-1 overflow-hidden bg-slate-50/50 rounded-xl relative border border-slate-200/50">
           {isLoading ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white/80 backdrop-blur-sm z-10">
               <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -140,13 +131,13 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = React.m
           )}
         </div>
 
-        <div className="mt-6 flex justify-center gap-4">
+        <div className="mt-6 flex flex-col sm:flex-row justify-center gap-4">
           <a
             href={resolvedFileData.replace('preview=true', 'download=true')}
             download={fileName}
             target="_blank"
             rel="noopener noreferrer"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl transition-all flex items-center gap-2 text-sm font-black shadow-lg shadow-blue-200 active:scale-95"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-sm font-black shadow-lg shadow-blue-200 active:scale-95"
           >
             <i className='bx bxs-cloud-download text-xl'></i>
             Ouvrir / Télécharger l'original
@@ -159,6 +150,6 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = React.m
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 });
