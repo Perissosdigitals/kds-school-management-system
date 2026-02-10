@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
   isOpen: boolean;
@@ -9,7 +10,26 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'lg' }) => {
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  // Prevent scrolling when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  if (!isOpen || !mounted) return null;
 
   const sizeClasses = {
     sm: 'max-w-md',
@@ -18,7 +38,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     xl: 'max-w-6xl'
   };
 
-  return (
+  const modalContent = (
     <div className="glass-backdrop" onClick={onClose}>
       <div
         className={`glass-panel border-white/50 rounded-2xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-hidden flex flex-col animate-modal-in shadow-2xl`}
@@ -53,7 +73,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         .glass-backdrop {
           position: fixed;
           inset: 0;
-          z-index: 50;
+          z-index: 9999; /* Higher z-index for portal */
           display: flex;
           align-items: center;
           justify-content: center;
@@ -87,4 +107,6 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       `}} />
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
