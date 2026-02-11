@@ -42,6 +42,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
 
   const [availableClasses, setAvailableClasses] = useState<SchoolClass[]>([]);
   const [allClasses, setAllClasses] = useState<SchoolClass[]>([]);
+  const [availableGradeLevels, setAvailableGradeLevels] = useState<string[]>([]);
 
   // Charger toutes les classes au démarrage
   useEffect(() => {
@@ -49,6 +50,10 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
       try {
         const response = await ClassesService.getClasses({ limit: 100 });
         setAllClasses(response.data);
+
+        // Extraire les niveaux scolaires uniques des classes disponibles
+        const uniqueLevels = Array.from(new Set(response.data.map(cls => cls.level)));
+        setAvailableGradeLevels(uniqueLevels.sort());
       } catch (err) {
         console.error("Erreur lors du chargement des classes", err);
       }
@@ -306,15 +311,10 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
               required
               options={[
                 { value: '', label: 'Sélectionner...' },
-                { value: 'CP', label: 'CP' },
-                { value: 'CE1', label: 'CE1' },
-                { value: 'CE2', label: 'CE2' },
-                { value: 'CM1', label: 'CM1' },
-                { value: 'CM2', label: 'CM2' },
-                { value: '6ème', label: '6ème' },
-                { value: '5ème', label: '5ème' },
-                { value: '4ème', label: '4ème' },
-                { value: '3ème', label: '3ème' }
+                ...availableGradeLevels.map(level => ({
+                  value: level,
+                  label: level
+                }))
               ]}
             />
 
