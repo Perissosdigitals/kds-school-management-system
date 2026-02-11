@@ -11,6 +11,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Teacher } from '../../teachers/entities/teacher.entity';
 import { Student } from '../../students/entities/student.entity';
+import { TeacherClassAssignment } from './teacher-class-assignment.entity';
 
 @Entity('classes')
 export class SchoolClass {
@@ -75,4 +76,8 @@ export class SchoolClass {
   @ApiPropertyOptional({ type: () => [Student], description: 'Élèves de la classe' })
   @OneToMany(() => Student, student => student.class)
   students?: Student[];
+
+  @ApiPropertyOptional({ type: () => [TeacherClassAssignment], description: 'Affectations d\'enseignants avec rôles' })
+  @OneToMany(() => TeacherClassAssignment, assignment => assignment.class)
+  teacherAssignments?: TeacherClassAssignment[];
 }

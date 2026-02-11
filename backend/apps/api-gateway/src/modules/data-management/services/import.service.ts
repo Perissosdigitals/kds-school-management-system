@@ -5,6 +5,8 @@ import * as XLSX from 'xlsx';
 import { Grade, EvaluationType, Trimester } from '../../grades/entities/grade.entity';
 import { Attendance, AttendanceStatus } from '../../attendance/entities/attendance.entity';
 import { Student } from '../../students/entities/student.entity';
+import { SchoolClass } from '../../classes/entities/class.entity';
+import { Teacher } from '../../teachers/entities/teacher.entity';
 
 export interface ImportResult {
   success: boolean;
@@ -40,7 +42,11 @@ export class ImportService {
     private attendanceRepository: Repository<Attendance>,
     @InjectRepository(Student)
     private studentRepository: Repository<Student>,
-  ) {}
+    @InjectRepository(SchoolClass)
+    private classRepository: Repository<SchoolClass>,
+    @InjectRepository(Teacher)
+    private teacherRepository: Repository<Teacher>,
+  ) { }
 
   /**
    * Import grades from Excel/CSV file
@@ -280,12 +286,12 @@ export class ImportService {
           student.registrationNumber = row['ID'] || row['id'] || row['Matricule'];
           student.firstName = row['Prénom'] || row['firstName'];
           student.lastName = row['Nom'] || row['lastName'];
-          
+
           // Date handling
           if (row['Date Naissance']) {
-             student.dob = new Date(row['Date Naissance']);
+            student.dob = new Date(row['Date Naissance']);
           } else if (row['dob']) {
-             student.dob = new Date(row['dob']);
+            student.dob = new Date(row['dob']);
           }
 
           // Gender mapping
@@ -295,22 +301,22 @@ export class ImportService {
           else student.gender = genderRaw;
 
           student.gradeLevel = row['Classe'] || row['gradeLevel'];
-          
+
           // Contact Urgence splitting (Name + Phone)
           const contactUrgence = row['Contact Urgence'] || row['emergencyContact'];
           if (contactUrgence) {
-             // Simple heuristic: split by first number found, or just put all in name
-             // For now, put all in name as phone is optional in entity but required in DB?
-             // Entity has emergencyContactName and emergencyContactPhone.
-             // Let's try to extract phone if it looks like a phone number
-             const phoneMatch = contactUrgence.match(/(\+?\d[\d\s]{8,})/);
-             if (phoneMatch) {
-                 student.emergencyContactPhone = phoneMatch[0].trim();
-                 student.emergencyContactName = contactUrgence.replace(phoneMatch[0], '').trim();
-             } else {
-                 student.emergencyContactName = contactUrgence;
-                 student.emergencyContactPhone = ''; // Or default '0'
-             }
+            // Simple heuristic: split by first number found, or just put all in name
+            // For now, put all in name as phone is optional in entity but required in DB?
+            // Entity has emergencyContactName and emergencyContactPhone.
+            // Let's try to extract phone if it looks like a phone number
+            const phoneMatch = contactUrgence.match(/(\+?\d[\d\s]{8,})/);
+            if (phoneMatch) {
+              student.emergencyContactPhone = phoneMatch[0].trim();
+              student.emergencyContactName = contactUrgence.replace(phoneMatch[0], '').trim();
+            } else {
+              student.emergencyContactName = contactUrgence;
+              student.emergencyContactPhone = ''; // Or default '0'
+            }
           }
 
           student.phone = row['Téléphone'] || row['phone'];
@@ -321,7 +327,7 @@ export class ImportService {
 
           student.medicalInfo = row['Info Médicale'] || row['medicalInfo'];
           if (student.medicalInfo === '0') student.medicalInfo = '';
-          
+
           // Status mapping
           const statusRaw = row['Statut'] || row['status'] || 'Actif';
           student.status = statusRaw as any;
@@ -373,9 +379,185 @@ export class ImportService {
       );
 
       return result;
+      return result;
     } catch (error) {
       this.logger.error('Students import failed', error.stack);
       throw new BadRequestException(`Échec import élèves: ${error.message}`);
+    }
+  }
+
+  /**
+   * Import teachers from file
+   */
+  async importTeachersFromFile(fileBuffer: Buffer): Promise<ImportResult> {
+    this.logger.log('Importing teachers from file');
+
+    const result: ImportResult = {
+      success: false,
+      totalRows: 0,
+      successfulImports: 0,
+      failedImports: 0,
+      errors: [],
+      warnings: [],
+    };
+
+    try {
+      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet);
+
+      result.totalRows = data.length;
+
+      for (let i = 0; i < data.length; i++) {
+        const row: any = data[i];
+        const rowNumber = i + 2;
+
+        try {
+          // Check for existing teacher by email
+          const email = row['Email'] || row['email'];
+          let teacher = await this.teacherRepository.findOne({ where: { email } });
+
+          if (!teacher) {
+            teacher = new Teacher();
+            teacher.email = email;
+          }
+
+          teacher.firstName = row['Prenom'] || row['firstName'];
+          teacher.lastName = row['Nom'] || row['lastName'];
+          teacher.phone = row['Tel'] || row['phone'];
+          teacher.subject = row['Matiere'] || row['subject'];
+
+          // Basic validation
+          if (!teacher.firstName || !teacher.lastName || !teacher.email) {
+            result.errors.push({
+              row: rowNumber,
+              message: 'Nom, prénom et email requis',
+            });
+            result.failedImports++;
+            continue;
+          }
+
+          // Save teacher first
+          const savedTeacher = await this.teacherRepository.save(teacher);
+
+          // Handle Class Assignments if present
+          const classesStr = row['Classes_Assignees'] || row['classes'];
+          if (classesStr) {
+            const classNames = classesStr.toString().split(',').map((c: string) => c.trim());
+            for (const className of classNames) {
+              const cls = await this.classRepository.findOne({ where: { name: className } });
+              if (cls) {
+                cls.mainTeacher = savedTeacher;
+                await this.classRepository.save(cls);
+              } else {
+                result.warnings.push(`Ligne ${rowNumber}: Classe "${className}" introuvable`);
+              }
+            }
+          }
+
+          result.successfulImports++;
+        } catch (error) {
+          result.errors.push({
+            row: rowNumber,
+            message: error.message,
+          });
+          result.failedImports++;
+        }
+      }
+
+      result.success = result.failedImports === 0;
+      return result;
+    } catch (error) {
+      this.logger.error('Teachers import failed', error.stack);
+      throw new BadRequestException(`Échec import professeurs: ${error.message}`);
+    }
+  }
+
+  /**
+   * Import classes from file
+   */
+  async importClassesFromFile(fileBuffer: Buffer): Promise<ImportResult> {
+    this.logger.log('Importing classes from file');
+
+    const result: ImportResult = {
+      success: false,
+      totalRows: 0,
+      successfulImports: 0,
+      failedImports: 0,
+      errors: [],
+      warnings: [],
+    };
+
+    try {
+      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet);
+
+      result.totalRows = data.length;
+
+      for (let i = 0; i < data.length; i++) {
+        const row: any = data[i];
+        const rowNumber = i + 2;
+
+        try {
+          const className = row['Nom_Classe'] || row['name'];
+          if (!className) {
+            result.errors.push({ row: rowNumber, message: 'Nom de classe requis' });
+            result.failedImports++;
+            continue;
+          }
+
+          let cls = await this.classRepository.findOne({ where: { name: className } });
+          if (!cls) {
+            cls = new SchoolClass();
+            cls.name = className;
+          }
+
+          cls.level = row['Niveau'] || row['level'];
+          cls.roomNumber = row['Salle'] || row['room'] || row['roomNumber'];
+          cls.capacity = parseInt(row['Effectif_Max'] || row['capacity'] || '30');
+          cls.academicYear = row['Année'] || row['academicYear'] || '2024-2025';
+          // cls.currentOccupancy is usually calculated, not imported, but can be set if needed
+
+          // Handle Main Teacher
+          const teacherIdentifier = row['Prof_Principal'] || row['mainTeacher'];
+          if (teacherIdentifier) {
+            // Try searching by ID first, then Email, then Name
+            let teacher = await this.teacherRepository.findOne({ where: { id: teacherIdentifier } }).catch(() => null);
+            if (!teacher) {
+              teacher = await this.teacherRepository.findOne({ where: { email: teacherIdentifier } });
+            }
+            if (!teacher) {
+              // Try splitting name? For now, simple search
+              teacher = await this.teacherRepository.findOne({ where: { lastName: teacherIdentifier } });
+            }
+
+            if (teacher) {
+              cls.mainTeacher = teacher;
+            } else {
+              result.warnings.push(`Ligne ${rowNumber}: Professeur principal "${teacherIdentifier}" introuvable`);
+            }
+          }
+
+          await this.classRepository.save(cls);
+          result.successfulImports++;
+
+        } catch (error) {
+          result.errors.push({
+            row: rowNumber,
+            message: error.message,
+          });
+          result.failedImports++;
+        }
+      }
+
+      result.success = result.failedImports === 0;
+      return result;
+    } catch (error) {
+      this.logger.error('Classes import failed', error.stack);
+      throw new BadRequestException(`Échec import classes: ${error.message}`);
     }
   }
 

@@ -100,6 +100,7 @@ export interface Teacher {
   subjects?: string[];
   // Relational data
   classes?: SchoolClass[];
+  classAssignments?: TeacherClassAssignment[];
   students?: Student[];
   address?: string;
   emergencyContact?: string;
@@ -170,6 +171,19 @@ export interface AttendanceRecord {
   class?: SchoolClass;
 }
 
+export type TeacherStatus = 'Actif' | 'Inactif';
+export type TeacherRole = 'main' | 'sports' | 'art' | 'music' | 'science' | 'language' | 'computer' | 'other';
+
+export interface TeacherClassAssignment {
+  id: string;
+  teacherId: string;
+  classId: string;
+  role: TeacherRole;
+  assignedAt: string;
+  teacher?: Teacher;
+  class?: SchoolClass;
+}
+
 export interface SchoolClass {
   id: string;
   registrationNumber?: string;
@@ -185,6 +199,7 @@ export interface SchoolClass {
   // Relational data
   students?: Student[];
   teacher?: Teacher;
+  teacherAssignments?: TeacherClassAssignment[];
 }
 
 export interface Subject {

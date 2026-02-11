@@ -24,6 +24,14 @@ const mapApiTeacherToFrontend = (apiTeacher: any): Teacher => {
     mainSubject = 'Non spécifié';
   }
 
+  // 🔍 DEBUG: Log classes array from API
+  console.log(`🔍 Mapping teacher ${apiTeacher.firstName} ${apiTeacher.lastName}:`, {
+    hasClasses: !!apiTeacher.classes,
+    classesType: Array.isArray(apiTeacher.classes) ? 'array' : typeof apiTeacher.classes,
+    classesLength: apiTeacher.classes?.length || 0,
+    classesData: apiTeacher.classes
+  });
+
   return {
     id: apiTeacher.id,
     firstName: apiTeacher.first_name || apiTeacher.firstName || '',
@@ -43,6 +51,7 @@ const mapApiTeacherToFrontend = (apiTeacher: any): Teacher => {
     qualifications: apiTeacher.qualifications || '',
     // Données relationnelles (si fournies par l'API)
     classes: apiTeacher.classes || [],
+    classAssignments: apiTeacher.classAssignments || [],
     students: apiTeacher.students || []
   };
 };

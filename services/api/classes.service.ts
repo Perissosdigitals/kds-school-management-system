@@ -1,5 +1,5 @@
 import { httpClient } from '../httpClient';
-import type { SchoolClass, Teacher, Student, TimetableSession, Evaluation, Grade } from '../../types';
+import type { SchoolClass, Teacher, Student, TimetableSession, Evaluation, Grade, TeacherClassAssignment } from '../../types';
 
 export interface ClassListData {
   classes: SchoolClass[];
@@ -11,6 +11,7 @@ export interface ClassDetailData {
   classInfo: SchoolClass;
   students: Student[];
   teacher: Teacher | undefined;
+  teacherAssignments: TeacherClassAssignment[];
   timetable: TimetableSession[];
   evaluations: Evaluation[];
   grades: Grade[];
@@ -72,7 +73,8 @@ const mapApiClassToFrontend = (apiClass: any): SchoolClass => {
         : apiClass.teacherName || '',
     room: apiClass.room_number || apiClass.roomNumber || apiClass.room || '',
     academicYear: apiClass.academic_year || apiClass.academicYear || '2024-2025',
-    schedule: apiClass.schedule || []
+    schedule: apiClass.schedule || [],
+    teacherAssignments: apiClass.teacherAssignments || []
   };
 };
 
@@ -213,6 +215,24 @@ export const ClassesService = {
         };
       }
 
+      // Tous les enseignants affectés
+      const teacherAssignments: TeacherClassAssignment[] = (apiClass.teacherAssignments || []).map((a: any) => ({
+        id: a.id,
+        teacherId: a.teacherId,
+        classId: a.classId,
+        role: a.role,
+        assignedAt: a.assignedAt,
+        teacher: a.teacher ? {
+          id: a.teacher.id,
+          firstName: a.teacher.firstName,
+          lastName: a.teacher.lastName,
+          subject: a.teacher.specialization || 'Non spécifié',
+          email: a.teacher.user?.email || a.teacher.email,
+          phone: a.teacher.user?.phone || a.teacher.phone,
+          status: a.teacher.status === 'active' ? 'Actif' : 'Inactif'
+        } : undefined
+      }));
+
       // Charger l'emploi du temps depuis l'API
       let timetableData: TimetableSession[] = [];
       try {
@@ -244,6 +264,7 @@ export const ClassesService = {
         classInfo,
         students,
         teacher,
+        teacherAssignments,
         timetable: timetableData,
         evaluations: [], // Feature to be implemented via API
         grades: [],      // Feature to be implemented via API
@@ -380,4 +401,58 @@ export const getClassesData = async (): Promise<ClassListData> => {
 
 export const getSingleClassData = async (classId: string): Promise<ClassDetailData | null> => {
   return ClassesService.getClassById(classId);
+};
+
+// ========================================
+// TEACHER ASSIGNMENT METHODS
+// ========================================
+
+/**
+ * Assign a teacher to a class with a specific role
+ */
+export const assignTeacherToClass = async (
+  classId: string,
+  teacherId: string,
+  role: import('../../types').TeacherRole
+): Promise<import('../../types').TeacherClassAssignment> => {
+  try {
+    const response = await httpClient.post(`/classes/${classId}/teachers`, {
+      teacherId,
+      role,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error assigning teacher to class:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove a teacher assignment from a class
+ */
+export const removeTeacherFromClass = async (
+  classId: string,
+  teacherId: string
+): Promise<void> => {
+  try {
+    await httpClient.delete(`/classes/${classId}/teachers/${teacherId}`);
+  } catch (error) {
+    console.error('Error removing teacher from class:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all teacher assignments for a class
+ */
+export const getClassTeachers = async (
+  classId: string
+): Promise<import('../../types').TeacherClassAssignment[]> => {
+  try {
+    const response = await httpClient.get(`/classes/${classId}/teachers`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching class teachers:', error);
+    throw error;
+  }
 };

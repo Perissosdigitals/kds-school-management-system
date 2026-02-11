@@ -1347,29 +1347,50 @@ app.delete('/api/v1/students/:id', async (c) => {
 app.get('/api/v1/teachers', async (c) => {
     const { results } = await c.env.DB.prepare(`
         SELECT t.*, 
-               COALESCE(u.first_name, t.first_name) as first_name, 
-               COALESCE(u.last_name, t.last_name) as last_name, 
-               COALESCE(u.email, t.email) as email
+               u.first_name as user_first_name, 
+               u.last_name as user_last_name, 
+               u.email as user_email
         FROM teachers t 
         LEFT JOIN users u ON t.user_id = u.id 
         WHERE t.status = 'active'
     `).all();
-    return c.json(results.map(mapTeacher));
+
+    // Fetch active classes to populate 'classes' array for each teacher
+    const classesRes = await c.env.DB.prepare("SELECT * FROM classes WHERE is_active = 1").all();
+    const allClasses = classesRes.results;
+
+    return c.json(results.map(t => {
+        const mapped = mapTeacher(t);
+        mapped.classes = allClasses
+            .filter((cls: any) => cls.main_teacher_id === t.id)
+            .map(mapClass);
+        return mapped;
+    }));
 });
 
 app.get('/api/v1/teachers/:id', async (c) => {
+    const id = c.req.param('id');
     const teacher = await c.env.DB.prepare(`
         SELECT t.*, 
-               COALESCE(u.first_name, t.first_name) as first_name, 
-               COALESCE(u.last_name, t.last_name) as last_name, 
-               COALESCE(u.email, t.email) as email,
-               COALESCE(u.phone, t.phone) as phone, 
+               u.first_name as user_first_name, 
+               u.last_name as user_last_name, 
+               u.email as user_email,
+               u.phone as user_phone, 
                u.avatar_url
         FROM teachers t 
         LEFT JOIN users u ON t.user_id = u.id 
         WHERE t.id = ?
-    `).bind(c.req.param('id')).first();
-    return teacher ? c.json(mapTeacher(teacher)) : c.json({ error: 'Not found' }, 404);
+    `).bind(id).first();
+
+    if (!teacher) return c.json({ error: 'Not found' }, 404);
+
+    const mapped = mapTeacher(teacher);
+
+    // Fetch assigned classes
+    const classesRes = await c.env.DB.prepare("SELECT * FROM classes WHERE main_teacher_id = ? AND is_active = 1").bind(id).all();
+    mapped.classes = classesRes.results.map(mapClass);
+
+    return c.json(mapped);
 });
 
 app.post('/api/v1/teachers', async (c) => {
@@ -1378,6 +1399,7 @@ app.post('/api/v1/teachers', async (c) => {
         const id = data.id || crypto.randomUUID();
         const userId = data.userId || `user-teacher-${id}`;
         const isEntryActive = (data.status === 'Actif' || data.status === 'active');
+        const classIds = data.classIds; // Capture classIds from payload
 
         const statements = [];
 
@@ -1409,6 +1431,19 @@ app.post('/api/v1/teachers', async (c) => {
             statements.push(updateMetricSQL(c.env.DB, 'total_teachers', 1));
         }
 
+        // Handle Class Assignments (New Teachers)
+        if (classIds && Array.isArray(classIds) && classIds.length > 0) {
+            // We can't batch these easily in the same transaction as they depend on the teacher existing? 
+            // D1 batch is transactional. teacher ID is known.
+            // But we can't use 'update' on classes easily if we want to be safe.
+            // We'll add them to the batch loop.
+            classIds.forEach(cid => {
+                statements.push(
+                    c.env.DB.prepare("UPDATE classes SET main_teacher_id = ? WHERE id = ?").bind(id, cid)
+                );
+            });
+        }
+
         await c.env.DB.batch(statements);
 
         // Persistence confirmation
@@ -1419,7 +1454,19 @@ app.post('/api/v1/teachers', async (c) => {
             WHERE t.id = ?
         `).bind(id).first();
 
-        return c.json(mapTeacher(teacher), 201);
+        const mapped = mapTeacher(teacher);
+
+        // Return with classes if assigned
+        if (classIds && Array.isArray(classIds) && classIds.length > 0) {
+            // For simplicity, we just attach them if we know we updated them, 
+            // but cleaner to fetch.
+            const classesRes = await c.env.DB.prepare("SELECT * FROM classes WHERE main_teacher_id = ? AND is_active = 1").bind(id).all();
+            mapped.classes = classesRes.results.map(mapClass);
+        } else {
+            mapped.classes = [];
+        }
+
+        return c.json(mapped, 201);
     } catch (error) {
         console.error('Teacher creation error:', error);
         return c.json({ error: 'Failed to create teacher', message: error instanceof Error ? error.message : 'Unknown' }, 500);
@@ -1430,6 +1477,7 @@ app.put('/api/v1/teachers/:id', async (c) => {
     try {
         const id = c.req.param('id');
         const data = await c.req.json();
+        const classIds = data.classIds; // Capture classIds
 
         // 1. Fetch current teacher to check for user_id
         const currentTeacher = await c.env.DB.prepare('SELECT user_id FROM teachers WHERE id = ?').bind(id).first() as { user_id: string | null };
@@ -1443,10 +1491,6 @@ app.put('/api/v1/teachers/:id', async (c) => {
         statements.push(c.env.DB.prepare(`
             UPDATE teachers SET 
                 registration_number = COALESCE(?, registration_number),
-                first_name = COALESCE(?, first_name),
-                last_name = COALESCE(?, last_name),
-                email = COALESCE(?, email),
-                phone = COALESCE(?, phone),
                 specialization = COALESCE(?, specialization),
                 hire_date = COALESCE(?, hire_date),
                 status = COALESCE(?, status),
@@ -1457,10 +1501,6 @@ app.put('/api/v1/teachers/:id', async (c) => {
             WHERE id = ?
         `).bind(
             data.registrationNumber || null,
-            data.firstName || null,
-            data.lastName || null,
-            data.email || null,
-            data.phone || null,
             data.subject || data.specialization || null,
             data.hireDate || null,
             (data.status === 'Actif' || data.status === 'active') ? 'active' : data.status === 'inactive' ? 'inactive' : null,
@@ -1489,9 +1529,25 @@ app.put('/api/v1/teachers/:id', async (c) => {
             ));
         }
 
-        // 4. Sync metrics if status was updated
+        // 4. Handle Class Assignments
+        // We separate this from the batch if it requires a 'delete all' first, 
+        // OR we include it in batch if we carefully construct it.
+        // Clearing logic: UPDATE classes SET main_teacher_id = NULL WHERE main_teacher_id = ?
+        if (classIds && Array.isArray(classIds)) {
+            // Unset all first
+            statements.push(c.env.DB.prepare("UPDATE classes SET main_teacher_id = NULL WHERE main_teacher_id = ?").bind(id));
+
+            // Set new
+            classIds.forEach(cid => {
+                statements.push(
+                    c.env.DB.prepare("UPDATE classes SET main_teacher_id = ? WHERE id = ?").bind(id, cid)
+                );
+            });
+        }
+
+        // 5. Sync metrics if status was updated
         if (data.status) {
-            statements.push(updateMetricSQL(c.env.DB, 'total_teachers', 0)); // Placeholder or trigger sync
+            statements.push(updateMetricSQL(c.env.DB, 'total_teachers', 0));
         }
 
         await c.env.DB.batch(statements);
@@ -1501,19 +1557,25 @@ app.put('/api/v1/teachers/:id', async (c) => {
             await syncMetricSQL(c.env.DB, 'total_teachers', "SELECT COUNT(*) FROM teachers WHERE LOWER(status) IN ('active', 'actif')").run();
         }
 
-        // 5. Return updated record with LEFT JOIN to support teachers without users
+        // 6. Return updated record
         const updated = await c.env.DB.prepare(`
             SELECT t.*, 
-                   COALESCE(u.first_name, t.first_name) as first_name, 
-                   COALESCE(u.last_name, t.last_name) as last_name, 
-                   COALESCE(u.email, t.email) as email,
-                   COALESCE(u.phone, t.phone) as phone
+                   u.first_name as user_first_name, 
+                   u.last_name as user_last_name, 
+                   u.email as user_email,
+                   u.phone as user_phone
             FROM teachers t 
             LEFT JOIN users u ON t.user_id = u.id 
             WHERE t.id = ?
         `).bind(id).first();
 
-        return c.json(mapTeacher(updated));
+        const mapped = mapTeacher(updated);
+
+        // Attach classes
+        const classesRes = await c.env.DB.prepare("SELECT * FROM classes WHERE main_teacher_id = ? AND is_active = 1").bind(id).all();
+        mapped.classes = classesRes.results.map(mapClass);
+
+        return c.json(mapped);
     } catch (error) {
         console.error('Teacher update error:', error);
         return c.json({ error: 'Failed to update teacher', message: error instanceof Error ? error.message : 'Unknown' }, 500);

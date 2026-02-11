@@ -21,7 +21,9 @@ import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
 import { QueryClassesDto } from './dto/query-classes.dto';
+import { AssignTeacherDto } from './dto/assign-teacher.dto';
 import { SchoolClass } from './entities/class.entity';
+import { TeacherClassAssignment } from './entities/teacher-class-assignment.entity';
 
 @ApiTags('classes')
 @ApiBearerAuth()
@@ -116,5 +118,39 @@ export class ClassesController {
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.classesService.remove(id);
     return { message: 'Classe supprimée avec succès' };
+  }
+
+  // ========================================
+  // TEACHER ASSIGNMENT ENDPOINTS
+  // ========================================
+
+  @Post(':id/teachers')
+  @ApiOperation({ summary: 'Affecter un enseignant à une classe avec un rôle' })
+  @ApiResponse({ status: 201, description: 'Enseignant affecté avec succès', type: TeacherClassAssignment })
+  @ApiResponse({ status: 404, description: 'Classe ou enseignant non trouvé' })
+  async assignTeacher(
+    @Param('id', ParseUUIDPipe) classId: string,
+    @Body() assignDto: AssignTeacherDto,
+  ) {
+    return this.classesService.assignTeacher(classId, assignDto);
+  }
+
+  @Delete(':id/teachers/:teacherId')
+  @ApiOperation({ summary: 'Retirer un enseignant d\'une classe' })
+  @ApiResponse({ status: 200, description: 'Enseignant retiré avec succès' })
+  @ApiResponse({ status: 404, description: 'Affectation non trouvée' })
+  async removeTeacherAssignment(
+    @Param('id', ParseUUIDPipe) classId: string,
+    @Param('teacherId', ParseUUIDPipe) teacherId: string,
+  ) {
+    await this.classesService.removeTeacherAssignment(classId, teacherId);
+    return { message: 'Enseignant retiré de la classe avec succès' };
+  }
+
+  @Get(':id/teachers')
+  @ApiOperation({ summary: 'Récupérer tous les enseignants affectés à une classe' })
+  @ApiResponse({ status: 200, description: 'Liste des enseignants affectés', type: [TeacherClassAssignment] })
+  async getClassTeachers(@Param('id', ParseUUIDPipe) classId: string) {
+    return this.classesService.getClassTeachers(classId);
   }
 }

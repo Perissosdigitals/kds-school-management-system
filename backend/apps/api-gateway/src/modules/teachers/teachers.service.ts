@@ -31,11 +31,29 @@ export class TeachersService {
   }
 
   async findAll(query?: QueryTeachersDto): Promise<Teacher[]> {
+    console.log(' TeachersService.findAll called with query:', query);
     const { subject, status, search, limit = 50, offset = 0 } = query || {};
+
+    // Utilisation de find() standard si pas de recherche complexe, sinon QueryBuilder
+    if (!search) {
+      const where: any = {};
+      if (subject) where.subject = subject;
+      if (status) where.status = status;
+
+      return this.teacherRepository.find({
+        where,
+        relations: ['classes', 'user', 'classAssignments', 'classAssignments.class'],
+        order: { lastName: 'ASC' },
+        take: limit,
+        skip: offset,
+      });
+    }
 
     const queryBuilder = this.teacherRepository.createQueryBuilder('teacher')
       .leftJoinAndSelect('teacher.user', 'user')
-      .leftJoinAndSelect('teacher.classes', 'classes');
+      .leftJoinAndSelect('teacher.classes', 'classes')
+      .leftJoinAndSelect('teacher.classAssignments', 'classAssignments')
+      .leftJoinAndSelect('classAssignments.class', 'class');
 
     if (subject) {
       queryBuilder.andWhere('teacher.subject = :subject', { subject });
@@ -63,7 +81,7 @@ export class TeachersService {
   async findOne(id: string): Promise<Teacher> {
     const teacher = await this.teacherRepository.findOne({
       where: { id },
-      relations: ['user', 'classes'],
+      relations: ['user', 'classes', 'classAssignments', 'classAssignments.class'],
     });
 
     if (!teacher) {
@@ -119,19 +137,39 @@ export class TeachersService {
   }
 
   private async assignClasses(teacherId: string, classIds: string[]): Promise<void> {
-    // Supprimer les affectations actuelles pour cet enseignant
-    await this.classRepository.update(
-      { mainTeacherId: teacherId },
-      { mainTeacherId: null }
-    );
+    console.log(`Assigning classes ${classIds.join(', ')} to teacher ${teacherId}`);
 
-    // Appliquer les nouvelles affectations
-    if (classIds.length > 0) {
-      await this.classRepository.update(
-        { id: In(classIds) },
-        { mainTeacherId: teacherId }
-      );
-    }
+    // 1. Transaction pour assurer l'intégrité des données
+    await this.teacherRepository.manager.transaction(async transactionalEntityManager => {
+      // 2. Supprimer les anciennes affectations de rôle pour cet enseignant
+      await transactionalEntityManager.delete(TeacherClassAssignment, { teacherId });
+
+      // 3. Détacher de la relation "main teacher" héritée
+      await transactionalEntityManager.createQueryBuilder()
+        .update(SchoolClass)
+        .set({ mainTeacherId: null })
+        .where("mainTeacherId = :teacherId", { teacherId })
+        .execute();
+
+      // 4. Créer les nouvelles affectations
+      if (classIds.length > 0) {
+        // Ajouter dans la table teacher_class_assignments
+        const assignments = classIds.map(classId => {
+          return transactionalEntityManager.create(TeacherClassAssignment, {
+            teacherId,
+            classId,
+            role: 'other', // Par défaut
+          });
+        });
+        await transactionalEntityManager.save(TeacherClassAssignment, assignments);
+
+        // Mettre à jour mainTeacherId sur la première classe (pour compatibilité)
+        // Note: C'est une simplification, idéalement on laisserait l'utilisateur choisir le rôle "main"
+        await transactionalEntityManager.update(SchoolClass, classIds[0], {
+          mainTeacherId: teacherId
+        });
+      }
+    });
   }
 
   async updateStatus(id: string, status: TeacherStatus): Promise<Teacher> {

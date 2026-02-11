@@ -33,7 +33,7 @@ export class DataManagementController {
     private readonly backupService: BackupService,
     private readonly validationService: ValidationService,
     private readonly migrationService: MigrationService,
-  ) {}
+  ) { }
 
   // ============= EXPORT ENDPOINTS =============
 
@@ -136,6 +136,32 @@ export class DataManagementController {
     }
 
     return this.importService.importStudentsFromFile(file.buffer);
+  }
+
+  @Post('import/teachers')
+  @ApiOperation({ summary: 'Import teachers from Excel/CSV file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'Teachers imported successfully' })
+  @UseInterceptors(FileInterceptor('file'))
+  async importTeachers(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    return this.importService.importTeachersFromFile(file.buffer);
+  }
+
+  @Post('import/classes')
+  @ApiOperation({ summary: 'Import classes from Excel/CSV file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'Classes imported successfully' })
+  @UseInterceptors(FileInterceptor('file'))
+  async importClasses(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    return this.importService.importClassesFromFile(file.buffer);
   }
 
   @Post('validate-import')

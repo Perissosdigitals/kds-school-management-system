@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Teacher } from '../types';
+import type { Teacher, TeacherClassAssignment } from '../types';
 import { exportToCSV, exportCSVTemplate } from '../utils/csvExport';
 import { IMPORT_TEMPLATES } from '../src/constants/import-templates';
 import { ImportCSVModal } from './ui/ImportCSVModal';
 import { TeachersService } from '../services/api/teachers.service';
+import { DataManagementService } from '../services/api/data-management.service';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { TeacherEditForm } from './TeacherEditForm';
+import { TeacherRoleBadge } from './ui/TeacherRoleBadge';
 
 // Separate Detail and Row views
 interface TeacherDetailProps {
@@ -236,7 +238,16 @@ const TeacherRow = React.memo(({ teacher, onViewDetail, onEdit, onDelete }: {
     <td className="px-6 py-4">{teacher.phone}</td>
     <td className="px-6 py-4">
       <div className="flex flex-wrap gap-1">
-        {teacher.classes && teacher.classes.length > 0 ? (
+        {teacher.classAssignments && teacher.classAssignments.length > 0 ? (
+          teacher.classAssignments.map(assignment => (
+            <div key={assignment.id} className="flex items-center gap-1">
+              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded border border-blue-100">
+                {assignment.class?.name || 'Unknown'}
+              </span>
+              <TeacherRoleBadge role={assignment.role} />
+            </div>
+          ))
+        ) : teacher.classes && teacher.classes.length > 0 ? (
           teacher.classes.map(c => (
             <span key={c.id} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded border border-blue-100">
               {c.name}
@@ -334,13 +345,24 @@ export const TeacherManagement: React.FC = () => {
     exportToCSV(mappedData, 'liste_professeurs', IMPORT_TEMPLATES.teachers);
   }, [teachers]);
 
-  const handleImport = useCallback((importedData: Teacher[]) => {
-    const newTeachers = importedData.map((t, index) => ({
-      ...t,
-      id: t.id || `T-IMPORT-${Date.now()}-${index}`,
-    }));
-    setTeachers(prev => [...prev, ...newTeachers]);
-    alert(`${newTeachers.length} professeur(s) importé(s) avec succès !`);
+  const handleImport = useCallback(async (importedData: Teacher[], file?: File) => {
+    if (file) {
+      try {
+        setIsLoading(true);
+        await DataManagementService.importTeachers(file);
+        alert('Import effectué avec succès !');
+        loadTeachers();
+      } catch (error) {
+        console.error('Erreur import:', error);
+        alert('Erreur lors de l\'import des professeurs.');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Fallback for when no file is passed (should not happen with updated modal)
+      // But we can keep the old logic just in case or just alert
+      console.warn('No file provided for import');
+    }
   }, []);
 
   const teacherHeaders = ['id', 'lastName', 'firstName', 'subject', 'phone', 'email', 'status'];

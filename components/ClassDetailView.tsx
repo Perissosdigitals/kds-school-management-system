@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { SchoolClass, Student, Teacher, TimetableSession, User } from '../types';
+import type { SchoolClass, Student, Teacher, TimetableSession, User, TeacherClassAssignment } from '../types';
+import { TeacherRoleBadge } from './ui/TeacherRoleBadge';
 import { ClassesService } from '../services/api/classes.service';
 import { TimetableService } from '../services/api/timetable.service';
 import { AttendanceService } from '../services/api/attendance.service';
@@ -28,6 +29,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
     const [classData, setClassData] = useState<SchoolClass | null>(null);
     const [students, setStudents] = useState<Student[]>([]);
     const [teacher, setTeacher] = useState<Teacher | null>(null);
+    const [teacherAssignments, setTeacherAssignments] = useState<TeacherClassAssignment[]>([]);
     const [timetable, setTimetable] = useState<TimetableSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
             setClassData(fullClassData.classInfo);
             setStudents(fullClassData.students || []);
             setTeacher(fullClassData.teacher || null);
+            setTeacherAssignments(fullClassData.teacherAssignments || []);
             setTimetable(fullClassData.timetable || []);
 
             console.log('📅 EMPLOI DU TEMPS chargé:', fullClassData.timetable?.length || 0, 'sessions');
@@ -258,7 +261,14 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
                     </div>
 
                     <div className="p-6">
-                        {activeTab === 'overview' && <OverviewTab classData={classData} teacher={teacher} students={students} />}
+                        {activeTab === 'overview' && (
+                            <OverviewTab
+                                classData={classData}
+                                teacher={teacher}
+                                teacherAssignments={teacherAssignments}
+                                students={students}
+                            />
+                        )}
                         {activeTab === 'students' && (
                             <StudentsTab
                                 students={students}
@@ -343,8 +353,9 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ classId, onBac
 const OverviewTab: React.FC<{
     classData: SchoolClass;
     teacher: Teacher | null;
+    teacherAssignments: TeacherClassAssignment[];
     students: Student[];
-}> = ({ classData, teacher, students }) => {
+}> = ({ classData, teacher, teacherAssignments, students }) => {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -378,53 +389,52 @@ const OverviewTab: React.FC<{
                     </dl>
                 </div>
 
-                {/* Enseignant principal */}
+                {/* Corps Enseignant */}
                 <div className="bg-gray-50 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                         <i className='bx bx-user text-green-600'></i>
-                        Enseignant principal
+                        Corps Enseignant
                     </h3>
-                    {teacher ? (
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold">
-                                    {teacher.firstName?.[0]}{teacher.lastName?.[0]}
+                    <div className="space-y-4">
+                        {teacherAssignments && teacherAssignments.length > 0 ? (
+                            teacherAssignments.map((assignment) => (
+                                <div key={assignment.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold">
+                                            {assignment.teacher?.firstName?.[0]}{assignment.teacher?.lastName?.[0]}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-gray-900">
+                                                {assignment.teacher?.firstName} {assignment.teacher?.lastName}
+                                            </p>
+                                            <p className="text-xs text-gray-500">{assignment.teacher?.subject}</p>
+                                        </div>
+                                    </div>
+                                    <TeacherRoleBadge role={assignment.role} />
                                 </div>
-                                <div>
-                                    <p className="font-semibold text-gray-900">
-                                        {teacher.firstName} {teacher.lastName}
-                                    </p>
-                                    <p className="text-sm text-gray-500">{teacher.subject}</p>
+                            ))
+                        ) : teacher ? (
+                            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold">
+                                        {teacher.firstName?.[0]}{teacher.lastName?.[0]}
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-gray-900">
+                                            {teacher.firstName} {teacher.lastName}
+                                        </p>
+                                        <p className="text-xs text-gray-500">{teacher.subject}</p>
+                                    </div>
                                 </div>
+                                <TeacherRoleBadge role="main" />
                             </div>
-                            <dl className="space-y-2 mt-4">
-                                <div>
-                                    <dt className="text-sm text-gray-500">Email</dt>
-                                    <dd className="text-sm font-medium text-gray-900">{teacher.email}</dd>
-                                </div>
-                                <div>
-                                    <dt className="text-sm text-gray-500">Téléphone</dt>
-                                    <dd className="text-sm font-medium text-gray-900">{teacher.phone}</dd>
-                                </div>
-                                <div>
-                                    <dt className="text-sm text-gray-500">Statut</dt>
-                                    <dd>
-                                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${teacher.status === 'Actif'
-                                            ? 'bg-green-100 text-green-700'
-                                            : 'bg-gray-100 text-gray-700'
-                                            }`}>
-                                            {teacher.status}
-                                        </span>
-                                    </dd>
-                                </div>
-                            </dl>
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            <i className='bx bx-user-x text-4xl mb-2'></i>
-                            <p>Aucun enseignant assigné</p>
-                        </div>
-                    )}
+                        ) : (
+                            <div className="text-center py-8 text-gray-500">
+                                <i className='bx bx-user-x text-4xl mb-2'></i>
+                                <p>Aucun enseignant assigné</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

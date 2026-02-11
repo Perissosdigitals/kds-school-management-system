@@ -5,7 +5,7 @@ import { Modal } from './Modal';
 interface ImportCSVModalProps<T> {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (data: T[]) => void;
+  onImport: (data: T[], file?: File) => void;
   title: string;
   expectedHeaders: string[];
 }
@@ -55,7 +55,7 @@ const ImportCSVModalComponent = <T extends Record<string, any>>({ isOpen, onClos
           throw new Error("Le fichier CSV ne contient aucune donnée à importer.");
         }
 
-        onImport(data);
+        onImport(data, file);
         handleClose();
       } catch (e: any) {
         setError(e.message || "Erreur lors de l'analyse du fichier CSV.");

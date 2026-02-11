@@ -11,6 +11,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { User } from '../../users/entities/user.entity';
 import { SchoolClass } from '../../classes/entities/class.entity';
+import { TeacherClassAssignment } from '../../classes/entities/teacher-class-assignment.entity';
 
 export type TeacherStatus = 'Actif' | 'Inactif';
 
@@ -87,6 +88,10 @@ export class Teacher {
   @ApiPropertyOptional({ type: () => [SchoolClass] })
   @OneToMany(() => SchoolClass, schoolClass => schoolClass.mainTeacher)
   classes?: SchoolClass[];
+
+  @ApiPropertyOptional({ type: () => [TeacherClassAssignment], description: 'Affectations de classes avec rôles' })
+  @OneToMany(() => TeacherClassAssignment, assignment => assignment.teacher)
+  classAssignments?: TeacherClassAssignment[];
 
   @ApiProperty()
   @CreateDateColumn({ name: 'created_at' })

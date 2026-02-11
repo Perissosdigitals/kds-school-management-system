@@ -11,10 +11,11 @@ import { Grade } from '../grades/entities/grade.entity';
 import { Attendance } from '../attendance/entities/attendance.entity';
 import { Student } from '../students/entities/student.entity';
 import { SchoolClass } from '../classes/entities/class.entity';
+import { Teacher } from '../teachers/entities/teacher.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Grade, Attendance, Student, SchoolClass]),
+    TypeOrmModule.forFeature([Grade, Attendance, Student, SchoolClass, Teacher]),
   ],
   controllers: [DataManagementController],
   providers: [
@@ -27,4 +28,4 @@ import { SchoolClass } from '../classes/entities/class.entity';
   ],
   exports: [ExportService, ImportService, BackupService, ValidationService, MigrationService],
 })
-export class DataManagementModule {}
+export class DataManagementModule { }

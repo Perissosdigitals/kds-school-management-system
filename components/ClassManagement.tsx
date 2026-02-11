@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { User, Page, SchoolClass, Student, TimetableSession, Evaluation, Grade, Teacher } from '../types';
+import type { User, Page, SchoolClass, Student, TimetableSession, Evaluation, Grade, Teacher, TeacherClassAssignment } from '../types';
 import { getClassesData, ClassDetailData, getSingleClassData, ClassesService, ClassQueryParams } from '../services/api/classes.service';
 import { getSubjectColor } from '../utils/colorUtils';
 import { LoadingSpinner } from './ui/LoadingSpinner';
@@ -8,6 +8,10 @@ import { ClassDetailView as NewClassDetailView } from './ClassDetailView';
 import { TeachersService } from '../services/api/teachers.service';
 import { StudentsService } from '../services/api/students.service';
 import { Modal } from './ui/Modal';
+import { DataManagementService } from '../services/api/data-management.service';
+import { ImportCSVModal } from './ui/ImportCSVModal';
+import { IMPORT_TEMPLATES } from '../src/constants/import-templates';
+import { TeacherRoleBadge } from './ui/TeacherRoleBadge';
 
 // --- Types ---
 
@@ -182,7 +186,8 @@ const ClassListView: React.FC<{
     onEditClass: (cls: SchoolClass) => void;
     onDeleteClass: (cls: SchoolClass) => void;
     onCreateClass: () => void;
-}> = ({ classes, teachers, students, totalClasses, filters, onFilterChange, onSelectClass, onEditClass, onDeleteClass, onCreateClass }) => {
+    onImportClick: () => void;
+}> = ({ classes, teachers, students, totalClasses, filters, onFilterChange, onSelectClass, onEditClass, onDeleteClass, onCreateClass, onImportClick }) => {
 
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
@@ -257,6 +262,13 @@ const ClassListView: React.FC<{
                 >
                     <i className='bx bx-plus-circle'></i>
                     <span>Nouvelle Classe</span>
+                </button>
+                <button
+                    onClick={onImportClick}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300"
+                >
+                    <i className='bx bxs-file-import'></i>
+                    <span>Importer CSV</span>
                 </button>
             </div>
 
@@ -463,7 +475,22 @@ const ClassListView: React.FC<{
                                 )}
                             </div>
                             <div className="text-sm text-gray-500 space-y-1">
-                                <p className="flex items-center gap-2"><i className='bx bxs-user-badge'></i> {findTeacherName(cls.teacherId)}</p>
+                                {/* Display all teachers with role badges */}
+                                {cls.teacherAssignments && cls.teacherAssignments.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1 items-center">
+                                        <i className='bx bxs-user-badge'></i>
+                                        {cls.teacherAssignments.map((assignment) => (
+                                            <div key={assignment.id} className="flex items-center gap-1">
+                                                <span className="text-gray-700">
+                                                    {assignment.teacher ? `${assignment.teacher.firstName} ${assignment.teacher.lastName}` : findTeacherName(assignment.teacherId)}
+                                                </span>
+                                                <TeacherRoleBadge role={assignment.role} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="flex items-center gap-2"><i className='bx bxs-user-badge'></i> {findTeacherName(cls.teacherId)}</p>
+                                )}
                                 <p className="flex items-center gap-2"><i className='bx bxs-group'></i> {countClassStudents(cls)} élèves</p>
                                 {cls.room && <p className="flex items-center gap-2"><i className='bx bxs-door-open'></i> {cls.room}</p>}
                             </div>
@@ -490,6 +517,7 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
         mainTeacherId: '',
         isActive: undefined
     });
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -567,6 +595,22 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
         setSelectedClass(null);
     };
 
+    const handleImport = async (importedData: any[], file?: File) => {
+        if (file) {
+            try {
+                setIsLoading(true);
+                await DataManagementService.importClasses(file);
+                alert('Import effectué avec succès !');
+                loadData();
+            } catch (error) {
+                console.error('Erreur import:', error);
+                alert("Erreur lors de l'import des classes.");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
     const availableClasses = useMemo(() => {
         if (!data) return [];
         if (currentUser.role === 'Enseignant') {
@@ -598,6 +642,15 @@ export const ClassManagement: React.FC<{ currentUser: User; setActivePage: (page
                 onEditClass={handleEditClass}
                 onDeleteClass={handleDeleteClass}
                 onCreateClass={handleCreateClass}
+                onImportClick={() => setIsImportModalOpen(true)}
+            />
+
+            <ImportCSVModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImport}
+                title="Importer des Classes depuis un CSV"
+                expectedHeaders={IMPORT_TEMPLATES.classes}
             />
 
             {/* Modal for Detail View */}
