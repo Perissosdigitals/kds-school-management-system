@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-02-11
+
+### Added
+- **Multiple Teachers per Class**: Support for assigning multiple teachers to a single class
+  - Enhanced `ClassManagement` enabling multi-select for teachers
+  - Updated `TeacherEditForm` to reflect multiple class assignments
+  - Backend support for many-to-many relationship between teachers and classes
+  - Synchronization fixes between modules
+
+
 ## [1.2.0-local] - 2026-01-13
 
 ### Added
